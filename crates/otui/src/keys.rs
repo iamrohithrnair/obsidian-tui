@@ -84,8 +84,11 @@ fn handle_global(app: &mut App, key: KeyEvent) -> bool {
 
     // Pane cycling skips panes that aren't on screen. The note editor and the
     // graph both bind Tab themselves — indent and next-node — so they keep it;
-    // Ctrl+Tab still switches document tabs from anywhere.
-    let owns_tab = matches!(app.focus, Focus::Note | Focus::Graph);
+    // Ctrl+Tab still switches document tabs from anywhere. The chat claims Tab
+    // only while a slash command is being typed, where completing it is what
+    // the key obviously means.
+    let completing = app.focus == Focus::Chat && crate::slash::is_command(&app.chat.input);
+    let owns_tab = matches!(app.focus, Focus::Note | Focus::Graph) || completing;
     if key.code == KeyCode::Tab && !ctrl && !owns_tab {
         cycle_focus(app, 1);
         return true;
@@ -179,9 +182,10 @@ fn handle_modal(app: &mut App, key: KeyEvent) {
         },
 
         Some(Modal::Confirm(confirm)) => match key.code {
-            // Only an explicit yes proceeds; anything else cancels, so a stray
-            // keypress can't delete a note.
-            KeyCode::Char('y' | 'Y') => {
+            // An explicit yes proceeds; anything else cancels, so a stray
+            // keypress can't delete a note. Enter agrees because the dialog is
+            // asking a question the user just triggered on purpose.
+            KeyCode::Char('y' | 'Y') | KeyCode::Enter => {
                 let action = confirm.action.clone();
                 actions::confirm(app, action);
             }
@@ -242,6 +246,7 @@ fn handle_explorer(app: &mut App, key: KeyEvent) {
             }
         }
         KeyCode::Char('?') => dispatch(app, Action::OpenHelp),
+        KeyCode::Char('q') => dispatch(app, Action::Quit),
         _ => {}
     }
 }
@@ -249,8 +254,10 @@ fn handle_explorer(app: &mut App, key: KeyEvent) {
 fn handle_note(app: &mut App, key: KeyEvent) {
     let Some(mode) = app.active().map(|t| t.mode) else {
         // With no note open, the pane behaves like the empty state's hints.
-        if key.code == KeyCode::Char('?') {
-            dispatch(app, Action::OpenHelp);
+        match key.code {
+            KeyCode::Char('?') => dispatch(app, Action::OpenHelp),
+            KeyCode::Char('q') => dispatch(app, Action::Quit),
+            _ => {}
         }
         return;
     };
@@ -283,6 +290,7 @@ fn handle_reading(app: &mut App, key: KeyEvent) {
         // of clicking one.
         KeyCode::Enter => follow_first_link(app),
         KeyCode::Char('?') => dispatch(app, Action::OpenHelp),
+        KeyCode::Char('q') => dispatch(app, Action::Quit),
         _ => {}
     }
 }
@@ -430,6 +438,7 @@ fn handle_sidebar(app: &mut App, key: KeyEvent) {
             None => {}
         },
         KeyCode::Char('?') => dispatch(app, Action::OpenHelp),
+        KeyCode::Char('q') => dispatch(app, Action::Quit),
         _ => {}
     }
 }
@@ -438,7 +447,24 @@ fn handle_chat(app: &mut App, key: KeyEvent) {
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
 
     match key.code {
+        // A slash command runs locally instead of being sent. `/model` should
+        // change the model, not ask the current one to change it.
+        KeyCode::Enter if !app.chat.busy && crate::slash::is_command(&app.chat.input) => {
+            let input = app.chat.input.trim().to_string();
+            app.chat.input.clear();
+            app.chat.cursor = 0;
+            if let crate::slash::Outcome::Unknown(name) = crate::slash::run(app, &input) {
+                app.error(format!("unknown command '/{name}' — /help lists them"));
+            }
+        }
         KeyCode::Enter if !app.chat.busy => agent::send(app),
+        // Tab completes the command being typed, the way a shell would.
+        KeyCode::Tab if crate::slash::is_command(&app.chat.input) => {
+            if let Some(command) = crate::slash::completions(&app.chat.input).first() {
+                app.chat.input = format!("/{} ", command.name);
+                app.chat.cursor = app.chat.input.chars().count();
+            }
+        }
         KeyCode::Char('c' | 'C') if ctrl => {
             app.chat.cancel();
             app.info("stopping…");
@@ -467,6 +493,7 @@ fn handle_chat(app: &mut App, key: KeyEvent) {
 }
 
 fn handle_graph(app: &mut App, key: KeyEvent) {
+    let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
     let Some(graph) = app.graph.as_mut() else {
         return;
     };
@@ -478,27 +505,17 @@ fn handle_graph(app: &mut App, key: KeyEvent) {
         KeyCode::Char('l') | KeyCode::Right => graph.center.x += step,
         KeyCode::Char('k') | KeyCode::Up => graph.center.y += step,
         KeyCode::Char('j') | KeyCode::Down => graph.center.y -= step,
-        KeyCode::Char('+' | '=') => graph.zoom = (graph.zoom * 1.25).min(20.0),
-        KeyCode::Char('-' | '_') => graph.zoom = (graph.zoom / 1.25).max(0.1),
-        KeyCode::Char('0') => {
-            graph.zoom = 1.0;
-            graph.center = otui_core::graph::Vec2::default();
-        }
-        KeyCode::Tab => {
-            let count = graph.simulation.graph.nodes.len();
-            if count > 0 {
-                let next = graph.selected.map_or(0, |s| (s + 1) % count);
-                graph.selected = Some(next);
-                // Centering on the selection keeps Tab usable as a tour.
-                graph.center = graph.simulation.graph.nodes[next].pos;
-            }
-        }
-        KeyCode::BackTab => {
-            let count = graph.simulation.graph.nodes.len();
-            if count > 0 {
-                let next = graph.selected.map_or(0, |s| (s + count - 1) % count);
-                graph.selected = Some(next);
-                graph.center = graph.simulation.graph.nodes[next].pos;
+        KeyCode::Char('+' | '=') => graph.zoom_by(1.25),
+        KeyCode::Char('-' | '_') => graph.zoom_by(1.0 / 1.25),
+        // `f` to fit and `0` to reset are the two conventions graph and image
+        // viewers use; both frame the whole layout.
+        KeyCode::Char('f' | '0') => graph.fit(),
+        KeyCode::Tab | KeyCode::Char('n') => graph.cycle_selection(1),
+        KeyCode::BackTab | KeyCode::Char('N') => graph.cycle_selection(-1),
+        // Recentre on the selection without changing zoom.
+        KeyCode::Char('c') => {
+            if let Some(selected) = graph.selected {
+                graph.focus_node(selected);
             }
         }
         KeyCode::Enter => {
@@ -519,14 +536,19 @@ fn handle_graph(app: &mut App, key: KeyEvent) {
                 Some((otui_core::graph::NodeKind::Unresolved, label)) => {
                     dispatch(app, Action::FollowLink(label));
                 }
-                _ => {}
+                _ => app.info("select a node first — Tab cycles through them"),
             }
         }
         KeyCode::Char('L') => dispatch(app, Action::ToggleGraphLabels),
         KeyCode::Char('u') => dispatch(app, Action::ToggleGraphUnresolved),
         KeyCode::Char('t') => dispatch(app, Action::ToggleGraphTags),
+        KeyCode::Char('r') if !ctrl => {
+            app.refresh_graph();
+            app.info("graph rebuilt");
+        }
         KeyCode::Esc => dispatch(app, Action::OpenNotesView),
         KeyCode::Char('?') => dispatch(app, Action::OpenHelp),
+        KeyCode::Char('q') => dispatch(app, Action::Quit),
         _ => {}
     }
 }
@@ -784,5 +806,268 @@ mod tests {
 
         assert_eq!(app.explorer.filter, "B");
         assert_eq!(app.explorer.len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod chat_command_tests {
+    use super::*;
+    use crate::agent::Entry;
+    use crate::config::Config;
+    use otui_core::test_support::TempVault;
+
+    fn app() -> (TempVault, App) {
+        let vault = TempVault::new("chat-keys");
+        vault.write("A.md", "# A\n");
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        app.focus = Focus::Chat;
+        (vault, app)
+    }
+
+    fn press(app: &mut App, code: KeyCode) {
+        handle(app, KeyEvent::new(code, KeyModifiers::empty()));
+    }
+
+    fn type_str(app: &mut App, text: &str) {
+        for ch in text.chars() {
+            press(app, KeyCode::Char(ch));
+        }
+    }
+
+    #[test]
+    fn a_slash_command_runs_locally_instead_of_being_sent() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "/writes off");
+        press(&mut app, KeyCode::Enter);
+
+        assert!(!app.config.agent.allow_writes, "the command took effect");
+        assert!(
+            app.chat.conversation.is_empty(),
+            "a command must never reach the model"
+        );
+        assert!(app.chat.input.is_empty(), "the input box is cleared");
+    }
+
+    #[test]
+    fn a_message_mentioning_a_slash_is_still_a_message() {
+        let (_v, mut app) = app();
+        // Only a leading slash is a command; prose about paths is not.
+        type_str(&mut app, "what is in /tmp");
+        assert!(!crate::slash::is_command(&app.chat.input));
+    }
+
+    #[test]
+    fn tab_completes_the_command_being_typed() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "/resu");
+        press(&mut app, KeyCode::Tab);
+
+        assert_eq!(app.chat.input, "/resume ");
+        assert_eq!(
+            app.chat.cursor,
+            app.chat.input.chars().count(),
+            "the cursor follows the completion"
+        );
+    }
+
+    #[test]
+    fn tab_in_a_normal_message_does_not_complete() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "hello");
+        press(&mut app, KeyCode::Tab);
+        assert_eq!(app.chat.input, "hello");
+    }
+
+    #[test]
+    fn an_unknown_command_is_reported_and_not_sent() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "/nope");
+        press(&mut app, KeyCode::Enter);
+
+        assert!(app.chat.conversation.is_empty());
+        assert!(
+            app.status.text.contains("unknown command"),
+            "the user is told, rather than the typo silently vanishing"
+        );
+    }
+
+    #[test]
+    fn command_output_lands_in_the_transcript() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "/vault");
+        press(&mut app, KeyCode::Enter);
+
+        assert!(
+            matches!(app.chat.transcript.last(), Some(Entry::Context(_))),
+            "output is part of the conversation's history"
+        );
+    }
+
+    #[test]
+    fn q_in_the_chat_box_types_rather_than_quits() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "q");
+        assert_eq!(app.chat.input, "q");
+        assert!(app.modal.is_none(), "no quit prompt while typing");
+    }
+}
+
+#[cfg(test)]
+mod binding_tests {
+    use super::*;
+    use crate::config::Config;
+    use otui_core::test_support::TempVault;
+
+    fn graph_app() -> (TempVault, App) {
+        let vault = TempVault::new("bindings");
+        vault.write("A.md", "# A\n\n[[B]] [[C]]\n");
+        vault.write("B.md", "# B\n\n[[C]]\n");
+        vault.write("C.md", "# C\n");
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        dispatch(&mut app, Action::OpenGraph);
+        (vault, app)
+    }
+
+    fn press(app: &mut App, ch: char) {
+        handle(app, KeyEvent::new(KeyCode::Char(ch), KeyModifiers::empty()));
+    }
+
+    #[test]
+    fn fit_frames_the_graph_rather_than_the_origin() {
+        let (_v, mut app) = graph_app();
+        {
+            let graph = app.graph.as_mut().expect("graph");
+            graph.center = otui_core::graph::Vec2::new(9_999.0, 9_999.0);
+            graph.zoom = 8.0;
+        }
+
+        press(&mut app, 'f');
+
+        let graph = app.graph.as_ref().expect("graph");
+        let (min_x, min_y, max_x, max_y) = graph.simulation.graph.bounds();
+        assert!((graph.zoom - 1.0).abs() < f32::EPSILON);
+        assert!(
+            graph.center.x >= min_x && graph.center.x <= max_x,
+            "fit must land inside the layout, not back at the origin"
+        );
+        assert!(graph.center.y >= min_y && graph.center.y <= max_y);
+    }
+
+    #[test]
+    fn zoom_is_clamped_at_both_ends() {
+        let (_v, mut app) = graph_app();
+        for _ in 0..60 {
+            press(&mut app, '+');
+        }
+        assert_eq!(app.graph.as_ref().unwrap().zoom, crate::app::MAX_ZOOM);
+        for _ in 0..120 {
+            press(&mut app, '-');
+        }
+        assert_eq!(app.graph.as_ref().unwrap().zoom, crate::app::MIN_ZOOM);
+    }
+
+    #[test]
+    fn the_first_tab_selects_the_best_connected_node() {
+        let (_v, mut app) = graph_app();
+        handle(&mut app, KeyEvent::new(KeyCode::Tab, KeyModifiers::empty()));
+
+        let graph = app.graph.as_ref().expect("graph");
+        let selected = graph.selected.expect("something is selected");
+        let best = graph
+            .simulation
+            .graph
+            .nodes
+            .iter()
+            .map(|n| n.degree)
+            .max()
+            .unwrap_or(0);
+        assert_eq!(
+            graph.simulation.graph.nodes[selected].degree, best,
+            "the first Tab should land somewhere worth looking at"
+        );
+    }
+
+    #[test]
+    fn n_and_shift_n_step_the_selection_both_ways() {
+        let (_v, mut app) = graph_app();
+        press(&mut app, 'n');
+        let first = app.graph.as_ref().unwrap().selected;
+        press(&mut app, 'n');
+        let second = app.graph.as_ref().unwrap().selected;
+        assert_ne!(first, second);
+        press(&mut app, 'N');
+        assert_eq!(app.graph.as_ref().unwrap().selected, first, "N goes back");
+    }
+
+    #[test]
+    fn c_recentres_on_the_selection() {
+        let (_v, mut app) = graph_app();
+        press(&mut app, 'n');
+        let node = {
+            let graph = app.graph.as_ref().unwrap();
+            graph.simulation.graph.nodes[graph.selected.unwrap()].pos
+        };
+        app.graph.as_mut().unwrap().center = otui_core::graph::Vec2::new(500.0, 500.0);
+
+        press(&mut app, 'c');
+
+        assert_eq!(app.graph.as_ref().unwrap().center, node);
+    }
+
+    #[test]
+    fn uppercase_l_toggles_labels_and_lowercase_l_pans() {
+        let (_v, mut app) = graph_app();
+        let before = app.config.graph.show_labels;
+        let x = app.graph.as_ref().unwrap().center.x;
+
+        press(&mut app, 'L');
+        assert_ne!(app.config.graph.show_labels, before, "L toggles labels");
+        assert_eq!(app.graph.as_ref().unwrap().center.x, x, "L does not pan");
+
+        press(&mut app, 'l');
+        assert!(app.graph.as_ref().unwrap().center.x > x, "l pans right");
+    }
+
+    #[test]
+    fn r_rebuilds_the_graph_without_leaving_the_view() {
+        let (_v, mut app) = graph_app();
+        press(&mut app, 'r');
+        assert_eq!(app.view, View::Graph);
+        assert!(app.graph.is_some());
+    }
+
+    #[test]
+    fn q_asks_before_quitting_from_the_graph() {
+        let (_v, mut app) = graph_app();
+        press(&mut app, 'q');
+        assert!(!app.quit);
+        assert!(matches!(app.modal, Some(Modal::Confirm(_))));
+    }
+
+    #[test]
+    fn enter_with_nothing_selected_says_so_instead_of_doing_nothing() {
+        let (_v, mut app) = graph_app();
+        app.graph.as_mut().unwrap().selected = None;
+        handle(
+            &mut app,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        );
+        assert!(!app.status.text.is_empty(), "silence looks like a bug");
+    }
+
+    #[test]
+    fn q_while_editing_types_rather_than_quits() {
+        let (vault, mut app) = graph_app();
+        let _ = &vault;
+        dispatch(&mut app, Action::OpenNotesView);
+        let a = app.index.id_of_rel("A.md").unwrap();
+        app.open_note(a);
+        dispatch(&mut app, Action::ToggleMode);
+        assert_eq!(app.active().map(|t| t.mode), Some(Mode::Editing));
+
+        press(&mut app, 'q');
+
+        assert!(app.modal.is_none(), "q is a letter while editing");
+        assert!(app.editor_mut().expect("editor").text().contains('q'));
     }
 }

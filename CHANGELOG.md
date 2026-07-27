@@ -4,6 +4,51 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] — 2026-07-27
+
+### Fixed
+
+- **Graph nodes render as solid discs.** Nodes were drawn by sampling a fixed
+  17 points regardless of size, which left gaps as soon as a node was more than
+  a couple of dots across and turned the graph into a field of speckle. They are
+  now rasterized onto the braille canvas's own dot lattice. Unresolved links and
+  attachments draw as hollow rings, so the notes you meant to write stand out.
+- **Resetting the graph view frames the graph.** `0` recentred on the origin,
+  but the force layout drifts away from it as it settles, so "reset" pushed the
+  view off the graph entirely. It now fits to the layout's actual bounds.
+- **Labels no longer cover the nodes they name.** Every node's full footprint is
+  reserved before any label is placed.
+- The graph legend has its own row instead of being painted over the canvas.
+- Shortcut hints, the `?` overlay and `--help` listed keys that didn't exist or
+  had the wrong case (`l` rather than `L` for labels). They now match the real
+  bindings, and tests fail the build if they drift again.
+- The README claimed Obsidian has no official CLI. It does.
+
+### Added
+
+- **Slash commands in the assistant panel.** Type `/` for a completion list;
+  `Tab` completes, `Enter` runs. Switch backend with `/provider`, `/model` and
+  `/base-url`, check credentials with `/login` and `/status`, keep and reload
+  conversations with `/save`, `/resume` and `/sessions`, and free up context
+  with `/compact`. Commands run locally and never reach the model.
+- Conversations are saved as JSON beside the config file, not in the vault.
+- **Obsidian CLI integration.** When Obsidian's [official
+  CLI](https://obsidian.md/cli) is enabled, `/obsidian` reports its status and
+  `/obsidian open` — or "Open this note in Obsidian" in the palette — hands the
+  current note to the desktop app. Absent, or with the app closed, obsidian-tui
+  says so and carries on.
+- Graph keys for fitting (`f`), recentring on the selection (`c`), stepping
+  between nodes (`n`/`N`) and rebuilding the layout (`r`).
+
+### Changed
+
+- **`q` quits, and asks first.** It works from the explorer, note pane, sidebar
+  and graph, and the prompt names how many notes have unsaved changes. `q` stays
+  a letter wherever you might be typing — the editor, the chat box, a search
+  field — and `Ctrl+Q` is the way out from there.
+- The quit and delete confirmations accept `Enter` as well as `y`; anything else
+  still cancels.
+
 ## [0.1.0] — 2026-07-27
 
 First release.
@@ -66,4 +111,5 @@ First release.
 - Unreadable vaults are reported clearly, including the macOS privacy
   permission that usually causes it.
 
+[0.1.1]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.1
 [0.1.0]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.0

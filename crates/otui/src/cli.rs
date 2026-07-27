@@ -1,8 +1,11 @@
 //! Command-line arguments and `obsidian://` URIs.
 //!
-//! Obsidian has no official CLI — it exposes an `obsidian://` URI scheme
-//! instead. obsidian-tui accepts both: ordinary flags, and the same URIs, so a
-//! link or script that opens the desktop app also opens this one.
+//! Obsidian does have an official CLI (<https://obsidian.md/cli>), but it
+//! drives the *running desktop app* — it can't do anything with Obsidian
+//! closed. obsidian-tui is the other way round: it reads and writes the vault's
+//! Markdown directly. It accepts ordinary flags plus the same `obsidian://`
+//! URIs the desktop app registers, so a link or script that opens Obsidian also
+//! opens this.
 
 use std::path::PathBuf;
 
@@ -196,9 +199,10 @@ OPTIONS:
     -V, --version          Show the version
 
 KEYS (inside the app, press ? for the full list):
-    Ctrl+O  quick switcher     Ctrl+P  command palette
-    Ctrl+E  read / edit        Ctrl+G  graph view
-    Ctrl+L  assistant panel    Ctrl+Q  quit
+    ?       keyboard shortcuts  q       quit (asks first)
+    Ctrl+O  quick switcher      Ctrl+P  command palette
+    Ctrl+E  read / edit         Ctrl+G  graph view
+    Ctrl+L  assistant panel     Ctrl+Q  quit while editing
 ";
 
 #[cfg(test)]

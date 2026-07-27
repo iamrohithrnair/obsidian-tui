@@ -97,7 +97,8 @@ obsidian-tui                   # the vault Obsidian last had open
 obsidian-tui --list-vaults     # what Obsidian knows about
 ```
 
-Obsidian has no official CLI, only its URI scheme — obsidian-tui accepts both:
+obsidian-tui accepts ordinary flags and the `obsidian://` URIs the desktop app
+registers, so a link or script that opens Obsidian also opens this:
 
 ```sh
 obsidian-tui ~/Notes --note "Project Ideas"
@@ -107,13 +108,38 @@ obsidian-tui ~/Notes --graph
 obsidian-tui 'obsidian://open?vault=Notes&file=Ideas'
 ```
 
+### Alongside Obsidian's own CLI
+
+Obsidian ships an [official CLI](https://obsidian.md/cli), enabled under
+Settings → General → "Command line interface". The two do different jobs:
+
+|  | `obsidian` | `obsidian-tui` |
+|---|---|---|
+| Talks to | the running desktop app | the vault's files |
+| Works with Obsidian closed | no | yes |
+| Over SSH / in a container | no | yes |
+
+So they complement each other rather than compete. When the `obsidian` binary is
+on your `PATH`, obsidian-tui uses it for the one thing only the app can do —
+handing a note to the GUI:
+
+- `/obsidian` in the assistant panel reports the CLI's status and the vaults the
+  app knows about.
+- `/obsidian open`, or "Open this note in Obsidian" in the command palette,
+  opens the current note in the desktop app.
+
+If the CLI isn't enabled, or Obsidian isn't running, obsidian-tui says so and
+carries on — nothing else depends on it.
+
 ## Keys
 
-Obsidian's shortcuts where it has them, vim's where it doesn't. `?` shows the
-full list in the app.
+Obsidian's shortcuts where it has them, the conventions other TUIs use where it
+doesn't. `?` shows the full list in the app.
 
 | | |
 |---|---|
+| `?` | Keyboard shortcuts |
+| `q` | Quit (asks first; `Ctrl+Q` works while editing too) |
 | `Ctrl+O` | Quick switcher |
 | `Ctrl+P` | Command palette |
 | `Ctrl+Shift+F` | Search all notes |
@@ -125,7 +151,13 @@ full list in the app.
 | `Tab` | Move between panes |
 | `hjkl`, `g`, `G` | Move within a pane |
 | `Enter` | Open / follow a link |
-| `Ctrl+Q` | Quit |
+
+In the graph: `hjkl` pans, `+`/`-` zooms, `f` fits the whole graph on screen,
+`Tab`/`Shift+Tab` steps between nodes, `c` recentres on the selection, `L`
+toggles labels, `u` unresolved links, `t` tags, and `r` rebuilds the layout.
+
+`q` never quits from somewhere you might be typing — in the editor, the chat box
+or a search field it types a `q`, and `Ctrl+Q` is the way out.
 
 A context-sensitive hint bar sits above the status bar showing the keys that
 apply where you are; `Ctrl+P` → "Toggle shortcut hints" turns it off.
@@ -198,6 +230,27 @@ obsidian-tui ~/Notes --prompt "which notes mention the Q3 migration?"
 ```
 
 Set `allow_writes = false` under `[agent]` to give it search and read only.
+
+### Slash commands
+
+Type `/` in the chat box for a completion list; `Tab` completes, `Enter` runs.
+Commands are handled locally and never reach the model — `/model` changes the
+model rather than asking the current one to.
+
+| | |
+|---|---|
+| `/help` | List the commands |
+| `/new`, `/compact` | Start over, or trim older turns to free up context |
+| `/save`, `/resume`, `/sessions` | Keep a conversation and pick it up later |
+| `/provider`, `/model`, `/base-url` | Point the agent at a different backend |
+| `/login`, `/logout`, `/status` | Credentials and what the next turn will do |
+| `/writes`, `/context`, `/reasoning` | Toggle what the agent may do and see |
+| `/tools`, `/vault`, `/obsidian` | What's available: tools, index, Obsidian CLI |
+| `/config` | Write the current settings to the config file |
+| `/keys`, `/quit` | Shortcut reference, and leave |
+
+Sessions are stored as JSON next to the config file, not in the vault, so a
+vault stays a plain folder of Markdown.
 
 ## Privacy
 

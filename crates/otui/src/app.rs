@@ -108,6 +108,54 @@ pub struct GraphView {
     pub local_root: Option<NoteId>,
 }
 
+/// Zoom limits. Below the lower bound the graph is a smudge; above the upper
+/// one a single node fills the pane.
+pub const MIN_ZOOM: f32 = 0.2;
+pub const MAX_ZOOM: f32 = 20.0;
+
+impl GraphView {
+    /// Frames the whole layout.
+    ///
+    /// The origin is not where the nodes end up — the layout drifts as it
+    /// settles — so resetting the view has to recentre on the graph's actual
+    /// bounds rather than on `(0, 0)`.
+    pub fn fit(&mut self) {
+        let (min_x, min_y, max_x, max_y) = self.simulation.graph.bounds();
+        self.center = Vec2::new((min_x + max_x) / 2.0, (min_y + max_y) / 2.0);
+        self.zoom = 1.0;
+    }
+
+    /// Centres on a node and selects it.
+    pub fn focus_node(&mut self, index: usize) {
+        if let Some(node) = self.simulation.graph.nodes.get(index) {
+            self.center = node.pos;
+            self.selected = Some(index);
+        }
+    }
+
+    /// Steps the selection through the graph, centring as it goes so the tour
+    /// stays on screen at any zoom level.
+    pub fn cycle_selection(&mut self, delta: isize) {
+        let count = self.simulation.graph.nodes.len();
+        if count == 0 {
+            return;
+        }
+        let next = match self.selected {
+            Some(current) => (current as isize + delta).rem_euclid(count as isize) as usize,
+            // Starting from the best-connected node makes the first Tab land
+            // somewhere worth looking at.
+            None => (0..count)
+                .max_by_key(|&i| self.simulation.graph.nodes[i].degree)
+                .unwrap_or(0),
+        };
+        self.focus_node(next);
+    }
+
+    pub fn zoom_by(&mut self, factor: f32) {
+        self.zoom = (self.zoom * factor).clamp(MIN_ZOOM, MAX_ZOOM);
+    }
+}
+
 /// Everything the user can ask the app to do.
 ///
 /// Kept as data rather than closures so the command palette can list them, the
@@ -165,9 +213,13 @@ pub enum Action {
     ToggleGraphOrphans,
 
     // Vault
+    /// Hand the open note to the Obsidian desktop app, via its CLI.
+    OpenInObsidian,
     Refresh,
     SaveSettings,
+    /// Asks for confirmation first; `ForceQuit` is what actually exits.
     Quit,
+    ForceQuit,
 }
 
 /// Where each interactive element was drawn, recorded every frame.

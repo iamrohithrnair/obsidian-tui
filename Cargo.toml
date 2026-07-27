@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/otui-core", "crates/otui-theme", "crates/otui-agent", "crates/otui"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.88"
 license = "MIT"
@@ -13,9 +13,9 @@ keywords = ["obsidian", "tui", "notes", "markdown", "graph"]
 categories = ["command-line-utilities", "text-editors"]
 
 [workspace.dependencies]
-otui-core = { path = "crates/otui-core", version = "0.1.0" }
-otui-theme = { path = "crates/otui-theme", version = "0.1.0" }
-otui-agent = { path = "crates/otui-agent", version = "0.1.0" }
+otui-core = { path = "crates/otui-core", version = "0.1.1" }
+otui-theme = { path = "crates/otui-theme", version = "0.1.1" }
+otui-agent = { path = "crates/otui-agent", version = "0.1.1" }
 
 ratatui = "0.30"
 crossterm = "0.29"

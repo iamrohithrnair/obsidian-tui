@@ -55,11 +55,35 @@ pub fn commands() -> Vec<Entry> {
         ),
         Entry::new("Graph: toggle tags", "", Action::ToggleGraphTags),
         Entry::new("Graph: toggle orphans", "", Action::ToggleGraphOrphans),
+        Entry::new("Open this note in Obsidian", "", Action::OpenInObsidian),
         Entry::new("Reload vault from disk", "", Action::Refresh),
         Entry::new("Save settings to config file", "", Action::SaveSettings),
         Entry::new("Keyboard shortcuts", "?", Action::OpenHelp),
-        Entry::new("Quit", "Ctrl+Q", Action::Quit),
+        Entry::new("Quit", "q", Action::Quit),
     ]
+}
+
+/// Hands the open note to the Obsidian desktop app.
+///
+/// This is the one place obsidian-tui defers to Obsidian itself: everything
+/// else it does by reading and writing Markdown directly, which is why it works
+/// with the app closed. Opening in the GUI is the exception, since only the
+/// running app can do it.
+fn open_in_obsidian(app: &mut App) {
+    let Some(id) = app.active_note() else {
+        app.error("no note open");
+        return;
+    };
+    let Some(note) = app.index.note(id) else {
+        app.error("no note open");
+        return;
+    };
+    let rel = note.meta.rel.clone();
+    let vault = app.index.vault.name.clone();
+    match crate::obsidian::open_note(Some(&vault), &rel) {
+        Ok(message) => app.info(message),
+        Err(err) => app.error(err.to_string()),
+    }
 }
 
 /// Applies an action.
@@ -337,6 +361,7 @@ pub fn dispatch(app: &mut App, action: Action) {
         }
 
         // ---- vault ------------------------------------------------------
+        Action::OpenInObsidian => open_in_obsidian(app),
         Action::Refresh => {
             app.refresh();
             app.info("reloaded from disk");
@@ -346,6 +371,20 @@ pub fn dispatch(app: &mut App, action: Action) {
             Err(err) => app.error(format!("could not save settings: {err}")),
         },
         Action::Quit => {
+            // Quitting is one keystroke away from every pane, so it asks first
+            // — and says what's at stake when there's unsaved work.
+            let unsaved = app.tabs.iter().filter(|t| t.is_modified()).count();
+            let message = match unsaved {
+                0 => "Quit obsidian-tui?".to_string(),
+                1 => "Quit obsidian-tui? 1 note has unsaved changes.".to_string(),
+                n => format!("Quit obsidian-tui? {n} notes have unsaved changes."),
+            };
+            app.modal = Some(Modal::Confirm(Confirm {
+                message,
+                action: Action::ForceQuit,
+            }));
+        }
+        Action::ForceQuit => {
             // Unsaved work is written out rather than silently dropped.
             if app.config.editor.auto_save {
                 for index in 0..app.tabs.len() {
@@ -621,15 +660,31 @@ mod tests {
     }
 
     #[test]
-    fn quitting_saves_modified_tabs() {
+    fn quitting_asks_first_and_names_the_unsaved_work() {
         let (vault, mut app) = app();
         let b = app.index.id_of_rel("B.md").unwrap();
         app.open_note(b);
         app.editor_mut().unwrap().insert_str("unsaved ");
 
         dispatch(&mut app, Action::Quit);
+        assert!(!app.quit, "the prompt has to be answered first");
+        let Some(Modal::Confirm(confirm)) = app.modal.as_ref() else {
+            panic!("expected a confirmation, got {:?}", app.modal);
+        };
+        assert!(confirm.message.contains("1 note"), "{}", confirm.message);
+
+        confirm_modal(&mut app);
         assert!(app.quit);
         assert!(vault.read("B.md").contains("unsaved"));
+    }
+
+    /// Answers whatever confirmation is on screen with a yes.
+    fn confirm_modal(app: &mut App) {
+        let Some(Modal::Confirm(c)) = app.modal.as_ref() else {
+            panic!("no confirmation on screen");
+        };
+        let action = c.action.clone();
+        confirm(app, action);
     }
 
     #[test]

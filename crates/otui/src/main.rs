@@ -9,6 +9,9 @@ mod editor;
 mod explorer;
 mod keys;
 mod modal;
+mod obsidian;
+mod session;
+mod slash;
 mod tools;
 mod ui;
 

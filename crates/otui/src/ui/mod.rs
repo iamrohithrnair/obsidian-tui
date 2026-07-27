@@ -177,7 +177,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
 fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
     let hints: &[(&str, &str)] = if app.modal.is_some() {
         match app.modal.as_ref() {
-            Some(Modal::Confirm(_)) => &[("y", "confirm"), ("n/Esc", "cancel")],
+            Some(Modal::Confirm(_)) => &[("y/Enter", "confirm"), ("Esc", "cancel")],
             Some(Modal::Help(_)) => &[("j/k", "scroll"), ("Esc", "close")],
             Some(Modal::Prompt(_)) => &[("Enter", "confirm"), ("Esc", "cancel")],
             _ => &[
@@ -191,10 +191,12 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
         &[
             ("hjkl", "pan"),
             ("+/-", "zoom"),
+            ("f", "fit"),
             ("Tab", "next node"),
             ("Enter", "open"),
             ("L", "labels"),
-            ("Esc", "back"),
+            ("?", "help"),
+            ("q", "quit"),
         ]
     } else {
         match app.focus {
@@ -204,8 +206,8 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
                 ("/", "filter"),
                 ("^N", "new"),
                 ("^O", "switcher"),
-                ("^P", "palette"),
                 ("?", "help"),
+                ("q", "quit"),
             ],
             Focus::Note => match app.active().map(|t| t.mode) {
                 Some(crate::app::Mode::Editing) => &[
@@ -220,8 +222,8 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
                     ("Enter", "follow link"),
                     ("^O", "switcher"),
                     ("^G", "graph"),
-                    ("^L", "assistant"),
                     ("?", "help"),
+                    ("q", "quit"),
                 ],
             },
             Focus::Sidebar => &[
@@ -229,14 +231,18 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
                 ("^K", "next panel"),
                 ("Tab", "panes"),
                 ("?", "help"),
+                ("q", "quit"),
             ],
             Focus::Chat => &[
                 ("Enter", "send"),
+                ("/", "commands"),
                 ("^C", "stop"),
                 ("^R", "clear"),
                 ("Esc", "leave"),
             ],
-            Focus::Graph => &[("Esc", "back")],
+            // Focus lands here only while the graph is not the active view,
+            // which the branch above already handles.
+            Focus::Graph => &[("Esc", "back"), ("?", "help"), ("q", "quit")],
         }
     };
 

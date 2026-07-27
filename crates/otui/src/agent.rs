@@ -9,12 +9,17 @@
 use std::sync::mpsc::TryRecvError;
 
 use otui_agent::{AgentEvent, Message, Runner, ToolRequests, Usage};
+use serde::{Deserialize, Serialize};
 
 use crate::app::App;
 use crate::config::AgentConfig;
 
 /// One entry in the visible transcript.
-#[derive(Debug, Clone, PartialEq)]
+///
+/// Serializable because `/save` persists the transcript alongside the model's
+/// message list — restoring only the latter would resume a conversation the
+/// user can no longer read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Entry {
     User(String),
     Assistant(String),
@@ -30,7 +35,7 @@ pub enum Entry {
     Context(String),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ToolStatus {
     Running,
     Ok,

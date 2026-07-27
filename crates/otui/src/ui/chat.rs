@@ -3,7 +3,7 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Paragraph, Widget};
+use ratatui::widgets::{Clear, Paragraph, Widget};
 use ratatui::Frame;
 
 use otui_theme::Palette;
@@ -34,6 +34,61 @@ pub fn draw(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect) {
 
     draw_transcript(frame, app, palette, rows[0]);
     draw_input(frame, app, palette, rows[1], focused);
+    // Drawn last so it sits over the transcript rather than under it.
+    if focused {
+        draw_completions(frame, app, palette, rows[0]);
+    }
+}
+
+/// The slash-command list, shown while the user is typing one.
+///
+/// It grows upward from the input box so the command being typed stays put —
+/// the list moving under a fixed cursor is easier to read than the reverse.
+fn draw_completions(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
+    if app.chat.busy || !crate::slash::is_command(&app.chat.input) {
+        return;
+    }
+    let matches = crate::slash::completions(&app.chat.input);
+    // One exact match with nothing left to choose is not worth a popup.
+    if matches.is_empty() || area.height < 2 {
+        return;
+    }
+
+    let rows = (matches.len() as u16).min(area.height).min(10);
+    let popup = Rect {
+        x: area.x,
+        y: area.y + area.height - rows,
+        width: area.width,
+        height: rows,
+    };
+    frame.render_widget(Clear, popup);
+
+    let width = popup.width as usize;
+    for (row, command) in matches.iter().take(rows as usize).enumerate() {
+        // The first entry is what Tab and Enter will pick, so it's highlighted.
+        let selected = row == 0;
+        let name = match command.argument_hint {
+            Some(hint) => format!(" /{} {hint}", command.name),
+            None => format!(" /{}", command.name),
+        };
+        let line = format!("{name:<24}{}", command.description);
+        let style = if selected {
+            Style::default()
+                .fg(palette.text_accent)
+                .bg(palette.bg_active)
+        } else {
+            Style::default()
+                .fg(palette.text_muted)
+                .bg(palette.bg_secondary)
+        };
+        let padded = format!("{line:<width$}");
+        frame.buffer_mut().set_string(
+            popup.x,
+            popup.y + row as u16,
+            crate::ui::truncate(&padded, width),
+            style,
+        );
+    }
 }
 
 fn draw_transcript(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect) {

@@ -185,7 +185,7 @@ fn draw_confirm(frame: &mut Frame, confirm: &Confirm, palette: &Palette, area: R
         Line::from(""),
         Line::from(vec![
             Span::styled(
-                "y",
+                "y / Enter",
                 Style::default()
                     .fg(palette.text_error)
                     .add_modifier(Modifier::BOLD),
@@ -218,6 +218,8 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
             ("Enter", "Open the selection / follow a link"),
             ("Alt+←", "Back to the previous note"),
             ("Esc", "Close an overlay"),
+            ("?", "This help"),
+            ("q", "Quit (asks first) — Ctrl+Q works while editing"),
         ],
     ),
     (
@@ -250,9 +252,15 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
             ("Ctrl+Shift+G", "Local graph for the open note"),
             ("hjkl", "Pan"),
             ("+ / -", "Zoom"),
-            ("Tab", "Next node"),
+            ("f / 0", "Fit the whole graph on screen"),
+            ("Tab / n", "Next node"),
+            ("Shift+Tab / N", "Previous node"),
+            ("c", "Centre on the selected node"),
             ("Enter", "Open the selected node"),
-            ("l", "Toggle labels"),
+            ("L", "Toggle labels"),
+            ("u", "Toggle unresolved links"),
+            ("t", "Toggle tag nodes"),
+            ("r", "Rebuild the layout"),
         ],
     ),
     (
@@ -260,6 +268,7 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
         &[
             ("Ctrl+L", "Toggle the chat panel / focus it"),
             ("Enter", "Send"),
+            ("/", "Slash command (type / for the list)"),
             ("Ctrl+C", "Stop the current turn"),
             ("Ctrl+R", "Clear the conversation"),
         ],
@@ -330,5 +339,56 @@ mod tests {
         assert_eq!(byte_of("héllo", 0), 0);
         assert_eq!(byte_of("héllo", 2), 3, "é is two bytes");
         assert_eq!(byte_of("héllo", 99), 6);
+    }
+
+    /// Every key the help table promises, and the pane it belongs to.
+    ///
+    /// Documented shortcuts that don't work are worse than undocumented ones —
+    /// this catches the drift rather than trusting a proofread.
+    fn documented_graph_keys() -> Vec<&'static str> {
+        HELP.iter()
+            .find(|(section, _)| *section == "Graph")
+            .map(|(_, bindings)| bindings.iter().map(|(key, _)| *key).collect())
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn the_help_table_documents_the_graph_keys_that_exist() {
+        let keys = documented_graph_keys();
+        for expected in ["hjkl", "+ / -", "f / 0", "Tab / n", "c", "L", "u", "t", "r"] {
+            assert!(
+                keys.contains(&expected),
+                "the graph section should list {expected}, has {keys:?}"
+            );
+        }
+        assert!(
+            !keys.contains(&"l"),
+            "labels are bound to L, not l — a lowercase l pans right"
+        );
+    }
+
+    #[test]
+    fn quitting_and_help_are_documented_where_a_newcomer_looks_first() {
+        let navigation = HELP
+            .iter()
+            .find(|(section, _)| *section == "Navigation")
+            .map(|(_, b)| *b)
+            .expect("a Navigation section");
+        let keys: Vec<&str> = navigation.iter().map(|(key, _)| *key).collect();
+        assert!(keys.contains(&"q"), "q quits: {keys:?}");
+        assert!(keys.contains(&"?"), "? opens this table: {keys:?}");
+    }
+
+    #[test]
+    fn the_assistant_section_mentions_slash_commands() {
+        let assistant = HELP
+            .iter()
+            .find(|(section, _)| *section == "Assistant")
+            .map(|(_, b)| *b)
+            .expect("an Assistant section");
+        assert!(
+            assistant.iter().any(|(key, _)| *key == "/"),
+            "slash commands are only discoverable if they're listed"
+        );
     }
 }
