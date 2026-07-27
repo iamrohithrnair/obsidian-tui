@@ -55,7 +55,10 @@ jobs:
           cp "target/${{ matrix.target }}/release/obsidian-tui" "dist/$name/"
           cp README.md LICENSE "dist/$name/"
           tar -czf "dist/$name.tar.gz" -C dist "$name"
-          shasum -a 256 "dist/$name.tar.gz" > "dist/$name.tar.gz.sha256"
+          # Hash from inside dist/ so the file records a bare filename —
+          # `shasum -c` resolves the path relative to itself, and a `dist/`
+          # prefix makes verification fail for whoever downloads it.
+          (cd dist && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256")
 
       - name: Package (windows)
         if: runner.os == 'Windows'
@@ -66,7 +69,9 @@ jobs:
           cp "target/${{ matrix.target }}/release/obsidian-tui.exe" "dist/$name/"
           cp README.md LICENSE "dist/$name/"
           7z a "dist/$name.zip" "./dist/$name/*"
-          certutil -hashfile "dist/$name.zip" SHA256 > "dist/$name.zip.sha256"
+          # `sha256sum` from Git Bash, for a file in the same format the unix
+          # archives use; certutil's output is not `-c` checkable.
+          (cd dist && sha256sum "$name.zip" > "$name.zip.sha256")
 
       - uses: actions/upload-artifact@v4
         with:
