@@ -335,7 +335,7 @@ impl Editor {
             let mut remove = 1;
             if self.expand_tabs
                 && chars[..self.cursor.col].iter().all(|c| *c == ' ')
-                && self.cursor.col % self.tab_width == 0
+                && self.cursor.col.is_multiple_of(self.tab_width)
             {
                 remove = self.tab_width.min(self.cursor.col);
             }

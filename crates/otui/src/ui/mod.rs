@@ -518,11 +518,11 @@ pub fn scrollbar(frame: &mut Frame, palette: &Palette, area: Rect, offset: usize
     let height = area.height as usize;
     let thumb = ((height * height) / total).max(1);
     let max_offset = total.saturating_sub(height);
-    let position = if max_offset == 0 {
-        0
-    } else {
-        (offset * (height - thumb)) / max_offset
-    };
+    // A track shorter than the thumb has nowhere to travel, so the division
+    // simply doesn't apply.
+    let position = (offset * (height - thumb))
+        .checked_div(max_offset)
+        .unwrap_or(0);
 
     let x = area.x + area.width.saturating_sub(1);
     for row in 0..height {
