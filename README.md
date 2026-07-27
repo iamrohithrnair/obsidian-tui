@@ -125,9 +125,10 @@ Settings → General → "Command line interface". The two do different jobs:
 
 |  | `obsidian` | `obsidian-tui` |
 |---|---|---|
+| Is | a remote control for the app | the interface itself |
 | Talks to | the running desktop app | the vault's files |
-| Works with Obsidian closed | no | yes |
-| Over SSH / in a container | no | yes |
+| Needs an Obsidian instance | yes, and launches one if none is running | no |
+| On a machine with no display | needs `--ozone-platform=headless` or Xvfb | runs as it is |
 
 So they complement each other rather than compete. When the `obsidian` binary is
 on your `PATH`, obsidian-tui uses it for the one thing only the app can do,
@@ -162,6 +163,9 @@ doesn't. `?` shows the full list in the app.
 | `hjkl`, `g`, `G` | Move within a pane |
 | `Enter` | Open / follow a link |
 
+In the file explorer: `/` filters by name, `s` changes the sort order, `Space`
+folds a folder, and `H`/`L` collapse or expand every folder at once.
+
 In the graph: `hjkl` pans, `+`/`-` zooms, `f` fits the whole graph on screen,
 `Tab`/`Shift+Tab` steps between nodes, `c` recentres on the selection, `L`
 toggles labels, `u` unresolved links, `t` tags, and `r` rebuilds the layout.
@@ -192,6 +196,12 @@ The ribbon icons are buttons, and most of the UI is clickable:
 (dimmed when they don't resolve yet), `#tags`, `- [ ]` tasks, `> [!note]`
 callouts, tables, and fenced code with syntax highlighting. Frontmatter is
 optional: a Markdown file dropped in from anywhere shows up.
+
+**Explorer.** The file tree opens with your most recently edited notes at the
+top, which is usually where you left off. `s` steps through the other orders:
+modified, created and file name, each in both directions. Folders stay
+alphabetical throughout, and the choice is written to the config file, so it's
+still there next time you start.
 
 **Links.** A backlinks pane with the line each link sits on, an outline pane,
 and a tag browser. Following a link to a note that doesn't exist creates it, as
@@ -256,6 +266,7 @@ model rather than asking the current one to.
 | `/login`, `/logout`, `/status` | Credentials and what the next turn will do |
 | `/writes`, `/context`, `/reasoning` | Toggle what the agent may do and see |
 | `/tools`, `/vault`, `/obsidian` | What's available: tools, index, Obsidian CLI |
+| `/sort` | Change how the explorer orders notes (`/sort list` shows them) |
 | `/config` | Write the current settings to the config file |
 | `/keys`, `/quit` | Shortcut reference, and leave |
 

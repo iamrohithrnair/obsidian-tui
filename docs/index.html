@@ -469,10 +469,11 @@
       <summary>Obsidian ships its own CLI now. Why this?</summary>
       <p>
         They do different jobs. Obsidian's
-        <a href="https://obsidian.md/cli">official CLI</a> drives the running desktop app,
-        so it needs the app open and a desktop to open it on. obsidian-tui talks to the
-        vault's files instead, which means it works with Obsidian closed, over SSH, and
-        inside a container. They get along: when the <code>obsidian</code> binary is on your
+        <a href="https://obsidian.md/cli">official CLI</a> is a remote control for the
+        desktop app: it gives you commands, not an interface, and every one of them runs
+        against a full Obsidian instance, which it launches if you haven't. obsidian-tui is
+        the interface, reading the vault's files directly, so it starts in a second on a
+        box with no display at all. They get along: when the <code>obsidian</code> binary is on your
         <code>PATH</code>, <code>/obsidian open</code> (or "Open this note in Obsidian" in
         the command palette) hands the note you're reading to the desktop app for the one
         thing only it can do. If the CLI isn't enabled, obsidian-tui says so and carries on.
