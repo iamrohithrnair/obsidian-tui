@@ -199,6 +199,41 @@ obsidian-tui ~/Notes --prompt "which notes mention the Q3 migration?"
 
 Set `allow_writes = false` under `[agent]` to give it search and read only.
 
+## Privacy
+
+**obsidian-tui makes no network connections unless you use the assistant.**
+There is no telemetry, no analytics and no update check. Only the `otui-agent`
+crate has an HTTP dependency at all; the vault, editor and graph cannot reach
+the network.
+
+When you do send a message, what leaves your machine is:
+
+- the message you typed,
+- the note you have open, if `include_active_note` is on (it is by default),
+- and whatever notes the assistant reads with its tools while answering.
+
+That goes to whichever provider you configured, under that provider's own
+terms. Nothing else is transmitted, and nothing is sent in the background.
+
+To keep everything local, point it at a model running on your own machine:
+
+```toml
+[agent]
+provider = "openai"
+base_url = "http://localhost:11434/v1"
+model = "llama3.1"
+```
+
+Or turn the assistant off entirely with `provider = "offline"`. To keep the
+vault out of messages while still using it, set `include_active_note = false`;
+to stop it reading notes on its own, set `allow_writes = false` — that leaves
+search and read, which still read note contents, so use a local model if that
+matters to you.
+
+Your API key is read from the environment (`ANTHROPIC_API_KEY` or
+`OPENAI_API_KEY`) and is never written to the config file, never logged, and
+never included in any error message.
+
 ## Configuration
 
 Written on first run, with every default spelled out:

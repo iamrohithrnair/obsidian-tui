@@ -108,6 +108,11 @@ jobs:
     name: publish to npm
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required by `npm publish --provenance`, which signs the package with an
+      # OIDC token proving it was built by this workflow from this commit.
+      id-token: write
     # Secrets aren't usable in a job-level `if`, so the guard is on the step.
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -148,10 +153,14 @@ jobs:
 
       - name: Set the version everywhere
         shell: bash
+        env:
+          # Through the environment rather than `${{ }}` inside the script: a
+          # tag name is text from outside, and text from outside does not
+          # belong in a shell command.
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          version="${{ github.event.inputs.tag || github.ref_name }}"
-          version="${version#v}"
+          version="${RELEASE_TAG#v}"
           for manifest in packaging/npm/obsidian-tui/package.json \
                           packaging/npm/platforms/*/package.json; do
             node -e '
@@ -204,20 +213,25 @@ jobs:
 
       - name: Rewrite the formula for this release
         shell: bash
-        run: |
-          version="${{ github.event.inputs.tag || github.ref_name }}"
-          ./packaging/homebrew/update-formula.sh "$version" dist
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: ./packaging/homebrew/update-formula.sh "$RELEASE_TAG" dist
+
+      - name: Check out the tap
+        if: env.TAP_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: iamrohithrnair/homebrew-tap
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+          path: tap
 
       - name: Push it to the tap
         if: env.TAP_TOKEN != ''
         shell: bash
         env:
-          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          version="${{ github.event.inputs.tag || github.ref_name }}"
-          git clone --depth 1 \
-            "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/iamrohithrnair/homebrew-tap.git" tap
           mkdir -p tap/Formula
           cp packaging/homebrew/obsidian-tui.rb tap/Formula/obsidian-tui.rb
           cd tap
@@ -227,7 +241,7 @@ jobs:
             echo "formula already current"
           else
             git add Formula/obsidian-tui.rb
-            git commit -m "obsidian-tui $version"
+            git commit -m "obsidian-tui ${RELEASE_TAG}"
             git push
           fi
 
