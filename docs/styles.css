@@ -1,5 +1,5 @@
 /* ==========================================================================
-   obsidian-tui — landing page
+   obsidian-tui landing page
    Palette is lifted from the app's own obsidian-dark seed so the site and the
    binary look like the same piece of software.
    ========================================================================== */
@@ -21,7 +21,7 @@
   --acc-dim:   rgba(139, 108, 239, .14);
   --grn:       #44cf6e;
 
-  /* terminal demo — overwritten by the theme switcher */
+  /* terminal demo, overwritten by the theme switcher */
   --t-bg:      #1e1e1e;
   --t-bg-alt:  #161616;
   --t-border:  #2f2f2f;
@@ -243,7 +243,7 @@ code {
 }
 
 .hero h1 {
-  /* the floor is set by "Your Obsidian vault," — the longest unbreakable run,
+  /* the floor is set by "Your Obsidian vault," the longest unbreakable run,
      which has to fit a 390px screen without pushing the page sideways */
   font-size: clamp(1.95rem, 7.4vw, 4.4rem);
   letter-spacing: -0.035em;

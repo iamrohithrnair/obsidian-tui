@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>obsidian-tui — your Obsidian vault, at home in the terminal</title>
+<title>obsidian-tui: your Obsidian vault, at home in the terminal</title>
 
 <meta name="description" content="A terminal UI for the Markdown vault you already have. Live-preview notes, backlinks, a force-directed graph, 18 themes and an optional AI assistant. No import, no database, no telemetry.">
 <meta name="theme-color" content="#0b0b0f">
@@ -12,16 +12,16 @@
 <link rel="canonical" href="https://obsidian-tui.github.io/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="obsidian-tui">
-<meta property="og:title" content="obsidian-tui — your Obsidian vault, at home in the terminal">
-<meta property="og:description" content="Same folder, same notes, same [[links]] — read, write and wander through them without leaving the shell. Free and open source.">
+<meta property="og:title" content="obsidian-tui: your Obsidian vault, at home in the terminal">
+<meta property="og:description" content="Same folder, same notes, same [[links]]. Read, write and wander through them without leaving the shell. Free and open source.">
 <meta property="og:url" content="https://obsidian-tui.github.io/">
 <meta property="og:image" content="https://obsidian-tui.github.io/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="obsidian-tui running in a terminal, showing the file explorer, a note in live preview, and the assistant panel.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="obsidian-tui — your Obsidian vault, at home in the terminal">
-<meta name="twitter:description" content="Same folder, same notes, same [[links]] — read, write and wander through them without leaving the shell.">
+<meta name="twitter:title" content="obsidian-tui: your Obsidian vault, at home in the terminal">
+<meta name="twitter:description" content="Same folder, same notes, same [[links]]. Read, write and wander through them without leaving the shell.">
 <meta name="twitter:image" content="https://obsidian-tui.github.io/og.png">
 
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -81,7 +81,7 @@
 
     <p class="lede">
       Same folder. Same notes. Same <code>[[links]]</code>. Read, write and wander
-      through them without ever reaching for the mouse — and keep Obsidian open on
+      through them without ever reaching for the mouse, and keep Obsidian open on
       the other screen while you do.
     </p>
 
@@ -168,7 +168,7 @@
     </div>
     <div class="promise">
       <h3>Nothing to fight over</h3>
-      <p>Obsidian can stay open on the same vault at the same time. Edit here, edit there — they're the same files on the same disk.</p>
+      <p>Obsidian can stay open on the same vault at the same time. Edit here, edit there; they're the same files on the same disk.</p>
     </div>
     <div class="promise">
       <h3>Nothing phoning home</h3>
@@ -193,7 +193,7 @@
           Live preview in Obsidian's dialect: <code>[[wikilinks]]</code> that dim when
           they don't resolve yet, <code>#tags</code>, <code>- [ ]</code> tasks,
           <code>&gt; [!note]</code> callouts, tables, and fenced code with syntax
-          highlighting. Frontmatter is optional — a stray <code>.md</code> file you
+          highlighting. Frontmatter is optional: a stray <code>.md</code> file you
           dragged in from somewhere else shows up like everything else.
         </p>
       </article>
@@ -216,9 +216,9 @@
         </div>
         <h3>A graph that earns its screen</h3>
         <p>
-          Force-directed with Barnes–Hut repulsion, so it stays smooth on a big vault and
+          Force-directed with Barnes-Hut repulsion, so it stays smooth on a big vault and
           stops burning CPU the moment it settles. Notes that are only <em>linked to</em>
-          show up hollow — usually the most useful thing on screen, because those are the
+          show up hollow, usually the most useful thing on screen, because those are the
           notes you meant to write.
         </p>
       </article>
@@ -230,7 +230,7 @@
         <h3>Eighteen themes, then yours</h3>
         <p>
           Obsidian's light and dark, Catppuccin, Tokyo Night, Gruvbox, Nord, Solarized,
-          Dracula, Rosé Pine, Everforest — plus a <code>terminal</code> theme that just
+          Dracula, Rosé Pine, Everforest, plus a <code>terminal</code> theme that just
           uses your palette. Your own theme is a TOML file; anything you leave unset is
           inherited from whatever it <code>extends</code>.
         </p>
@@ -242,14 +242,14 @@
         </div>
         <h3>An assistant that shows its work</h3>
         <p>
-          A chat panel that acts on the vault through the very same commands you use — it
+          A chat panel that acts on the vault through the very same commands you use. It
           can search, read, create, edit, rename, link and delete notes, and put one on
           your screen. Every tool call appears in the transcript, so you're reading what
           it actually did rather than trusting a summary of it.
           Type <code>/</code> for slash commands that never reach the model:
           <code>/model</code> switches backend, <code>/save</code> and <code>/resume</code>
           keep a conversation for tomorrow, <code>/compact</code> buys back context.
-          <span class="muted">Bring an Anthropic key, point it at Ollama on localhost, or leave it switched off entirely — nothing else in the app depends on it.</span>
+          <span class="muted">Bring an Anthropic key, point it at Ollama on localhost, or leave it switched off entirely; nothing else in the app depends on it.</span>
         </p>
       </article>
     </div>
@@ -264,7 +264,7 @@
       <h2 id="graph-h">The notes you meant to write, made visible.</h2>
       <p>
         Every vault accumulates them: a link you typed in a hurry to a note you never got
-        around to. In the graph they're the hollow circles — pulled into place by
+        around to. In the graph they're the hollow circles, pulled into place by
         everything that points at them, waiting for you.
       </p>
       <p>
@@ -290,7 +290,7 @@
 
     <p class="privacy-lede">
       obsidian-tui makes <strong>no network connections at all</strong> unless you use the
-      assistant. Only one crate in the whole workspace has an HTTP dependency — the vault,
+      assistant. Only one crate in the whole workspace has an HTTP dependency: the vault,
       the editor and the graph physically cannot reach the network.
     </p>
 
@@ -311,7 +311,7 @@
 <span class="tk-key">provider</span> = <span class="tk-str">"openai"</span>
 <span class="tk-key">base_url</span> = <span class="tk-str">"http://localhost:11434/v1"</span>
 <span class="tk-key">model</span> = <span class="tk-str">"llama3.1"</span></code></pre>
-        <p class="pnote">Ollama, LM Studio, vLLM — anything OpenAI-shaped. Or set <code>provider = "offline"</code> and the assistant simply isn't there.</p>
+        <p class="pnote">Ollama, LM Studio, vLLM: anything OpenAI-shaped. Or set <code>provider = "offline"</code> and the assistant simply isn't there.</p>
       </div>
     </div>
 
@@ -341,19 +341,19 @@
       <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>E</kbd></span><span class="kd">Reading ↔ editing</span></div>
       <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>N</kbd> / <kbd>Ctrl</kbd><kbd>S</kbd></span><span class="kd">New note / save</span></div>
       <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>D</kbd></span><span class="kd">Today's daily note</span></div>
-      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>G</kbd></span><span class="kd">Graph — add <kbd>Shift</kbd> for the local one</span></div>
+      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>G</kbd></span><span class="kd">Graph (add <kbd>Shift</kbd> for the local one)</span></div>
       <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>L</kbd></span><span class="kd">Assistant panel</span></div>
       <div class="krow"><span class="kk"><kbd>Tab</kbd> / <kbd>Shift</kbd><kbd>Tab</kbd></span><span class="kd">Move between panes</span></div>
-      <div class="krow"><span class="kk"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd></span><span class="kd">Move within one — arrows work too</span></div>
+      <div class="krow"><span class="kk"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd></span><span class="kd">Move within one; arrows work too</span></div>
       <div class="krow"><span class="kk"><kbd>Enter</kbd></span><span class="kd">Open, or follow a link</span></div>
       <div class="krow"><span class="kk"><kbd>Alt</kbd><kbd>←</kbd></span><span class="kd">Back to the previous note</span></div>
       <div class="krow"><span class="kk"><kbd>?</kbd></span><span class="kd">Every shortcut, grouped</span></div>
-      <div class="krow"><span class="kk"><kbd>q</kbd></span><span class="kd">Quit — it asks first</span></div>
+      <div class="krow"><span class="kk"><kbd>q</kbd></span><span class="kd">Quit, and it asks first</span></div>
     </div>
 
     <p class="keys-foot">
-      <kbd>q</kbd> is careful about where it quits from. Anywhere you might be typing — the
-      editor, the chat box, a search field — it stays an ordinary letter, and
+      <kbd>q</kbd> is careful about where it quits from. Anywhere you might be typing (the
+      editor, the chat box, a search field), it stays an ordinary letter, and
       <kbd>Ctrl</kbd><kbd>Q</kbd> is the way out instead.
     </p>
 
@@ -367,7 +367,7 @@
     <p class="keys-foot">
       And if you'd rather point at things: the ribbon icons are buttons, notes and folders
       and tabs are clickable, graph nodes select, and the scroll wheel scrolls whichever
-      pane is under your pointer — not the focused one.
+      pane is under your pointer, not the focused one.
     </p>
   </div>
 </section>
@@ -391,7 +391,7 @@
           <span class="sigil" aria-hidden="true">$</span><code>curl -fsSL https://obsidian-tui.github.io/install.sh | sh</code>
           <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
         </button>
-        <p class="panel-note">macOS and Linux. Works out which build fits your machine, downloads it and checks it against its published checksum before anything moves. <code>OTUI_BIN_DIR</code> chooses where it lands; <code>OTUI_VERSION</code> pins a release. Piping a script into a shell is worth a read first — <a href="https://github.com/iamrohithrnair/obsidian-tui/blob/main/install.sh">here it is in full</a>.</p>
+        <p class="panel-note">macOS and Linux. Works out which build fits your machine, downloads it and checks it against its published checksum before anything moves. <code>OTUI_BIN_DIR</code> chooses where it lands; <code>OTUI_VERSION</code> pins a release. Piping a script into a shell is worth a read first; <a href="https://github.com/iamrohithrnair/obsidian-tui/blob/main/install.sh">here it is in full</a>.</p>
       </div>
 
       <div role="tabpanel" id="p-brew" aria-labelledby="t-brew" class="panel" tabindex="0" hidden>
@@ -448,7 +448,7 @@
     <details>
       <summary>Is this going to do something to my vault?</summary>
       <p>
-        It reads a plain folder of Markdown files — no import, no database, no lock-in.
+        It reads a plain folder of Markdown files: no import, no database, no lock-in.
         It writes when you ask it to: saving a note, creating one by following a link that
         didn't resolve, or renaming one, which also rewrites the wikilinks pointing at it.
         Nothing happens behind your back.
@@ -458,7 +458,7 @@
     <details>
       <summary>Can I keep Obsidian open while I use it?</summary>
       <p>
-        Yes — that's the point. It's the same folder on the same disk, and both apps are
+        Yes, and that's the point. It's the same folder on the same disk, and both apps are
         happy to be in it at once. Use whichever one suits the moment.
       </p>
     </details>
@@ -471,8 +471,8 @@
         so it needs the app open and a desktop to open it on. obsidian-tui talks to the
         vault's files instead, which means it works with Obsidian closed, over SSH, and
         inside a container. They get along: when the <code>obsidian</code> binary is on your
-        <code>PATH</code>, <code>/obsidian open</code> — or "Open this note in Obsidian" in
-        the command palette — hands the note you're reading to the desktop app for the one
+        <code>PATH</code>, <code>/obsidian open</code> (or "Open this note in Obsidian" in
+        the command palette) hands the note you're reading to the desktop app for the one
         thing only it can do. If the CLI isn't enabled, obsidian-tui says so and carries on.
       </p>
     </details>
@@ -498,7 +498,7 @@
     <details>
       <summary>What about my Obsidian plugins and themes?</summary>
       <p>
-        Plugins are Obsidian's, and they stay there — this reads the files underneath, so
+        Plugins are Obsidian's, and they stay there; this reads the files underneath, so
         anything a plugin wrote is just text you can see. Themes are separate: eighteen ship
         with the app, and you can write your own in TOML, borrowing from any of them.
       </p>

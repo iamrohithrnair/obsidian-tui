@@ -1,4 +1,4 @@
-/* obsidian-tui — landing page behaviour.
+/* obsidian-tui landing page behaviour.
    Three small things: recolour the demo terminal with the app's real theme
    seeds, copy install commands, and draw a graph that behaves like the app's
    (it settles, then stops burning cycles). */
@@ -107,7 +107,7 @@
       }
       btn.classList.add('copied');
       setTimeout(() => btn.classList.remove('copied'), 1600);
-      flash('Copied — paste it into your shell');
+      flash('Copied. Paste it into your shell.');
     });
   });
 
@@ -182,7 +182,7 @@
 
     const radius = (n) => (n.ghost ? 4 : 4.2 + Math.min(n.deg, 7) * 0.85);
 
-    let alpha = 1;            // cooling factor — the sim stops when it settles
+    let alpha = 1;            // cooling factor; the sim stops when it settles
     let raf = null;
     let running = false;
 
