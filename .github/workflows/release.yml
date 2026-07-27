@@ -68,7 +68,10 @@ jobs:
           mkdir -p "dist/$name"
           cp "target/${{ matrix.target }}/release/obsidian-tui.exe" "dist/$name/"
           cp README.md LICENSE "dist/$name/"
-          7z a "dist/$name.zip" "./dist/$name/*"
+          # Archive the directory, not its contents: `7z a dir/*` drops the
+          # enclosing folder, and the zip must extract to the same layout the
+          # tarballs do or the npm packaging step can't find the binary.
+          (cd dist && 7z a "$name.zip" "$name")
           # `sha256sum` from Git Bash, for a file in the same format the unix
           # archives use; certutil's output is not `-c` checkable.
           (cd dist && sha256sum "$name.zip" > "$name.zip.sha256")
