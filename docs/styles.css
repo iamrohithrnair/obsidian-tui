@@ -372,6 +372,55 @@ code {
   margin-top: 22px; max-width: 72ch; font-size: 15.5px; color: var(--mut);
 }
 
+/* ------------------------------------------------------- real media -- */
+
+/* The mockup above is recoloured live by the theme switcher. These frames hold
+   real captures, so they keep fixed colours: a frame that changed colour while
+   the pixels inside it stayed put would read as a bug. */
+.term-shell.is-fixed { background: #161616; border-color: var(--line-2); }
+.term-shell.is-fixed,
+.term-shell.is-fixed .term-chrome,
+.term-shell.is-fixed .term-title { transition: none; }
+.term-shell.is-fixed .term-chrome { border-bottom-color: #2f2f2f; }
+.term-shell.is-fixed .term-title  { color: #6b6b6b; }
+
+/* #282c34 is the terminal background baked into the captures, so the frame
+   matches the image while it is still loading. */
+.term-media {
+  display: block; width: 100%; height: auto;
+  background: #282c34;
+}
+
+.film-sec { padding: clamp(20px, 4vw, 40px) 0 clamp(40px, 6vw, 72px); }
+.film { margin: 0; }
+.film .demo-foot { margin-top: 18px; }
+
+.shots-sec { padding: clamp(56px, 8vw, 96px) 0; }
+.shots {
+  margin-top: 34px;
+  display: grid; gap: 26px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.shot { margin: 0; }
+.shot figcaption {
+  margin-top: 12px; font-size: 15px; line-height: 1.55; color: var(--mut);
+}
+.shot figcaption b { color: var(--txt); font-weight: 600; }
+
+/* Two to a row, a 120-column terminal does not stay legible. The frame opens
+   the capture at full size. */
+.shot-link {
+  display: block; border-radius: var(--r-lg); cursor: zoom-in;
+  transition: transform .18s ease;
+}
+.shot-link:hover { transform: translateY(-2px); }
+.shot-link:hover .term-shell { border-color: var(--acc); }
+.shot-link:focus-visible { outline: 2px solid var(--acc-2); outline-offset: 4px; }
+
+@media (max-width: 860px) {
+  .shots { grid-template-columns: 1fr; gap: 30px; }
+}
+
 /* -------------------------------------------------------------- promises -- */
 
 .promises { padding: clamp(40px, 6vw, 64px) 0; border-block: 1px solid var(--line); background: var(--bg-1); }

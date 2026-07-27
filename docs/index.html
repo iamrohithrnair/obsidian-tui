@@ -106,12 +106,46 @@
   </div>
 </section>
 
+<!-- ─────────────────────── the recording ─────────────────────── -->
+<section class="film-sec" aria-labelledby="film-h">
+  <div class="wrap">
+    <div class="demo-head">
+      <h2 id="film-h" class="vh">A recording of the app</h2>
+      <p class="demo-label">Half a minute in a real terminal. Nothing sped up, nothing cut.</p>
+    </div>
+
+    <figure class="film">
+      <div class="term-shell is-fixed">
+        <div class="term-chrome">
+          <span class="tl red" aria-hidden="true"></span>
+          <span class="tl amber" aria-hidden="true"></span>
+          <span class="tl green" aria-hidden="true"></span>
+          <span class="term-title">obsidian-tui ~/demo-vault</span>
+        </div>
+        <video class="term-media" id="film-video"
+               width="1280" height="720"
+               autoplay loop muted playsinline controls
+               poster="shot-three-pane.webp"
+               aria-label="A recording of obsidian-tui: walking down the file explorer, opening a note, cycling the right pane to backlinks, opening the force-directed graph and fitting it to the pane, then switching the theme to Tokyo Night and to Catppuccin Latte.">
+          <source src="demo.mp4" type="video/mp4">
+          <img class="term-media" src="demo.gif" width="1280" height="720"
+               alt="A recording of obsidian-tui: walking down the file explorer, opening a note, cycling the right pane to backlinks, opening the force-directed graph, then switching themes.">
+        </video>
+      </div>
+      <figcaption class="demo-foot">
+        The file tree, a note in live preview, <code>Ctrl+K</code> for backlinks,
+        the graph settling under <code>Ctrl+G</code>, and two of the eighteen themes.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
 <!-- ────────────────────── the demo terminal ────────────────────── -->
 <section class="demo-sec" aria-labelledby="demo-h">
   <div class="wrap">
     <div class="demo-head">
       <h2 id="demo-h" class="vh">A look at the app</h2>
-      <p class="demo-label">This is the whole app. Try a theme:</p>
+      <p class="demo-label">The same layout, drawn live. Try a theme:</p>
       <div class="themes" role="group" aria-label="Preview a theme"></div>
     </div>
 
@@ -280,6 +314,91 @@
         <span><i class="node-solid" aria-hidden="true"></i> written</span>
         <span><i class="node-hollow" aria-hidden="true"></i> linked, not written yet</span>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────── real screenshots ────────────────────── -->
+<section id="shots" class="shots-sec" aria-labelledby="shots-h">
+  <div class="wrap">
+    <p class="kicker">Straight off the terminal</p>
+    <h2 id="shots-h">Real pixels, not mockups.</h2>
+    <p class="section-lede">
+      Every frame here was captured from the recording above, in a stock terminal
+      against a small demo vault. None of it was redrawn by hand — open any one of
+      them for the full-size capture.
+    </p>
+
+    <div class="shots">
+
+      <figure class="shot">
+        <a class="shot-link" href="shot-three-pane.webp" aria-label="Open the full-size screenshot of the three-pane layout">
+          <div class="term-shell is-fixed">
+            <div class="term-chrome">
+              <span class="tl red" aria-hidden="true"></span>
+              <span class="tl amber" aria-hidden="true"></span>
+              <span class="tl green" aria-hidden="true"></span>
+              <span class="term-title">Welcome.md</span>
+            </div>
+            <img class="term-media" src="shot-three-pane.webp" width="1280" height="720"
+                 loading="lazy" decoding="async"
+                 alt="The three-pane layout in the obsidian-dark theme: an icon ribbon and file explorer on the left, a note called Welcome in the middle showing tags, a task list, a callout with a coloured bar and a bordered table, and an outline panel on the right.">
+          </div>
+        </a>
+        <figcaption><b>The three panes.</b> Markdown rendered in place — tags, tasks, callouts and tables, not raw syntax.</figcaption>
+      </figure>
+
+      <figure class="shot">
+        <a class="shot-link" href="shot-backlinks.webp" aria-label="Open the full-size screenshot of the backlinks panel">
+          <div class="term-shell is-fixed">
+            <div class="term-chrome">
+              <span class="tl red" aria-hidden="true"></span>
+              <span class="tl amber" aria-hidden="true"></span>
+              <span class="tl green" aria-hidden="true"></span>
+              <span class="term-title">Projects/Roadmap.md</span>
+            </div>
+            <img class="term-media" src="shot-backlinks.webp" width="1280" height="720"
+                 loading="lazy" decoding="async"
+                 alt="The Roadmap note open, with the right-hand panel switched to Backlinks, listing six notes that link to it along with the line of context each link sits in.">
+          </div>
+        </a>
+        <figcaption><b>Backlinks.</b> <code>Ctrl+K</code> cycles the right panel through outline, backlinks and tags, each with its line of context.</figcaption>
+      </figure>
+
+      <figure class="shot">
+        <a class="shot-link" href="shot-graph.webp" aria-label="Open the full-size screenshot of the graph view">
+          <div class="term-shell is-fixed">
+            <div class="term-chrome">
+              <span class="tl red" aria-hidden="true"></span>
+              <span class="tl amber" aria-hidden="true"></span>
+              <span class="tl green" aria-hidden="true"></span>
+              <span class="term-title">graph</span>
+            </div>
+            <img class="term-media" src="shot-graph.webp" width="1280" height="720"
+                 loading="lazy" decoding="async"
+                 alt="The force-directed graph view filling the centre pane, with labelled note clusters, a lone unconnected note called Orphan off to one side, and a status line reading sixteen nodes and twenty-eight links.">
+          </div>
+        </a>
+        <figcaption><b>The graph.</b> <code>Ctrl+G</code> for the whole vault, <code>f</code> to fit it. Orphans sit on their own, where you can see them.</figcaption>
+      </figure>
+
+      <figure class="shot">
+        <a class="shot-link" href="shot-light.webp" aria-label="Open the full-size screenshot of the light Catppuccin Latte theme">
+          <div class="term-shell is-fixed">
+            <div class="term-chrome">
+              <span class="tl red" aria-hidden="true"></span>
+              <span class="tl amber" aria-hidden="true"></span>
+              <span class="tl green" aria-hidden="true"></span>
+              <span class="term-title">Projects/Roadmap.md</span>
+            </div>
+            <img class="term-media" src="shot-light.webp" width="1280" height="720"
+                 loading="lazy" decoding="async"
+                 alt="The same Roadmap note and layout rendered in the light Catppuccin Latte theme, with a cream background and violet accents.">
+          </div>
+        </a>
+        <figcaption><b>Light, too.</b> <code>catppuccin-latte</code> here — one of eighteen, Obsidian's own light and dark among them.</figcaption>
+      </figure>
+
     </div>
   </div>
 </section>

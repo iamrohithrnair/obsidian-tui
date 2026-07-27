@@ -145,6 +145,16 @@
   addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
+  /* ── the recording ─────────────────────────────────────────────────────── */
+
+  /* Half a minute of looping motion is exactly what the OS setting is asking
+     about, so leave it on the poster frame and let the controls start it. */
+  const film = $('#film-video');
+  if (film && reduced) {
+    film.removeAttribute('autoplay');
+    film.pause();
+  }
+
   /* ── the graph ─────────────────────────────────────────────────────────── */
 
   const canvas = $('#graph');
