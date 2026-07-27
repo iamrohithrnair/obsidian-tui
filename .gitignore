@@ -10,6 +10,11 @@
 # Anything a contributor points at their own vault with
 /demo-vault/
 
+# Demo recording: the tape is the source, the rendered media and the throwaway
+# HOME it records against are not
+/demo/out/
+/demo/home/
+
 # Binaries and docs the release workflow copies into the npm packages
 /packaging/npm/platforms/*/bin/obsidian-tui
 /packaging/npm/platforms/*/bin/obsidian-tui.exe

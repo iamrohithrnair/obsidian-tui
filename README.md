@@ -16,32 +16,7 @@ It also comes with an AI assistant that works on your notes through the very
 same commands you do, so you can watch what it did instead of taking its word
 for it.
 
-```
- demo-vault │ Welcome.md                                                          obsidian-dark
-   ┌ Files ───────────────┐ Welcome                                    ┌ Assistant ─────────────┐
- ≡ │▾ Daily               │  tags: start, meta                         │Ask about your notes.   │
-   │▾ Projects            │  ──────────────────────────                │The assistant can       │
- ⌕ │  · Backlog           │                                            │search, read, create    │
-   │  · Roadmap           │  Welcome                                   │and link them.          │
- ◈ │· Ideas               │  ───────────────                           │                        │
-   │· Orphan              │                                            │                        │
- ✦ │· Welcome             │  This is a demo vault. It links to Ideas,  │                        │
-   │                      │  to the roadmap, and to Not Written Yet.   │                        │
- ⚙ │                      │                                            │                        │
-   │                      │  ☐ Try the graph view with Ctrl+G          │                        │
-   │                      │  ☑ Read this note                          │                        │
-   │                      │                                            │                        │
-   │                      │  ▎ Callout                                 │                        │
-   │                      │  ▎ Callouts render with a colored bar.     │                        │
-   │                      │                                            │                        │
-   │                      │  ┌─────────┬────────┐                      │                        │
-   │                      │  │ Feature │ Status │                      │                        │
-   │                      │  ├─────────┼────────┤                      │                        │
-   │                      │  │ Reading │   done │                      │                        │
-   │                      │  └─────────┴────────┘                      │                        │
-   └──────────────────────┘                                            └────────────────────────┘
- READING                                                            84 words  2 backlinks
-```
+![obsidian-tui: walking the file tree, backlinks, the graph, and a theme switch](https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/docs/demo.gif)
 
 ## Install
 
