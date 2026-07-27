@@ -86,9 +86,9 @@
     </p>
 
     <div class="cta-row">
-      <button class="copy-cmd" data-copy="brew install iamrohithrnair/tap/obsidian-tui" aria-label="Copy the install command to your clipboard">
+      <button class="copy-cmd" data-copy="curl -fsSL https://obsidian-tui.github.io/install.sh | sh" aria-label="Copy the install command to your clipboard">
         <span class="sigil" aria-hidden="true">$</span>
-        <code>brew install iamrohithrnair/tap/obsidian-tui</code>
+        <code>curl -fsSL https://obsidian-tui.github.io/install.sh | sh</code>
         <span class="copy-icon" aria-hidden="true">
           <svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
             <rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/>
@@ -99,7 +99,7 @@
     </div>
 
     <p class="micro">
-      Prefer <code>curl</code>, <code>npm</code> or <code>cargo</code>? All four are two lines down.
+      Rather use <code>brew</code>, <code>npm</code> or <code>cargo</code>? All four are two lines down.
     </p>
   </div>
 </section>
@@ -246,6 +246,9 @@
           can search, read, create, edit, rename, link and delete notes, and put one on
           your screen. Every tool call appears in the transcript, so you're reading what
           it actually did rather than trusting a summary of it.
+          Type <code>/</code> for slash commands that never reach the model:
+          <code>/model</code> switches backend, <code>/save</code> and <code>/resume</code>
+          keep a conversation for tomorrow, <code>/compact</code> buys back context.
           <span class="muted">Bring an Anthropic key, point it at Ollama on localhost, or leave it switched off entirely — nothing else in the app depends on it.</span>
         </p>
       </article>
@@ -324,7 +327,7 @@
 <section id="keys" class="keys" aria-labelledby="keys-h">
   <div class="wrap">
     <p class="kicker">Muscle memory</p>
-    <h2 id="keys-h">Obsidian's shortcuts where it has them. Vim's where it doesn't.</h2>
+    <h2 id="keys-h">Obsidian's shortcuts where it has them. The terminal's where it doesn't.</h2>
     <p class="section-lede">
       Nothing new to learn on day one. A hint bar above the status line shows the keys that
       apply to wherever you're standing, and <kbd>?</kbd> opens the full list. When it starts
@@ -336,13 +339,30 @@
       <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>P</kbd></span><span class="kd">Command palette</span></div>
       <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>F</kbd></span><span class="kd">Search every note</span></div>
       <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>E</kbd></span><span class="kd">Reading ↔ editing</span></div>
-      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>N</kbd> / <kbd>Ctrl</kbd><kbd>D</kbd></span><span class="kd">New note / today's daily note</span></div>
+      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>N</kbd> / <kbd>Ctrl</kbd><kbd>S</kbd></span><span class="kd">New note / save</span></div>
+      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>D</kbd></span><span class="kd">Today's daily note</span></div>
       <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>G</kbd></span><span class="kd">Graph — add <kbd>Shift</kbd> for the local one</span></div>
       <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>L</kbd></span><span class="kd">Assistant panel</span></div>
-      <div class="krow"><span class="kk"><kbd>Tab</kbd></span><span class="kd">Move between panes</span></div>
-      <div class="krow"><span class="kk"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd></span><span class="kd">Move within one</span></div>
+      <div class="krow"><span class="kk"><kbd>Tab</kbd> / <kbd>Shift</kbd><kbd>Tab</kbd></span><span class="kd">Move between panes</span></div>
+      <div class="krow"><span class="kk"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd></span><span class="kd">Move within one — arrows work too</span></div>
       <div class="krow"><span class="kk"><kbd>Enter</kbd></span><span class="kd">Open, or follow a link</span></div>
+      <div class="krow"><span class="kk"><kbd>Alt</kbd><kbd>←</kbd></span><span class="kd">Back to the previous note</span></div>
+      <div class="krow"><span class="kk"><kbd>?</kbd></span><span class="kd">Every shortcut, grouped</span></div>
+      <div class="krow"><span class="kk"><kbd>q</kbd></span><span class="kd">Quit — it asks first</span></div>
     </div>
+
+    <p class="keys-foot">
+      <kbd>q</kbd> is careful about where it quits from. Anywhere you might be typing — the
+      editor, the chat box, a search field — it stays an ordinary letter, and
+      <kbd>Ctrl</kbd><kbd>Q</kbd> is the way out instead.
+    </p>
+
+    <p class="keys-foot">
+      In the graph the keys are its own: <kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd> pans,
+      <kbd>+</kbd> and <kbd>-</kbd> zoom, <kbd>f</kbd> fits the whole thing on screen,
+      <kbd>Tab</kbd> steps between nodes, <kbd>c</kbd> recentres on the one you've picked, and
+      <kbd>L</kbd>, <kbd>u</kbd> and <kbd>t</kbd> toggle labels, unresolved links and tags.
+    </p>
 
     <p class="keys-foot">
       And if you'd rather point at things: the ribbon icons are buttons, notes and folders
@@ -359,27 +379,27 @@
     <h2 id="install-h">Pick whichever one you already trust.</h2>
 
     <div class="tabs" role="tablist" aria-label="Installation method">
-      <button role="tab" id="t-brew"  aria-controls="p-brew"  aria-selected="true"  class="tab is-on">Homebrew</button>
-      <button role="tab" id="t-curl"  aria-controls="p-curl"  aria-selected="false" class="tab" tabindex="-1">curl</button>
+      <button role="tab" id="t-curl"  aria-controls="p-curl"  aria-selected="true"  class="tab is-on">curl</button>
+      <button role="tab" id="t-brew"  aria-controls="p-brew"  aria-selected="false" class="tab" tabindex="-1">Homebrew</button>
       <button role="tab" id="t-npm"   aria-controls="p-npm"   aria-selected="false" class="tab" tabindex="-1">npm</button>
       <button role="tab" id="t-cargo" aria-controls="p-cargo" aria-selected="false" class="tab" tabindex="-1">cargo</button>
     </div>
 
     <div class="panels">
-      <div role="tabpanel" id="p-brew" aria-labelledby="t-brew" class="panel is-on" tabindex="0">
+      <div role="tabpanel" id="p-curl" aria-labelledby="t-curl" class="panel is-on" tabindex="0">
+        <button class="copy-cmd wide" data-copy="curl -fsSL https://obsidian-tui.github.io/install.sh | sh">
+          <span class="sigil" aria-hidden="true">$</span><code>curl -fsSL https://obsidian-tui.github.io/install.sh | sh</code>
+          <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
+        </button>
+        <p class="panel-note">macOS and Linux. Works out which build fits your machine, downloads it and checks it against its published checksum before anything moves. <code>OTUI_BIN_DIR</code> chooses where it lands; <code>OTUI_VERSION</code> pins a release. Piping a script into a shell is worth a read first — <a href="https://github.com/iamrohithrnair/obsidian-tui/blob/main/install.sh">here it is in full</a>.</p>
+      </div>
+
+      <div role="tabpanel" id="p-brew" aria-labelledby="t-brew" class="panel" tabindex="0" hidden>
         <button class="copy-cmd wide" data-copy="brew install iamrohithrnair/tap/obsidian-tui">
           <span class="sigil" aria-hidden="true">$</span><code>brew install iamrohithrnair/tap/obsidian-tui</code>
           <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
         </button>
         <p class="panel-note">macOS and Linux, from the project's own tap.</p>
-      </div>
-
-      <div role="tabpanel" id="p-curl" aria-labelledby="t-curl" class="panel" tabindex="0" hidden>
-        <button class="copy-cmd wide" data-copy="curl -fsSL https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/install.sh | sh">
-          <span class="sigil" aria-hidden="true">$</span><code>curl -fsSL https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/install.sh | sh</code>
-          <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
-        </button>
-        <p class="panel-note">Grabs the right build for your machine and verifies its checksum before it moves anything. <code>OTUI_BIN_DIR</code> chooses where it lands; <code>OTUI_VERSION</code> pins a release. Piping a script into a shell deserves a read first — <a href="https://github.com/iamrohithrnair/obsidian-tui/blob/main/install.sh">here it is</a>.</p>
       </div>
 
       <div role="tabpanel" id="p-npm" aria-labelledby="t-npm" class="panel" tabindex="0" hidden>
@@ -405,7 +425,8 @@
 <span class="tk-cmd">obsidian-tui</span>                   <span class="tk-cm"># whatever Obsidian had open last</span>
 <span class="tk-cmd">obsidian-tui</span> --list-vaults     <span class="tk-cm"># everything Obsidian knows about</span></code></pre>
       <p class="panel-note">
-        Obsidian has no official CLI, only its URI scheme — so this works too:
+        It also answers to the <code>obsidian://</code> URIs the desktop app registers, so a
+        link or a script that opens Obsidian opens this too:
         <code>obsidian-tui 'obsidian://open?vault=Notes&amp;file=Ideas'</code>. And for the days
         you don't want a UI at all:
         <code>obsidian-tui ~/Notes --prompt "which notes mention the Q3 migration?"</code>
@@ -439,6 +460,20 @@
       <p>
         Yes — that's the point. It's the same folder on the same disk, and both apps are
         happy to be in it at once. Use whichever one suits the moment.
+      </p>
+    </details>
+
+    <details>
+      <summary>Obsidian ships its own CLI now. Why this?</summary>
+      <p>
+        They do different jobs. Obsidian's
+        <a href="https://obsidian.md/cli">official CLI</a> drives the running desktop app,
+        so it needs the app open and a desktop to open it on. obsidian-tui talks to the
+        vault's files instead, which means it works with Obsidian closed, over SSH, and
+        inside a container. They get along: when the <code>obsidian</code> binary is on your
+        <code>PATH</code>, <code>/obsidian open</code> — or "Open this note in Obsidian" in
+        the command palette — hands the note you're reading to the desktop app for the one
+        thing only it can do. If the CLI isn't enabled, obsidian-tui says so and carries on.
       </p>
     </details>
 
@@ -488,8 +523,8 @@
     <h2>Your notes are already on your machine.</h2>
     <p>Now you don't have to leave the terminal to think in them.</p>
     <div class="cta-row center">
-      <button class="copy-cmd" data-copy="brew install iamrohithrnair/tap/obsidian-tui">
-        <span class="sigil" aria-hidden="true">$</span><code>brew install iamrohithrnair/tap/obsidian-tui</code>
+      <button class="copy-cmd" data-copy="curl -fsSL https://obsidian-tui.github.io/install.sh | sh">
+        <span class="sigil" aria-hidden="true">$</span><code>curl -fsSL https://obsidian-tui.github.io/install.sh | sh</code>
         <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
       </button>
       <a class="btn btn-solid" href="https://github.com/iamrohithrnair/obsidian-tui">Read the source</a>

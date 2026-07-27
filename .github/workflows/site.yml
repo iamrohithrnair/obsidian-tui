@@ -1,0 +1,73 @@
+name: Site
+
+# The landing page is written in docs/ but served from a separate repository,
+# because https://obsidian-tui.github.io needs an account of that exact name.
+# This copies one into the other so the two can't drift — which matters most for
+# install.sh, since the site serves the URL people pipe into a shell.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'install.sh'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: publish to obsidian-tui.github.io
+    runs-on: ubuntu-latest
+    env:
+      SITE_TOKEN: ${{ secrets.SITE_DEPLOY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the site repository
+        if: env.SITE_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: obsidian-tui/obsidian-tui.github.io
+          token: ${{ secrets.SITE_DEPLOY_TOKEN }}
+          path: site
+
+      - name: Copy the page and the installer across
+        if: env.SITE_TOKEN != ''
+        run: |
+          # Everything the site serves is replaced wholesale, so a file deleted
+          # from docs/ disappears from the site too. Keep .git and the site's
+          # own README, which describes the sync rather than the product.
+          find site -mindepth 1 -maxdepth 1 \
+            ! -name .git ! -name README.md -exec rm -rf {} +
+          cp -R docs/. site/
+          cp install.sh site/install.sh
+          chmod 644 site/install.sh
+
+      - name: Push, if anything actually changed
+        if: env.SITE_TOKEN != ''
+        working-directory: site
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "site is already up to date"
+            exit 0
+          fi
+          git commit -m "Sync from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
+          git push
+
+      - name: Explain a skipped publish
+        if: env.SITE_TOKEN == ''
+        run: |
+          echo "::warning::SITE_DEPLOY_TOKEN is not set, so the site was not updated."
+          echo "The page and installer at https://obsidian-tui.github.io may now be stale."
+          echo "Add a fine-grained PAT with Contents:write on"
+          echo "obsidian-tui/obsidian-tui.github.io as the SITE_DEPLOY_TOKEN secret."
