@@ -455,7 +455,7 @@ fn handle_chat(app: &mut App, key: KeyEvent) {
             app.chat.input.clear();
             app.chat.cursor = 0;
             if let crate::slash::Outcome::Unknown(name) = crate::slash::run(app, &input) {
-                app.error(format!("unknown command '/{name}' — /help lists them"));
+                app.error(format!("unknown command '/{name}'; /help lists them"));
             }
         }
         KeyCode::Enter if !app.chat.busy => agent::send(app),
@@ -537,7 +537,7 @@ fn handle_graph(app: &mut App, key: KeyEvent) {
                 Some((otui_core::graph::NodeKind::Unresolved, label)) => {
                     dispatch(app, Action::FollowLink(label));
                 }
-                _ => app.info("select a node first — Tab cycles through them"),
+                _ => app.info("select a node first; Tab cycles through them"),
             }
         }
         KeyCode::Char('L') => dispatch(app, Action::ToggleGraphLabels),

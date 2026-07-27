@@ -1,11 +1,11 @@
 //! Command-line arguments and `obsidian://` URIs.
 //!
-//! Obsidian does have an official CLI (<https://obsidian.md/cli>), but it
-//! drives the *running desktop app* — it can't do anything with Obsidian
-//! closed. obsidian-tui is the other way round: it reads and writes the vault's
-//! Markdown directly. It accepts ordinary flags plus the same `obsidian://`
-//! URIs the desktop app registers, so a link or script that opens Obsidian also
-//! opens this.
+//! Obsidian does have an official CLI (<https://obsidian.md/cli>), but it is a
+//! remote control for the desktop app: every command it runs goes through a
+//! full Electron instance. obsidian-tui is the other way round: it is the
+//! interface itself, and reads and writes the vault's Markdown directly. It
+//! accepts ordinary flags plus the same `obsidian://` URIs the desktop app
+//! registers, so a link or script that opens Obsidian also opens this.
 
 use std::path::PathBuf;
 

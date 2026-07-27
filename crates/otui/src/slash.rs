@@ -300,7 +300,7 @@ fn resume(app: &mut App, args: &str) {
         // With no name, resuming the most recent one is what "pick up where I
         // left off" means; the list is one command away if that's wrong.
         let Some(latest) = session::list().into_iter().next() else {
-            say(app, "no saved conversations — /save creates one");
+            say(app, "no saved conversations; /save creates one");
             return;
         };
         load_session(app, &latest.name);
@@ -324,7 +324,7 @@ fn load_session(app: &mut App, name: &str) {
                 .vault
                 .as_deref()
                 .is_some_and(|v| v != app.index.vault.path);
-            let mut message = format!("resumed '{name}' — {turns} turns");
+            let mut message = format!("resumed '{name}': {turns} turns");
             if mismatch {
                 message.push_str(" (saved against a different vault)");
             }
@@ -349,7 +349,7 @@ fn sessions(app: &mut App, args: &str) {
 
     let sessions = session::list();
     if sessions.is_empty() {
-        say(app, "no saved conversations — /save creates one");
+        say(app, "no saved conversations; /save creates one");
         return;
     }
     let mut lines = vec!["Saved conversations".to_string()];
@@ -404,7 +404,7 @@ fn provider(app: &mut App, args: &str) {
         say(
             app,
             &format!(
-                "provider: {} — /provider anthropic | openai | offline",
+                "provider: {}; /provider anthropic | openai | offline",
                 app.config.agent.provider_kind().as_str()
             ),
         );
@@ -413,7 +413,7 @@ fn provider(app: &mut App, args: &str) {
     let Some(kind) = otui_agent::ProviderKind::parse(args) else {
         say(
             app,
-            &format!("unknown provider '{args}' — try anthropic, openai or offline"),
+            &format!("unknown provider '{args}'; try anthropic, openai or offline"),
         );
         return;
     };
@@ -429,7 +429,7 @@ fn provider(app: &mut App, args: &str) {
         app.config.agent.model()
     );
     if !configured {
-        message.push_str("\nno credentials found — /login explains what to set");
+        message.push_str("\nno credentials found; /login explains what to set");
     }
     say(app, &message);
 }
@@ -439,7 +439,7 @@ fn model(app: &mut App, args: &str) {
         say(
             app,
             &format!(
-                "model: {} — /model <name> to change",
+                "model: {}; /model <name> to change",
                 app.config.agent.model()
             ),
         );
@@ -457,7 +457,7 @@ fn base_url(app: &mut App, args: &str) {
         }
         "clear" | "none" | "reset" => {
             app.config.agent.base_url = None;
-            say(app, "base URL cleared — using the provider default");
+            say(app, "base URL cleared; using the provider default");
         }
         url => {
             app.config.agent.base_url = Some(url.to_string());
@@ -476,13 +476,13 @@ fn login_text(app: &App) -> String {
     };
     match kind {
         otui_agent::ProviderKind::Anthropic => format!(
-            "anthropic — {state}\nexport ANTHROPIC_API_KEY=sk-ant-...\nthen restart, or /provider anthropic to re-check"
+            "anthropic: {state}\nexport ANTHROPIC_API_KEY=sk-ant-...\nthen restart, or /provider anthropic to re-check"
         ),
         otui_agent::ProviderKind::OpenAiCompatible => format!(
             "openai-compatible — {state}\nexport OPENAI_API_KEY=sk-...\nfor a local server set the endpoint instead: /base-url http://localhost:11434/v1"
         ),
         otui_agent::ProviderKind::Offline => {
-            "offline — no model is configured\n/provider anthropic or /provider openai to pick one"
+            "offline: no model is configured\n/provider anthropic or /provider openai to pick one"
                 .to_string()
         }
     }
@@ -495,7 +495,7 @@ fn logout(app: &mut App) {
     app.config.agent.base_url = None;
     say(
         app,
-        "switched to offline and forgot the endpoint\nthe API key is still in your environment — unset it there to remove it",
+        "switched to offline and forgot the endpoint\nthe API key is still in your environment; unset it there to remove it",
     );
 }
 
@@ -529,7 +529,7 @@ fn writes(app: &mut App, args: &str) {
     say(
         app,
         &format!(
-            "writes {} — the agent can {}",
+            "writes {}: the agent can {}",
             on_off(value),
             if value {
                 "create, edit and delete notes"
@@ -565,7 +565,7 @@ fn tools_text(app: &App) -> String {
         lines.push(format!("  {}", spec.name));
     }
     if !app.config.agent.allow_writes {
-        lines.push("read-only — /writes on to allow edits".to_string());
+        lines.push("read-only; /writes on to allow edits".to_string());
     }
     lines.join("\n")
 }
@@ -585,13 +585,13 @@ fn obsidian(app: &mut App, args: &str) {
                     Err(err) => say(app, &err.to_string()),
                 }
             }
-            None => say(app, "no note open — /obsidian open needs one"),
+            None => say(app, "no note open; /obsidian open needs one"),
         },
         "" | "status" => {
             let status = crate::obsidian::status();
             say(app, &status);
         }
-        other => say(app, &format!("/obsidian [status|open] — not '{other}'")),
+        other => say(app, &format!("/obsidian [status|open], not '{other}'")),
     }
 }
 

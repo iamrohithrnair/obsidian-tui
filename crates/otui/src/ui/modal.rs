@@ -210,7 +210,7 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
     (
         "Navigation",
         &[
-            ("Ctrl+O", "Quick switcher — open a note by name"),
+            ("Ctrl+O", "Quick switcher: open a note by name"),
             ("Ctrl+P", "Command palette"),
             ("Ctrl+Shift+F", "Search all notes"),
             ("Tab / Shift+Tab", "Move between panes"),
@@ -219,7 +219,7 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
             ("Alt+←", "Back to the previous note"),
             ("Esc", "Close an overlay"),
             ("?", "This help"),
-            ("q", "Quit (asks first) — Ctrl+Q works while editing"),
+            ("q", "Quit (asks first); Ctrl+Q works while editing"),
         ],
     ),
     (
@@ -374,7 +374,7 @@ mod tests {
         }
         assert!(
             !keys.contains(&"l"),
-            "labels are bound to L, not l — a lowercase l pans right"
+            "labels are bound to L, not l; a lowercase l pans right"
         );
     }
 

@@ -410,7 +410,7 @@ fn mode_label(app: &App) -> String {
                 crate::app::Mode::Reading => "READING".into(),
                 crate::app::Mode::Editing => "EDITING".into(),
             },
-            None => "obsidian-tui  —  Ctrl+O to open a note, ? for help".into(),
+            None => "obsidian-tui  ·  Ctrl+O to open a note, ? for help".into(),
         },
     }
 }

@@ -1,17 +1,18 @@
 //! Integration with Obsidian's official command line interface.
 //!
-//! Obsidian ships a CLI (<https://obsidian.md/cli>) that talks to the running
-//! desktop app. It is opt-in — the user enables it under Settings → General →
+//! Obsidian ships a CLI (<https://obsidian.md/cli>) that drives the desktop
+//! app. It is opt-in — the user enables it under Settings → General →
 //! "Command line interface", which symlinks the binary onto their `PATH`.
 //!
 //! Two consequences shape this module:
 //!
 //! 1. The CLI may simply not be there, so every entry point degrades to a
 //!    message explaining how to enable it rather than an error.
-//! 2. It drives the *running app*, so it is a bridge, not a backend. Everything
-//!    obsidian-tui does to a vault it does by reading and writing Markdown
-//!    directly; the CLI is only used for the things that need the app itself —
-//!    listing the vaults it knows about, and opening a note in the GUI.
+//! 2. It is a remote control for the app, not a backend: every command runs
+//!    against an Obsidian instance, launching one if none is running.
+//!    Everything obsidian-tui does to a vault it does by reading and writing
+//!    Markdown directly; the CLI is only used for the things that need the app
+//!    itself — listing the vaults it knows about, and opening a note in the GUI.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -32,7 +33,7 @@ impl std::fmt::Display for Error {
         match self {
             Self::NotInstalled => write!(
                 f,
-                "the Obsidian CLI isn't on PATH — enable it in Obsidian under \
+                "the Obsidian CLI isn't on PATH; enable it in Obsidian under \
                  Settings → General → Command line interface"
             ),
             Self::Failed(message) => write!(f, "obsidian: {message}"),
@@ -109,8 +110,8 @@ pub fn run(args: &[String]) -> Result<String, Error> {
         return Ok(String::from_utf8_lossy(&output.stdout).trim().to_string());
     }
 
-    // The CLI reports "app not running" on stderr; surfacing it verbatim is
-    // more useful than any wording we could invent.
+    // Whatever the CLI put on stderr is more useful than any wording we could
+    // invent, so it is surfaced verbatim.
     let mut message = String::from_utf8_lossy(&output.stderr).trim().to_string();
     if message.is_empty() {
         message = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -121,7 +122,7 @@ pub fn run(args: &[String]) -> Result<String, Error> {
     Err(Error::Failed(first_line(&message)))
 }
 
-/// The vaults the running Obsidian app knows about.
+/// The vaults Obsidian knows about.
 pub fn vaults() -> Result<Vec<String>, Error> {
     let out = run(&["vaults".to_string()])?;
     Ok(out
@@ -160,16 +161,14 @@ pub fn status() -> String {
                 format!("Obsidian CLI: {} (no vaults reported)", path.display())
             }
             Ok(vaults) => format!(
-                "Obsidian CLI: {} — vaults: {}",
+                "Obsidian CLI: {} / vaults: {}",
                 path.display(),
                 vaults.join(", ")
             ),
-            // Found but not answering means the desktop app is closed, which is
-            // worth saying explicitly since it is the common case.
-            Err(err) => format!(
-                "Obsidian CLI: {} — not responding ({err}). Is the app running?",
-                path.display()
-            ),
+            // The CLI starts Obsidian itself when nothing is running, so a
+            // failure here isn't simply "the app is closed". Report what it
+            // said rather than guessing at a cause.
+            Err(err) => format!("Obsidian CLI: {} / {err}", path.display()),
         },
     }
 }

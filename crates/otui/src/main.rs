@@ -98,7 +98,7 @@ fn main() -> io::Result<()> {
     };
 
     if let Some(message) = config_error {
-        app.error(format!("config ignored — {message}"));
+        app.error(format!("config ignored: {message}"));
     } else {
         // Write the defaults on first run so there's a documented file to edit
         // rather than a format the user has to guess at.

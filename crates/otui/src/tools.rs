@@ -29,7 +29,7 @@ pub fn specs(allow_writes: bool) -> Vec<ToolSpec> {
     let mut specs = vec![
         ToolSpec::new(
             "search_notes",
-            "Search the full text of every note. Call this whenever the answer depends on what is written in the vault — before answering any question about the user's notes.",
+            "Search the full text of every note. Call this whenever the answer depends on what is written in the vault, before answering any question about the user's notes.",
             ToolSpec::object_schema(&[
                 ("query", "string", "Text to look for. Case-insensitive unless it contains capitals.", true),
                 ("limit", "integer", "Maximum notes to return (default 20).", false),
@@ -338,7 +338,7 @@ fn find_notes(app: &mut App, args: &Value) -> ToolOutcome {
     let lines: Vec<String> = matches
         .iter()
         .filter_map(|m| app.index.note(m.id))
-        .map(|n| format!("{} — {} words", n.meta.rel, n.words))
+        .map(|n| format!("{}: {} words", n.meta.rel, n.words))
         .collect();
 
     ToolOutcome::ok(format!("{} name matches", lines.len()), lines.join("\n"))
@@ -395,7 +395,7 @@ fn list_tags(app: &mut App, args: &Value) -> ToolOutcome {
         .tags()
         .iter()
         .filter(|(tag, _)| prefix.is_empty() || tag.starts_with(&prefix))
-        .map(|(tag, notes)| format!("#{tag} — {} notes", notes.len()))
+        .map(|(tag, notes)| format!("#{tag}: {} notes", notes.len()))
         .collect();
 
     if lines.is_empty() {
