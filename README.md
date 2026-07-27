@@ -48,9 +48,11 @@ obsidian-tui --version
 ```
 
 Targets built for each release: `aarch64-apple-darwin` (Apple silicon),
-`x86_64-apple-darwin` (Intel Mac), `x86_64-unknown-linux-gnu`,
-`aarch64-unknown-linux-gnu`, and `x86_64-pc-windows-msvc`. Each archive ships
-with a `.sha256` file you can check with `shasum -a 256 -c`.
+`x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, and
+`x86_64-pc-windows-msvc`. Each archive ships with a `.sha256` file you can
+check with `shasum -a 256 -c`.
+
+On an Intel Mac, build from source with cargo instead.
 
 On macOS, Gatekeeper quarantines downloaded binaries — clear it once with:
 
