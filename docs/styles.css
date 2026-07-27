@@ -175,6 +175,18 @@ code {
 }
 .btn-solid:hover { background: var(--bg-3); border-color: var(--acc); color: #fff; }
 
+/* Star button. The outline fills in on hover, so it reads as the thing you're
+   about to do rather than just another link. */
+.btn-star {
+  background: var(--bg-2); border-color: var(--line-2); color: var(--txt);
+}
+.btn-star:hover { background: var(--bg-3); border-color: #b0862c; color: #fff; }
+.btn-star .star-ico {
+  color: #e3b341; fill: transparent; flex: none;
+  transition: fill .18s ease, transform .18s ease;
+}
+.btn-star:hover .star-ico { fill: #e3b341; transform: rotate(-10deg) scale(1.1); }
+
 /* copy-the-command button: the primary CTA */
 .copy-cmd {
   display: inline-flex; align-items: center; gap: 12px;
@@ -269,6 +281,7 @@ code {
 .cta-row.center { justify-content: center; }
 
 .micro { margin-top: 18px; font-size: 14px; color: var(--fnt); }
+.micro.center { text-align: center; max-width: 52ch; margin-inline: auto; }
 .micro code { color: var(--mut); background: rgba(255,255,255,.05); }
 
 /* ------------------------------------------------------------ the demo -- */
