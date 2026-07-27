@@ -1,0 +1,23 @@
+{
+  "name": "obsidian-tui-win32-x64",
+  "version": "0.1.0",
+  "description": "obsidian-tui binary for win32 x64",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamrohithrnair/obsidian-tui.git"
+  },
+  "license": "MIT",
+  "author": "Rohith Nair",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "engines": {
+    "node": ">=16"
+  }
+}

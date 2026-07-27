@@ -1,0 +1,27 @@
+{
+  "name": "obsidian-tui",
+  "version": "0.1.0",
+  "description": "An Obsidian-like terminal UI for your Markdown vault: live-preview notes, backlinks, a force-directed graph, and a built-in assistant",
+  "keywords": ["obsidian", "tui", "notes", "markdown", "terminal", "graph", "cli"],
+  "homepage": "https://github.com/iamrohithrnair/obsidian-tui#readme",
+  "bugs": "https://github.com/iamrohithrnair/obsidian-tui/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamrohithrnair/obsidian-tui.git"
+  },
+  "license": "MIT",
+  "author": "Rohith Nair",
+  "bin": {
+    "obsidian-tui": "bin/obsidian-tui.js"
+  },
+  "files": ["bin", "README.md"],
+  "engines": {
+    "node": ">=16"
+  },
+  "optionalDependencies": {
+    "obsidian-tui-darwin-arm64": "0.1.0",
+    "obsidian-tui-linux-x64": "0.1.0",
+    "obsidian-tui-linux-arm64": "0.1.0",
+    "obsidian-tui-win32-x64": "0.1.0"
+  }
+}

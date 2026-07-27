@@ -1,0 +1,23 @@
+{
+  "name": "obsidian-tui-darwin-arm64",
+  "version": "0.1.0",
+  "description": "obsidian-tui binary for darwin arm64",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamrohithrnair/obsidian-tui.git"
+  },
+  "license": "MIT",
+  "author": "Rohith Nair",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "engines": {
+    "node": ">=16"
+  }
+}

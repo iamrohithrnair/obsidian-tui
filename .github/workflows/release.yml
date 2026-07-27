@@ -103,3 +103,141 @@ jobs:
             dist/*.zip
             dist/*.sha256
           fail_on_unmatched_files: true
+
+  npm:
+    name: publish to npm
+    needs: release
+    runs-on: ubuntu-latest
+    # Secrets aren't usable in a job-level `if`, so the guard is on the step.
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Lay the binaries into the platform packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          for archive in *.tar.gz; do tar -xzf "$archive"; done
+          for archive in *.zip; do unzip -qo "$archive"; done
+          cd ..
+
+          root=packaging/npm
+          cp dist/obsidian-tui-aarch64-apple-darwin/obsidian-tui \
+             "$root/platforms/darwin-arm64/bin/obsidian-tui"
+          cp dist/obsidian-tui-x86_64-unknown-linux-gnu/obsidian-tui \
+             "$root/platforms/linux-x64/bin/obsidian-tui"
+          cp dist/obsidian-tui-aarch64-unknown-linux-gnu/obsidian-tui \
+             "$root/platforms/linux-arm64/bin/obsidian-tui"
+          cp dist/obsidian-tui-x86_64-pc-windows-msvc/obsidian-tui.exe \
+             "$root/platforms/win32-x64/bin/obsidian-tui.exe"
+
+          chmod +x "$root"/platforms/*/bin/obsidian-tui || true
+          rm -f "$root"/platforms/*/bin/.gitkeep
+          cp README.md LICENSE "$root/obsidian-tui/"
+
+      - name: Set the version everywhere
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ github.event.inputs.tag || github.ref_name }}"
+          version="${version#v}"
+          for manifest in packaging/npm/obsidian-tui/package.json \
+                          packaging/npm/platforms/*/package.json; do
+            node -e '
+              const fs = require("fs");
+              const [file, version] = process.argv.slice(1);
+              const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
+              pkg.version = version;
+              // The launcher must depend on this exact build of each platform
+              // package, or npm could pair a new shim with an old binary.
+              for (const dep of Object.keys(pkg.optionalDependencies ?? {})) {
+                pkg.optionalDependencies[dep] = version;
+              }
+              fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
+            ' "$manifest" "$version"
+          done
+
+      - name: Publish
+        if: env.NPM_TOKEN != ''
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Platform packages first: the launcher's optionalDependencies point
+          # at them, and npm rejects a package whose deps don't exist yet.
+          for pkg in packaging/npm/platforms/*/; do
+            (cd "$pkg" && npm publish --provenance --access public)
+          done
+          (cd packaging/npm/obsidian-tui && npm publish --provenance --access public)
+
+      - name: Explain a skipped publish
+        if: env.NPM_TOKEN == ''
+        run: |
+          echo "::notice::NPM_TOKEN is not set, so nothing was published to npm."
+          echo "Add it under Settings > Secrets and variables > Actions."
+
+  homebrew:
+    name: update the homebrew tap
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      TAP_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Rewrite the formula for this release
+        shell: bash
+        run: |
+          version="${{ github.event.inputs.tag || github.ref_name }}"
+          ./packaging/homebrew/update-formula.sh "$version" dist
+
+      - name: Push it to the tap
+        if: env.TAP_TOKEN != ''
+        shell: bash
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${{ github.event.inputs.tag || github.ref_name }}"
+          git clone --depth 1 \
+            "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/iamrohithrnair/homebrew-tap.git" tap
+          mkdir -p tap/Formula
+          cp packaging/homebrew/obsidian-tui.rb tap/Formula/obsidian-tui.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "formula already current"
+          else
+            git add Formula/obsidian-tui.rb
+            git commit -m "obsidian-tui $version"
+            git push
+          fi
+
+      - name: Explain a skipped tap update
+        if: env.TAP_TOKEN == ''
+        run: |
+          echo "::notice::TAP_GITHUB_TOKEN is not set, so the Homebrew tap was not updated."
+          echo "The updated formula is in this run's checkout at packaging/homebrew/."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: homebrew-formula
+          path: packaging/homebrew/obsidian-tui.rb

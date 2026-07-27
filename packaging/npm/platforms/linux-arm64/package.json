@@ -1,0 +1,23 @@
+{
+  "name": "obsidian-tui-linux-arm64",
+  "version": "0.1.0",
+  "description": "obsidian-tui binary for linux arm64",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamrohithrnair/obsidian-tui.git"
+  },
+  "license": "MIT",
+  "author": "Rohith Nair",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
+  "engines": {
+    "node": ">=16"
+  }
+}
