@@ -1,12 +1,18 @@
 # obsidian-tui
 
-An Obsidian-like terminal UI for your vault: the three-pane layout, live-preview
-Markdown, backlinks, a force-directed graph, twelve-plus themes, and a built-in
-AI assistant that works on your notes through the app's own commands.
+**The best TUI for Obsidian.** Your vault, the way you already know it — the
+three-pane layout, live-preview Markdown, backlinks, a force-directed graph,
+18 themes — except it lives in your terminal and never asks you to reach for
+the mouse.
 
-It reads a plain folder of Markdown files. Point it at an existing Obsidian
-vault and it works — no import, no database, no lock-in. Obsidian can stay open
-on the same vault at the same time.
+Point it at a vault you already have. There's no import step, no database, no
+lock-in: it reads the same plain folder of Markdown files Obsidian does, and
+you can leave Obsidian open on that folder the whole time. Close this and your
+notes are exactly the files they were before.
+
+It also comes with an AI assistant that works on your notes through the very
+same commands you do — so you can watch what it did instead of taking its word
+for it.
 
 ```
  demo-vault │ Welcome.md                                                          obsidian-dark
@@ -37,27 +43,31 @@ on the same vault at the same time.
 
 ## Install
 
+The one-liner is the easiest way in. It works out which build fits your machine,
+downloads it, and checks it against its published checksum before anything moves:
+
+```sh
+curl -fsSL https://obsidian-tui.github.io/install.sh | sh
+```
+
+macOS and Linux. Set `OTUI_BIN_DIR` to choose where it lands, or `OTUI_VERSION`
+to pin a release. Piping a script into a shell is always worth a look first —
+[here it is in full](https://github.com/iamrohithrnair/obsidian-tui/blob/main/install.sh),
+and it's a readable 150-odd lines.
+
+Or use whichever package manager you already trust.
+
 **Homebrew** (macOS and Linux):
 
 ```sh
 brew install iamrohithrnair/tap/obsidian-tui
 ```
 
-**One-line install** (macOS and Linux) — downloads the right build for your
-machine and verifies its checksum:
+**npm** — handy if you want to try it before you commit to it:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/install.sh | sh
-```
-
-Set `OTUI_BIN_DIR` to choose where it lands, or `OTUI_VERSION` to pin a release.
-
-**npm** — if you'd rather not add another package manager:
-
-```sh
-npm install -g obsidian-tui
-# or run it without installing:
-npx obsidian-tui ~/Notes
+npx obsidian-tui ~/Notes     # run it once, install nothing
+npm install -g obsidian-tui  # keep it
 ```
 
 **Cargo** (needs Rust 1.88 or newer):
@@ -315,7 +325,7 @@ same state.
 ## Development
 
 ```sh
-cargo test --workspace          # 379 tests
+cargo test --workspace          # 446 tests
 cargo clippy --workspace --all-targets
 cargo fmt --all --check
 ```
@@ -344,13 +354,37 @@ git push origin v0.2.0
 
 ## Credits
 
-Built by combining three excellent terminal note-takers: the notebook-style
-three-pane layout and theming of [shiki](https://github.com/sazardev/shiki), the
-graph and node visualisation of [clin](https://github.com/reekta92/clin-rs), and
-the Obsidian vault integration of
-[basalt](https://github.com/erikjuhani/basalt). The agent runtime follows the
-design of the [pi](https://github.com/earendil-works/pi) agent harness,
-reimplemented in Rust.
+This project exists because four other people published their work first. None
+of their code is in here — obsidian-tui is written from scratch — but every one
+of them showed me something I'd otherwise have had to guess at, and the good
+ideas are theirs.
+
+**[shiki](https://github.com/sazardev/shiki)** by Omar (MIT) — a personal
+notebook TUI, and the reason the three-pane layout and the theme model look the
+way they do. It's the clearest demonstration I found that a note-taking TUI can
+be genuinely nice to look at.
+
+**[clin](https://github.com/reekta92/clin-rs)** (GPL-3.0) — an Obsidian-vault
+TUI with a graph view. Reading how it handles nodes, edges and viewport
+maths taught me most of what I know about drawing a graph in a terminal, and
+sent me down the braille-canvas route in the first place.
+
+**[basalt](https://github.com/erikjuhani/basalt)** by Erik Juhani
+(Apache-2.0 / GPL-3.0) — a TUI for managing Obsidian vaults and notes. The
+prior art for treating a vault as nothing more than the folder it already is,
+and for how to find the vaults Obsidian knows about.
+
+**[pi](https://github.com/earendil-works/pi)** by Mario Zechner (MIT) — a
+coding-agent harness. The assistant's architecture follows its shape closely:
+the streaming tool-calling loop, and the idea that slash commands are handled
+by the client and never reach the model. Reimplemented in Rust; the design
+credit is pi's.
+
+Licensing note, since two of these are copyleft: nothing was copied, so
+obsidian-tui's MIT licence stands on its own. The debt is one of ideas, and it's
+a real one.
+
+Not affiliated with Obsidian.md.
 
 ## License
 
