@@ -1,8 +1,8 @@
 # obsidian-tui
 
-**The best TUI for Obsidian.** Your vault, the way you already know it — the
+**The best TUI for Obsidian.** Your vault, the way you already know it: the
 three-pane layout, live-preview Markdown, backlinks, a force-directed graph,
-18 themes — except it lives in your terminal and never asks you to reach for
+18 themes. Except it lives in your terminal and never asks you to reach for
 the mouse.
 
 Point it at a vault you already have. There's no import step, no database, no
@@ -11,7 +11,7 @@ you can leave Obsidian open on that folder the whole time. Close this and your
 notes are exactly the files they were before.
 
 It also comes with an AI assistant that works on your notes through the very
-same commands you do — so you can watch what it did instead of taking its word
+same commands you do, so you can watch what it did instead of taking its word
 for it.
 
 ```
@@ -51,7 +51,7 @@ curl -fsSL https://obsidian-tui.github.io/install.sh | sh
 ```
 
 macOS and Linux. Set `OTUI_BIN_DIR` to choose where it lands, or `OTUI_VERSION`
-to pin a release. Piping a script into a shell is always worth a look first —
+to pin a release. Piping a script into a shell is always worth a look first;
 [here it is in full](https://github.com/iamrohithrnair/obsidian-tui/blob/main/install.sh),
 and it's a readable 150-odd lines.
 
@@ -63,7 +63,7 @@ Or use whichever package manager you already trust.
 brew install iamrohithrnair/tap/obsidian-tui
 ```
 
-**npm** — handy if you want to try it before you commit to it:
+**npm**, if you want to try it before you commit to it:
 
 ```sh
 npx obsidian-tui ~/Notes     # run it once, install nothing
@@ -76,7 +76,7 @@ npm install -g obsidian-tui  # keep it
 cargo install --git https://github.com/iamrohithrnair/obsidian-tui obsidian-tui
 ```
 
-**Manual download** — grab an archive from the
+**Manual download.** Grab an archive from the
 [latest release](https://github.com/iamrohithrnair/obsidian-tui/releases/latest):
 
 ```sh
@@ -130,8 +130,8 @@ Settings → General → "Command line interface". The two do different jobs:
 | Over SSH / in a container | no | yes |
 
 So they complement each other rather than compete. When the `obsidian` binary is
-on your `PATH`, obsidian-tui uses it for the one thing only the app can do —
-handing a note to the GUI:
+on your `PATH`, obsidian-tui uses it for the one thing only the app can do,
+which is handing a note to the GUI:
 
 - `/obsidian` in the assistant panel reports the CLI's status and the vaults the
   app knows about.
@@ -139,7 +139,7 @@ handing a note to the GUI:
   opens the current note in the desktop app.
 
 If the CLI isn't enabled, or Obsidian isn't running, obsidian-tui says so and
-carries on — nothing else depends on it.
+carries on; nothing else depends on it.
 
 ## Keys
 
@@ -166,7 +166,7 @@ In the graph: `hjkl` pans, `+`/`-` zooms, `f` fits the whole graph on screen,
 `Tab`/`Shift+Tab` steps between nodes, `c` recentres on the selection, `L`
 toggles labels, `u` unresolved links, `t` tags, and `r` rebuilds the layout.
 
-`q` never quits from somewhere you might be typing — in the editor, the chat box
+`q` never quits from somewhere you might be typing: in the editor, the chat box
 or a search field it types a `q`, and `Ctrl+Q` is the way out.
 
 A context-sensitive hint bar sits above the status bar showing the keys that
@@ -191,7 +191,7 @@ The ribbon icons are buttons, and most of the UI is clickable:
 **Notes.** Live-preview Markdown with Obsidian's dialect: `[[wikilinks]]`
 (dimmed when they don't resolve yet), `#tags`, `- [ ]` tasks, `> [!note]`
 callouts, tables, and fenced code with syntax highlighting. Frontmatter is
-optional — a Markdown file dropped in from anywhere shows up.
+optional: a Markdown file dropped in from anywhere shows up.
 
 **Links.** A backlinks pane with the line each link sits on, an outline pane,
 and a tag browser. Following a link to a note that doesn't exist creates it, as
@@ -199,7 +199,7 @@ Obsidian does. Renaming a note rewrites every wikilink pointing at it.
 
 **Graph.** A force-directed graph with Barnes-Hut repulsion, so it stays
 interactive on large vaults and stops burning CPU once it settles. Notes that
-are only *linked to* appear as hollow nodes — usually the most useful thing on
+are only *linked to* appear as hollow nodes, usually the most useful thing on
 the screen, since they're the notes you meant to write. `Ctrl+Shift+G` shows the
 neighbourhood of the open note.
 
@@ -244,7 +244,7 @@ Set `allow_writes = false` under `[agent]` to give it search and read only.
 ### Slash commands
 
 Type `/` in the chat box for a completion list; `Tab` completes, `Enter` runs.
-Commands are handled locally and never reach the model — `/model` changes the
+Commands are handled locally and never reach the model: `/model` changes the
 model rather than asking the current one to.
 
 | | |
@@ -289,7 +289,7 @@ model = "llama3.1"
 
 Or turn the assistant off entirely with `provider = "offline"`. To keep the
 vault out of messages while still using it, set `include_active_note = false`;
-to stop it reading notes on its own, set `allow_writes = false` — that leaves
+to stop it reading notes on its own, set `allow_writes = false`. That leaves
 search and read, which still read note contents, so use a local model if that
 matters to you.
 
@@ -318,7 +318,7 @@ crates/
 ```
 
 `otui-core` and `otui-agent` have no dependency on the terminal, and
-`otui-agent` has no dependency on the vault — the tools are supplied by the
+`otui-agent` has no dependency on the vault: the tools are supplied by the
 application, which is what lets the assistant and the user act on exactly the
 same state.
 
@@ -355,26 +355,26 @@ git push origin v0.2.0
 ## Credits
 
 This project exists because four other people published their work first. None
-of their code is in here — obsidian-tui is written from scratch — but every one
+of their code is in here (obsidian-tui is written from scratch), but every one
 of them showed me something I'd otherwise have had to guess at, and the good
 ideas are theirs.
 
-**[shiki](https://github.com/sazardev/shiki)** by Omar (MIT) — a personal
+**[shiki](https://github.com/sazardev/shiki)** by Omar (MIT). A personal
 notebook TUI, and the reason the three-pane layout and the theme model look the
 way they do. It's the clearest demonstration I found that a note-taking TUI can
 be genuinely nice to look at.
 
-**[clin](https://github.com/reekta92/clin-rs)** (GPL-3.0) — an Obsidian-vault
+**[clin](https://github.com/reekta92/clin-rs)** (GPL-3.0). An Obsidian-vault
 TUI with a graph view. Reading how it handles nodes, edges and viewport
 maths taught me most of what I know about drawing a graph in a terminal, and
 sent me down the braille-canvas route in the first place.
 
 **[basalt](https://github.com/erikjuhani/basalt)** by Erik Juhani
-(Apache-2.0 / GPL-3.0) — a TUI for managing Obsidian vaults and notes. The
+(Apache-2.0 / GPL-3.0). A TUI for managing Obsidian vaults and notes. The
 prior art for treating a vault as nothing more than the folder it already is,
 and for how to find the vaults Obsidian knows about.
 
-**[pi](https://github.com/earendil-works/pi)** by Mario Zechner (MIT) — a
+**[pi](https://github.com/earendil-works/pi)** by Mario Zechner (MIT). A
 coding-agent harness. The assistant's architecture follows its shape closely:
 the streaming tool-calling loop, and the idea that slash commands are handled
 by the client and never reach the model. Reimplemented in Rust; the design
