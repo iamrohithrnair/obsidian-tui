@@ -229,6 +229,11 @@ pub struct NoteMeta {
     pub stem: String,
     /// Seconds since the Unix epoch, or 0 if unavailable.
     pub modified: u64,
+    /// Creation time, seconds since the Unix epoch. Not every filesystem
+    /// records one; where it's missing this falls back to `modified`, so
+    /// sorting by creation date degrades to sorting by modification date
+    /// rather than collapsing every note onto the epoch.
+    pub created: u64,
     pub size: u64,
 }
 
@@ -341,6 +346,7 @@ mod tests {
             title: "Note".into(),
             stem: "Note".into(),
             modified: 0,
+            created: 0,
             size: 0,
         };
         assert_eq!(meta.folder(), "");

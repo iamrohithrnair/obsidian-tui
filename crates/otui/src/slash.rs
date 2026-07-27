@@ -8,6 +8,8 @@
 //! Commands run locally and never reach the model. That is the point: `/model`
 //! should change the model, not ask the current one to change it.
 
+use otui_core::sort::SortOrder;
+
 use crate::agent::Entry;
 use crate::app::{Action, App};
 use crate::session;
@@ -109,6 +111,11 @@ pub const COMMANDS: &[SlashCommand] = &[
         name: "obsidian",
         description: "Obsidian CLI status, or open this note in the app",
         argument_hint: Some("[open]"),
+    },
+    SlashCommand {
+        name: "sort",
+        description: "Change how the file explorer orders notes",
+        argument_hint: Some("[modified|created|name|...]"),
     },
     SlashCommand {
         name: "vault",
@@ -232,6 +239,7 @@ pub fn run(app: &mut App, input: &str) -> Outcome {
             say(app, &text);
         }
         "obsidian" => obsidian(app, args),
+        "sort" => sort(app, args),
         "vault" => {
             let text = vault_text(app);
             say(app, &text);
@@ -594,6 +602,47 @@ fn vault_text(app: &App) -> String {
         app.index.notes().len(),
         app.index.tags().len(),
     )
+}
+
+/// `/sort` with no argument cycles; with one, sets that order by name.
+///
+/// Listing the valid keys on a bad argument matters more here than elsewhere:
+/// there are six of them and no menu to read them off.
+fn sort(app: &mut App, args: &str) {
+    let arg = args.trim();
+    if arg.is_empty() {
+        crate::actions::dispatch(app, Action::CycleSortOrder);
+        let now = app.explorer.sort();
+        say(app, &format!("sorting by {}", now.label()));
+        return;
+    }
+    if arg.eq_ignore_ascii_case("list") {
+        let mut text = String::from("sort orders:");
+        let current = app.explorer.sort();
+        for order in SortOrder::ALL {
+            let marker = if order == current { "*" } else { " " };
+            text.push_str(&format!(
+                "\n {marker} {:<13} {}",
+                order.key(),
+                order.label()
+            ));
+        }
+        say(app, &text);
+        return;
+    }
+    let Ok(order) = arg.parse::<SortOrder>() else {
+        let keys: Vec<&str> = SortOrder::ALL.iter().map(|o| o.key()).collect();
+        let text = format!("unknown sort order {arg:?}. try: {}", keys.join(", "));
+        say(app, &text);
+        return;
+    };
+    app.explorer.set_sort(order);
+    app.config.ui.sort_order = order.key().to_string();
+    app.explorer.rebuild(&app.index);
+    say(
+        app,
+        &format!("sorting by {}; /config keeps it", order.label()),
+    );
 }
 
 fn save_config(app: &mut App) {

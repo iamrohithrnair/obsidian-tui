@@ -44,6 +44,7 @@ pub fn commands() -> Vec<Entry> {
         Entry::new("Toggle assistant panel", "Ctrl+L", Action::ToggleChat),
         Entry::new("Toggle ribbon", "", Action::ToggleRibbon),
         Entry::new("Toggle shortcut hints", "", Action::ToggleHints),
+        Entry::new("Change sort order", "s", Action::CycleSortOrder),
         Entry::new("Toggle line numbers", "", Action::ToggleLineNumbers),
         Entry::new("Change theme", "Ctrl+T", Action::OpenThemePicker),
         Entry::new("Open another vault", "", Action::OpenVaultPicker),
@@ -69,6 +70,23 @@ pub fn commands() -> Vec<Entry> {
 /// else it does by reading and writing Markdown directly, which is why it works
 /// with the app closed. Opening in the GUI is the exception, since only the
 /// running app can do it.
+/// Steps the explorer to the next sort order.
+///
+/// The config is updated in memory, like every other setting the UI changes;
+/// `/config` (or "Save settings") writes it to disk, so the choice survives a
+/// restart.
+fn cycle_sort_order(app: &mut App) {
+    let next = app.explorer.sort().next();
+    app.explorer.set_sort(next);
+    app.config.ui.sort_order = next.key().to_string();
+    app.explorer.rebuild(&app.index);
+    // Rebuilding can move the selected row; keep it on screen.
+    if let Some((area, _)) = app.regions.explorer {
+        app.explorer.scroll_into_view(area.height as usize);
+    }
+    app.info(format!("sorted by {}; /config keeps it", next.label()));
+}
+
 fn open_in_obsidian(app: &mut App) {
     let Some(id) = app.active_note() else {
         app.error("no note open");
@@ -258,6 +276,7 @@ pub fn dispatch(app: &mut App, action: Action) {
         }
         Action::ToggleRibbon => app.config.ui.show_ribbon = !app.config.ui.show_ribbon,
         Action::ToggleHints => app.config.ui.show_hints = !app.config.ui.show_hints,
+        Action::CycleSortOrder => cycle_sort_order(app),
         Action::CycleSidePanel => {
             app.side_panel = app.side_panel.next();
             app.side_selected = 0;

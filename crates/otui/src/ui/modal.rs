@@ -237,6 +237,17 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
         ],
     ),
     (
+        "File explorer",
+        &[
+            ("Enter / l", "Open the note, or fold the folder"),
+            ("Space / h", "Fold and unfold a folder"),
+            ("H / L", "Collapse / expand every folder"),
+            ("/", "Filter by name"),
+            ("s", "Change sort order"),
+            ("Esc", "Clear the filter"),
+        ],
+    ),
+    (
         "Panes",
         &[
             ("Ctrl+\\", "Toggle the file explorer"),

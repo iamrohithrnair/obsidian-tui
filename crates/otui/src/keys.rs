@@ -247,6 +247,7 @@ fn handle_explorer(app: &mut App, key: KeyEvent) {
         }
         KeyCode::Char('?') => dispatch(app, Action::OpenHelp),
         KeyCode::Char('q') => dispatch(app, Action::Quit),
+        KeyCode::Char('s') => dispatch(app, Action::CycleSortOrder),
         _ => {}
     }
 }
@@ -1069,5 +1070,52 @@ mod binding_tests {
 
         assert!(app.modal.is_none(), "q is a letter while editing");
         assert!(app.editor_mut().expect("editor").text().contains('q'));
+    }
+
+    #[test]
+    fn s_cycles_the_sort_order_in_the_explorer() {
+        let vault = TempVault::new("sort-key");
+        vault.write("A.md", "a");
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        app.focus = Focus::Explorer;
+
+        let before = app.explorer.sort();
+        press(&mut app, 's');
+        let after = app.explorer.sort();
+
+        assert_ne!(before, after, "s should change the order");
+        assert_eq!(after, before.next());
+        // The config follows, so "Save settings" keeps it.
+        assert_eq!(app.config.ui.sort_order, after.key());
+    }
+
+    #[test]
+    fn s_is_a_letter_when_typing_rather_than_a_sort_command() {
+        let vault = TempVault::new("sort-key-editing");
+        vault.write("A.md", "a");
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        app.open_note(0);
+        dispatch(&mut app, Action::ToggleMode);
+        app.focus = Focus::Note;
+
+        let before = app.explorer.sort();
+        press(&mut app, 's');
+
+        assert_eq!(app.explorer.sort(), before, "s must not sort while editing");
+        assert!(app.editor_mut().expect("editor").text().contains('s'));
+    }
+
+    #[test]
+    fn cycling_the_sort_order_returns_to_where_it_started() {
+        let vault = TempVault::new("sort-cycle");
+        vault.write("A.md", "a");
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        app.focus = Focus::Explorer;
+
+        let start = app.explorer.sort();
+        for _ in 0..otui_core::sort::SortOrder::ALL.len() {
+            press(&mut app, 's');
+        }
+        assert_eq!(app.explorer.sort(), start, "a full cycle should come home");
     }
 }

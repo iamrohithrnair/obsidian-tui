@@ -8,6 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use otui_agent::{Effort, ProviderKind};
+use otui_core::sort::SortOrder;
 use serde::{Deserialize, Serialize};
 
 /// The whole config file.
@@ -59,6 +60,22 @@ pub struct UiConfig {
     pub line_numbers: bool,
     /// Start notes in reading mode rather than the editor.
     pub reading_mode: bool,
+    /// How the explorer orders notes within a folder. One of `modified`,
+    /// `modified-asc`, `created`, `created-asc`, `name` or `name-desc`.
+    ///
+    /// Held as a string rather than an enum because an unrecognised value in
+    /// any one field makes serde reject the whole file, and losing every other
+    /// setting over a typo in this one would be a poor trade. Read it through
+    /// [`UiConfig::sort_order`], which falls back to the default.
+    pub sort_order: String,
+}
+
+impl UiConfig {
+    /// The configured sort order, or the default if the value is unrecognised.
+    #[must_use]
+    pub fn sort_order(&self) -> SortOrder {
+        self.sort_order.parse().unwrap_or_default()
+    }
 }
 
 impl Default for UiConfig {
@@ -75,6 +92,7 @@ impl Default for UiConfig {
             show_hidden: false,
             line_numbers: true,
             reading_mode: true,
+            sort_order: SortOrder::default().key().to_string(),
         }
     }
 }
@@ -368,5 +386,38 @@ mod tests {
         let parsed: Config = toml::from_str(&text).expect("parse");
         assert_eq!(parsed.theme, "gruvbox-dark");
         assert_eq!(parsed.ui.chat_width, config.ui.chat_width);
+    }
+
+    #[test]
+    fn the_default_sort_order_is_most_recently_modified_first() {
+        assert_eq!(Config::default().ui.sort_order(), SortOrder::ModifiedDesc);
+    }
+
+    #[test]
+    fn a_configured_sort_order_is_read_back() {
+        let toml = "[ui]\nsort_order = \"name\"\n";
+        let config: Config = toml::from_str(toml).expect("parse");
+        assert_eq!(config.ui.sort_order(), SortOrder::NameAsc);
+    }
+
+    #[test]
+    fn a_nonsense_sort_order_falls_back_without_discarding_the_file() {
+        // The whole point of holding this as a string: one bad value must not
+        // cost the user every other setting in the file.
+        let toml = "[ui]\nsort_order = \"sideways\"\nchat_width = 77\n";
+        let config: Config = toml::from_str(toml).expect("a bad value still parses");
+        assert_eq!(config.ui.sort_order(), SortOrder::ModifiedDesc);
+        assert_eq!(config.ui.chat_width, 77, "the rest of the file survives");
+    }
+
+    #[test]
+    fn every_sort_order_survives_a_write_and_read() {
+        for order in SortOrder::ALL {
+            let mut config = Config::default();
+            config.ui.sort_order = order.key().to_string();
+            let text = toml::to_string_pretty(&config).expect("serialise");
+            let parsed: Config = toml::from_str(&text).expect("parse");
+            assert_eq!(parsed.ui.sort_order(), order, "{order:?} did not survive");
+        }
     }
 }

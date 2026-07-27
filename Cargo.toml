@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/otui-core", "crates/otui-theme", "crates/otui-agent", "crates/otui"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 rust-version = "1.88"
 license = "GPL-3.0-or-later"

@@ -7,6 +7,7 @@ pub mod markdown;
 pub mod note;
 pub mod ops;
 pub mod search;
+pub mod sort;
 pub mod vault;
 
 /// Throwaway vaults for tests.

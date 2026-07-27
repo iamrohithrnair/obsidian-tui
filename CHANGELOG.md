@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] — 2026-07-27
+
+### Added
+
+- **The file explorer sorts by modification time.** Notes now open with the most
+  recently edited at the top, which is usually where you left off. `s` in the
+  explorer steps through the six orders (modified, created and file name, each
+  both ways), as does `/sort`; `/sort list` shows them with the current one
+  marked. Folders stay alphabetical whichever order is chosen, since a folder's
+  timestamp changes for reasons that aren't visible on screen.
+- The order is stored as `ui.sort_order` in the config, so it survives a
+  restart. An unrecognised value falls back to the default rather than costing
+  you the rest of the file.
+- `NoteMeta` gained a `created` timestamp, falling back to the modification time
+  on filesystems that don't record one.
+- The `?` overlay gained a "File explorer" section, which it had been missing.
+
 ## [0.1.1] — 2026-07-27
 
 ### Fixed
@@ -111,5 +128,6 @@ First release.
 - Unreadable vaults are reported clearly, including the macOS privacy
   permission that usually causes it.
 
+[0.1.2]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.2
 [0.1.1]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.1
 [0.1.0]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.0

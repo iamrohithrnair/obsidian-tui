@@ -170,12 +170,23 @@ fn walk(
             walk(root, &path, options, out, depth + 1)?;
         } else if is_markdown(&path) {
             let metadata = entry.metadata().ok();
+            let stamp = |t: std::io::Result<std::time::SystemTime>| {
+                t.ok()
+                    .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs())
+            };
             let modified = metadata
                 .as_ref()
-                .and_then(|m| m.modified().ok())
-                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-                .map(|d| d.as_secs())
+                .and_then(|m| stamp(m.modified()))
                 .unwrap_or(0);
+            // Windows and most Linux filesystems report a birth time; older
+            // ext4 and some network mounts don't. Falling back to `modified`
+            // keeps created-order sorting sane instead of piling every note
+            // at the epoch.
+            let created = metadata
+                .as_ref()
+                .and_then(|m| stamp(m.created()))
+                .unwrap_or(modified);
             let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
 
             let stem = path
@@ -190,6 +201,7 @@ fn walk(
                 title: stem.clone(),
                 stem,
                 modified,
+                created,
                 size,
             });
         } else if options.include_attachments {

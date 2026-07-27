@@ -363,12 +363,13 @@ fn validate_name(name: &str) -> Result<()> {
 
 fn note_meta(root: &Path, path: &Path, rel: &str) -> Result<NoteMeta> {
     let metadata = fs::metadata(path)?;
-    let modified = metadata
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+    let stamp = |t: std::io::Result<std::time::SystemTime>| {
+        t.ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+    };
+    let modified = stamp(metadata.modified()).unwrap_or(0);
+    let created = stamp(metadata.created()).unwrap_or(modified);
     let stem = path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -384,6 +385,7 @@ fn note_meta(root: &Path, path: &Path, rel: &str) -> Result<NoteMeta> {
         title: stem.clone(),
         stem,
         modified,
+        created,
         size: metadata.len(),
     })
 }

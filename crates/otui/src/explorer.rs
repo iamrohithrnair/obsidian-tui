@@ -9,6 +9,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use otui_core::index::{NoteId, VaultIndex};
+use otui_core::sort::SortOrder;
 
 /// One visible line in the explorer.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,9 +59,24 @@ pub struct Explorer {
     collapsed: HashSet<String>,
     /// Filter typed into the explorer, matched against note names.
     pub filter: String,
+    /// How notes are ordered within a folder. Held here rather than passed to
+    /// `rebuild` because every call site would otherwise have to thread it
+    /// through, and the explorer is rebuilt from a dozen places.
+    sort: SortOrder,
 }
 
 impl Explorer {
+    /// The order notes are listed in.
+    #[must_use]
+    pub fn sort(&self) -> SortOrder {
+        self.sort
+    }
+
+    /// Changes the order. The caller rebuilds to make it visible.
+    pub fn set_sort(&mut self, sort: SortOrder) {
+        self.sort = sort;
+    }
+
     #[must_use]
     pub fn rows(&self) -> &[Row] {
         &self.rows
@@ -112,22 +128,36 @@ impl Explorer {
         if !filter.is_empty() {
             // While filtering, the tree gets in the way: a flat list of matches
             // with their paths is what the user is actually looking at.
-            for (id, note) in index.notes().iter().enumerate() {
-                if note.meta.title.to_lowercase().contains(&filter)
-                    || note.meta.rel.to_lowercase().contains(&filter)
-                {
-                    self.rows.push(Row::Note {
-                        id,
-                        name: note.meta.rel.trim_end_matches(".md").to_string(),
-                        depth: 0,
-                    });
-                }
+            let mut hits: Vec<NoteId> = (0..index.notes().len())
+                .filter(|&id| {
+                    let meta = &index.notes()[id].meta;
+                    meta.title.to_lowercase().contains(&filter)
+                        || meta.rel.to_lowercase().contains(&filter)
+                })
+                .collect();
+            // The flat list obeys the same order as the tree, so switching to
+            // "most recently modified" doesn't silently stop applying the
+            // moment you start typing.
+            hits.sort_by(|&a, &b| {
+                self.sort
+                    .compare(&index.notes()[a].meta, &index.notes()[b].meta)
+            });
+            for id in hits {
+                self.rows.push(Row::Note {
+                    id,
+                    name: index.notes()[id]
+                        .meta
+                        .rel
+                        .trim_end_matches(".md")
+                        .to_string(),
+                    depth: 0,
+                });
             }
             self.restore_selection(previous.as_deref());
             return;
         }
 
-        let tree = Tree::build(index);
+        let tree = Tree::build(index, self.sort);
         self.emit(&tree, "", 0, index);
         self.restore_selection(previous.as_deref());
     }
@@ -281,7 +311,7 @@ struct Tree {
 }
 
 impl Tree {
-    fn build(index: &VaultIndex) -> Self {
+    fn build(index: &VaultIndex, sort: SortOrder) -> Self {
         let mut subfolders: BTreeMap<String, Vec<String>> = BTreeMap::new();
         let mut notes: BTreeMap<String, Vec<(NoteId, String)>> = BTreeMap::new();
 
@@ -292,6 +322,10 @@ impl Tree {
                 .to_string();
             subfolders.entry(parent).or_default().push(folder.clone());
         }
+        // Folders stay alphabetical whatever the note order is. Obsidian sorts
+        // them by name too, and a folder's own mtime tracks when a file inside
+        // it was added, which makes the tree jump around for reasons that
+        // aren't visible on screen.
         for children in subfolders.values_mut() {
             children.sort_by_key(|f| f.to_lowercase());
         }
@@ -303,7 +337,9 @@ impl Tree {
                 .push((id, note.meta.title.clone()));
         }
         for entries in notes.values_mut() {
-            entries.sort_by_key(|(_, name)| name.to_lowercase());
+            entries.sort_by(|(a, _), (b, _)| {
+                sort.compare(&index.notes()[*a].meta, &index.notes()[*b].meta)
+            });
         }
 
         Self { subfolders, notes }
@@ -341,6 +377,18 @@ mod tests {
         vault
     }
 
+    /// An explorer pinned to name order.
+    ///
+    /// The app's default is most-recently-modified, which for files written
+    /// microseconds apart in a test depends on which side of a second boundary
+    /// they landed on. These tests are about tree structure, so they pin the
+    /// one order that doesn't depend on the clock.
+    fn explorer() -> Explorer {
+        let mut explorer = Explorer::default();
+        explorer.set_sort(SortOrder::NameAsc);
+        explorer
+    }
+
     fn names(explorer: &Explorer) -> Vec<String> {
         explorer
             .rows()
@@ -353,7 +401,7 @@ mod tests {
     fn flattens_the_tree_in_path_order() {
         let vault = vault();
         let index = vault.index();
-        let mut explorer = Explorer::default();
+        let mut explorer = explorer();
         explorer.rebuild(&index);
 
         assert_eq!(
@@ -373,7 +421,7 @@ mod tests {
     fn collapsing_a_folder_hides_its_contents() {
         let vault = vault();
         let index = vault.index();
-        let mut explorer = Explorer::default();
+        let mut explorer = explorer();
         explorer.rebuild(&index);
 
         // Put the cursor on "Projects" and collapse it.
@@ -394,7 +442,7 @@ mod tests {
     fn folder_counts_include_nested_notes() {
         let vault = vault();
         let index = vault.index();
-        let mut explorer = Explorer::default();
+        let mut explorer = explorer();
         explorer.rebuild(&index);
 
         match &explorer.rows()[0] {
@@ -410,7 +458,7 @@ mod tests {
     fn selection_sticks_to_the_item_across_a_rebuild() {
         let vault = vault();
         let mut index = vault.index();
-        let mut explorer = Explorer::default();
+        let mut explorer = explorer();
         explorer.rebuild(&index);
 
         // Select "Root", the last row.
@@ -432,7 +480,7 @@ mod tests {
     fn reveal_expands_ancestors_and_selects_the_note() {
         let vault = vault();
         let index = vault.index();
-        let mut explorer = Explorer::default();
+        let mut explorer = explorer();
         explorer.rebuild(&index);
         explorer.collapse_all(&index);
         assert_eq!(names(&explorer), vec!["Projects", "Root"]);
@@ -447,7 +495,7 @@ mod tests {
     fn filtering_shows_matches_even_inside_collapsed_folders() {
         let vault = vault();
         let index = vault.index();
-        let mut explorer = Explorer::default();
+        let mut explorer = explorer();
         explorer.collapse_all(&index);
 
         explorer.filter = "gamma".into();
@@ -468,7 +516,7 @@ mod tests {
         let mut index = vault.index();
         index.create_folder("Empty").expect("create folder");
 
-        let mut explorer = Explorer::default();
+        let mut explorer = explorer();
         explorer.rebuild(&index);
 
         assert!(explorer
@@ -481,7 +529,7 @@ mod tests {
     fn navigation_stays_in_bounds() {
         let vault = vault();
         let index = vault.index();
-        let mut explorer = Explorer::default();
+        let mut explorer = explorer();
         explorer.rebuild(&index);
 
         explorer.select_previous();
@@ -500,7 +548,7 @@ mod tests {
     fn an_empty_vault_has_no_rows_and_no_panic() {
         let vault = TempVault::new("explorer-empty");
         let index = vault.index();
-        let mut explorer = Explorer::default();
+        let mut explorer = explorer();
         explorer.rebuild(&index);
 
         assert!(explorer.is_empty());
@@ -516,7 +564,7 @@ mod tests {
             vault.write(&format!("N{i:02}.md"), "x");
         }
         let index = vault.index();
-        let mut explorer = Explorer::default();
+        let mut explorer = explorer();
         explorer.rebuild(&index);
 
         explorer.select_last();
@@ -526,5 +574,188 @@ mod tests {
         explorer.select_first();
         explorer.scroll_into_view(10);
         assert_eq!(explorer.scroll, 0);
+    }
+}
+
+/// Tests for the sort order, which is the thing a user actually sees change.
+#[cfg(test)]
+mod sort_tests {
+    use super::*;
+    use otui_core::test_support::TempVault;
+    use std::time::{Duration, SystemTime};
+
+    /// Writes a note and stamps it with an explicit modification time.
+    ///
+    /// Real timestamps rather than hand-built metadata, so this exercises the
+    /// whole path: the filesystem, the vault scan, and the explorer. `set_modified`
+    /// avoids sleeping for a second per note, which would make this unbearable.
+    fn write_at(vault: &TempVault, rel: &str, secs_ago: u64) {
+        let path = vault.write(rel, "x");
+        let when = SystemTime::now() - Duration::from_secs(secs_ago);
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .expect("reopen the note")
+            .set_modified(when)
+            .expect("stamp the note");
+    }
+
+    /// A vault where the alphabetical order and the recency order disagree, so
+    /// a test can't pass by accident.
+    fn staggered() -> TempVault {
+        let vault = TempVault::new("explorer-sort");
+        write_at(&vault, "Apple.md", 300);
+        write_at(&vault, "Banana.md", 100);
+        write_at(&vault, "Cherry.md", 200);
+        vault
+    }
+
+    fn note_names(explorer: &Explorer) -> Vec<String> {
+        explorer
+            .rows()
+            .iter()
+            .filter(|r| matches!(r, Row::Note { .. }))
+            .map(|r| r.name().to_string())
+            .collect()
+    }
+
+    fn rows_for(vault: &TempVault, order: SortOrder) -> Vec<String> {
+        let index = vault.index();
+        let mut explorer = Explorer::default();
+        explorer.set_sort(order);
+        explorer.rebuild(&index);
+        note_names(&explorer)
+    }
+
+    #[test]
+    fn the_most_recently_edited_note_is_at_the_top_by_default() {
+        let vault = staggered();
+        let index = vault.index();
+        let mut explorer = Explorer::default();
+        explorer.rebuild(&index);
+        assert_eq!(explorer.sort(), SortOrder::ModifiedDesc);
+        assert_eq!(note_names(&explorer), ["Banana", "Cherry", "Apple"]);
+    }
+
+    #[test]
+    fn each_order_lists_the_notes_differently() {
+        let vault = staggered();
+        assert_eq!(
+            rows_for(&vault, SortOrder::ModifiedDesc),
+            ["Banana", "Cherry", "Apple"]
+        );
+        assert_eq!(
+            rows_for(&vault, SortOrder::ModifiedAsc),
+            ["Apple", "Cherry", "Banana"]
+        );
+        assert_eq!(
+            rows_for(&vault, SortOrder::NameAsc),
+            ["Apple", "Banana", "Cherry"]
+        );
+        assert_eq!(
+            rows_for(&vault, SortOrder::NameDesc),
+            ["Cherry", "Banana", "Apple"]
+        );
+    }
+
+    #[test]
+    fn touching_a_note_moves_it_to_the_top() {
+        let vault = staggered();
+        let mut explorer = Explorer::default();
+        explorer.rebuild(&vault.index());
+        assert_eq!(note_names(&explorer)[0], "Banana");
+
+        // The oldest note is edited; it should lead on the next rebuild.
+        write_at(&vault, "Apple.md", 0);
+        explorer.rebuild(&vault.index());
+        assert_eq!(note_names(&explorer)[0], "Apple");
+    }
+
+    #[test]
+    fn folders_stay_alphabetical_whatever_the_note_order_is() {
+        let vault = TempVault::new("explorer-sort-folders");
+        // Zulu is written first, so it is the *oldest*: if folders followed the
+        // note order it would sort last under a recency order.
+        write_at(&vault, "Zulu/Note.md", 300);
+        write_at(&vault, "Alpha/Note.md", 100);
+        let index = vault.index();
+
+        for order in SortOrder::ALL {
+            let mut explorer = Explorer::default();
+            explorer.set_sort(order);
+            explorer.rebuild(&index);
+            let folders: Vec<String> = explorer
+                .rows()
+                .iter()
+                .filter(|r| matches!(r, Row::Folder { .. }))
+                .map(|r| r.name().to_string())
+                .collect();
+            assert_eq!(folders, ["Alpha", "Zulu"], "folders moved under {order:?}");
+        }
+    }
+
+    #[test]
+    fn notes_are_ordered_within_their_own_folder_not_across_the_vault() {
+        let vault = TempVault::new("explorer-sort-nested");
+        write_at(&vault, "Folder/Old.md", 900);
+        write_at(&vault, "Folder/New.md", 10);
+        write_at(&vault, "RootNote.md", 500);
+        let index = vault.index();
+        let mut explorer = Explorer::default();
+        explorer.rebuild(&index);
+
+        // Depth-first: the folder and its notes, then the root note. The root
+        // note's timestamp sits between the two, and must not interleave.
+        assert_eq!(
+            names(&explorer),
+            ["Folder", "  New", "  Old", "RootNote"],
+            "notes should sort inside their folder only"
+        );
+    }
+
+    #[test]
+    fn the_filtered_list_obeys_the_sort_order_too() {
+        let vault = staggered();
+        let index = vault.index();
+        let mut explorer = Explorer::default();
+        explorer.set_sort(SortOrder::NameDesc);
+        // Matches every note through its path, so all three are in play and the
+        // two orders below are genuinely different lists.
+        explorer.filter = "md".into();
+        explorer.rebuild(&index);
+        assert_eq!(note_names(&explorer), ["Cherry", "Banana", "Apple"]);
+
+        explorer.set_sort(SortOrder::ModifiedDesc);
+        explorer.rebuild(&index);
+        assert_eq!(note_names(&explorer), ["Banana", "Cherry", "Apple"]);
+    }
+
+    #[test]
+    fn changing_the_order_keeps_the_selection_on_the_same_note() {
+        let vault = staggered();
+        let index = vault.index();
+        let mut explorer = Explorer::default();
+        explorer.set_sort(SortOrder::NameAsc);
+        explorer.rebuild(&index);
+        explorer.selected = 0;
+        let before = explorer.selected_note();
+        assert_eq!(note_names(&explorer)[0], "Apple");
+
+        explorer.set_sort(SortOrder::ModifiedDesc);
+        explorer.rebuild(&index);
+        // Apple is now last, and the cursor should have followed it there
+        // rather than staying on row 0.
+        assert_eq!(explorer.selected_note(), before, "selection should follow");
+        assert_eq!(explorer.selected, 2);
+    }
+
+    /// The helper from the sibling module, duplicated rather than shared so
+    /// each module's tests stand on their own.
+    fn names(explorer: &Explorer) -> Vec<String> {
+        explorer
+            .rows()
+            .iter()
+            .map(|r| format!("{}{}", "  ".repeat(r.depth()), r.name()))
+            .collect()
     }
 }

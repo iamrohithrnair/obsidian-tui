@@ -1019,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "otui"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "crossterm",
@@ -1036,7 +1036,7 @@ dependencies = [
 
 [[package]]
 name = "otui-agent"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -1045,7 +1045,7 @@ dependencies = [
 
 [[package]]
 name = "otui-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "dirs",
@@ -1056,7 +1056,7 @@ dependencies = [
 
 [[package]]
 name = "otui-theme"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ratatui",
  "serde",

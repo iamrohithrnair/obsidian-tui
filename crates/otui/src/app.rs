@@ -190,6 +190,8 @@ pub enum Action {
     ToggleChat,
     ToggleRibbon,
     ToggleHints,
+    /// Steps the explorer through the sort orders and remembers the choice.
+    CycleSortOrder,
     CycleSidePanel,
     OpenGraph,
     OpenLocalGraph,
@@ -295,8 +297,10 @@ impl App {
             .unwrap_or_else(presets::default_theme);
 
         let chat = Chat::new(&config.agent);
+        let mut explorer = Explorer::default();
+        explorer.set_sort(config.ui.sort_order());
         let mut app = Self {
-            explorer: Explorer::default(),
+            explorer,
             tabs: Vec::new(),
             active_tab: None,
             history: Vec::new(),
@@ -603,7 +607,11 @@ impl App {
                 self.graph = None;
                 self.view = View::Notes;
                 self.focus = Focus::Explorer;
+                // Keep the chosen order across a vault switch; it's a
+                // preference about the app, not about the vault.
+                let sort = self.explorer.sort();
                 self.explorer = Explorer::default();
+                self.explorer.set_sort(sort);
                 self.explorer.rebuild(&self.index);
                 let name = self.index.vault.name.clone();
                 self.info(format!("opened vault {name}"));
