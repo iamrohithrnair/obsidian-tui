@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/docs/logo.svg" width="84" alt="">
+
 # obsidian-tui
 
 **The best TUI for Obsidian.** Your vault, the way you already know it: the
