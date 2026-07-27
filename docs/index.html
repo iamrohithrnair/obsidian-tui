@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>obsidian-tui — your Obsidian vault, at home in the terminal</title>
+
+<meta name="description" content="A terminal UI for the Markdown vault you already have. Live-preview notes, backlinks, a force-directed graph, 18 themes and an optional AI assistant. No import, no database, no telemetry.">
+<meta name="theme-color" content="#0b0b0f">
+<meta name="color-scheme" content="dark">
+
+<link rel="canonical" href="https://obsidian-tui.github.io/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="obsidian-tui">
+<meta property="og:title" content="obsidian-tui — your Obsidian vault, at home in the terminal">
+<meta property="og:description" content="Same folder, same notes, same [[links]] — read, write and wander through them without leaving the shell. Free and open source.">
+<meta property="og:url" content="https://obsidian-tui.github.io/">
+<meta property="og:image" content="https://obsidian-tui.github.io/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="obsidian-tui running in a terminal, showing the file explorer, a note in live preview, and the assistant panel.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="obsidian-tui — your Obsidian vault, at home in the terminal">
+<meta name="twitter:description" content="Same folder, same notes, same [[links]] — read, write and wander through them without leaving the shell.">
+<meta name="twitter:image" content="https://obsidian-tui.github.io/og.png">
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="favicon.svg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top" aria-label="obsidian-tui, back to top">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <path d="M16 2.5 27.5 12.4 16 29.6 4.5 12.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M16 2.5V29.6M4.5 12.4h23" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".45"/>
+        <circle cx="16" cy="2.5" r="2.4" fill="currentColor"/>
+        <circle cx="27.5" cy="12.4" r="2" fill="currentColor"/>
+        <circle cx="4.5" cy="12.4" r="2" fill="currentColor"/>
+      </svg>
+      <span>obsidian-tui</span>
+    </a>
+
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#keys">Keys</a>
+      <a href="#install">Install</a>
+    </nav>
+
+    <a class="btn btn-ghost nav-cta" href="https://github.com/iamrohithrnair/obsidian-tui">
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+      </svg>
+      GitHub
+    </a>
+  </div>
+</header>
+
+<main id="main">
+<span id="top"></span>
+
+<!-- ─────────────────────────── hero ─────────────────────────── -->
+<section class="hero">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="wrap">
+    <p class="eyebrow">
+      <span class="dot" aria-hidden="true"></span>
+      Written in Rust · MIT licensed · works on the vault you already have
+    </p>
+
+    <h1>Your Obsidian vault, <em>at home in the terminal.</em></h1>
+
+    <p class="lede">
+      Same folder. Same notes. Same <code>[[links]]</code>. Read, write and wander
+      through them without ever reaching for the mouse — and keep Obsidian open on
+      the other screen while you do.
+    </p>
+
+    <div class="cta-row">
+      <button class="copy-cmd" data-copy="brew install iamrohithrnair/tap/obsidian-tui" aria-label="Copy the install command to your clipboard">
+        <span class="sigil" aria-hidden="true">$</span>
+        <code>brew install iamrohithrnair/tap/obsidian-tui</code>
+        <span class="copy-icon" aria-hidden="true">
+          <svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/>
+          </svg>
+        </span>
+      </button>
+      <a class="btn btn-solid" href="#install">Other ways to install</a>
+    </div>
+
+    <p class="micro">
+      Prefer <code>curl</code>, <code>npm</code> or <code>cargo</code>? All four are two lines down.
+    </p>
+  </div>
+</section>
+
+<!-- ────────────────────── the demo terminal ────────────────────── -->
+<section class="demo-sec" aria-labelledby="demo-h">
+  <div class="wrap">
+    <div class="demo-head">
+      <h2 id="demo-h" class="vh">A look at the app</h2>
+      <p class="demo-label">This is the whole app. Try a theme:</p>
+      <div class="themes" role="group" aria-label="Preview a theme"></div>
+    </div>
+
+    <div class="term-shell">
+      <div class="term-chrome">
+        <span class="tl red" aria-hidden="true"></span>
+        <span class="tl amber" aria-hidden="true"></span>
+        <span class="tl green" aria-hidden="true"></span>
+        <span class="term-title" id="term-title">obsidian-tui ~/Notes</span>
+      </div>
+
+      <div class="term" id="term" role="img" aria-label="The obsidian-tui interface: an icon ribbon on the left, a file explorer, a note called Welcome rendered in live preview with tags, tasks, a callout and a table, and an assistant panel on the right.">
+<pre class="scr" aria-hidden="true"><span class="c-mut"> demo-vault </span><span class="c-fnt">│</span><span class="c-txt"> Welcome.md</span><span class="c-txt">                                                               </span><span class="c-acc" id="theme-name">obsidian-dark</span>
+<span class="c-txt">   </span><span class="c-fnt">┌</span><span class="c-mut"> Files </span><span class="c-fnt">───────────────┐</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-h1">Welcome</span><span class="c-txt">                                     </span><span class="c-fnt">┌</span><span class="c-mut"> Assistant </span><span class="c-fnt">─────────────┐</span>
+<span class="c-acc"> ≡ </span><span class="c-fnt">│</span><span class="c-acc">▾ </span><span class="c-txt">Daily</span><span class="c-txt">               </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-mut">tags: </span><span class="c-tag">start</span><span class="c-mut">, </span><span class="c-tag">meta</span><span class="c-txt">                           </span><span class="c-fnt">│</span><span class="c-mut">Ask about your notes.</span><span class="c-txt">   </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-acc">▾ </span><span class="c-txt">Projects</span><span class="c-txt">            </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-fnt">──────────────────────────</span><span class="c-txt">                  </span><span class="c-fnt">│</span><span class="c-mut">The assistant can</span><span class="c-txt">       </span><span class="c-fnt">│</span>
+<span class="c-mut"> ⌕ </span><span class="c-fnt">│</span><span class="c-txt">  </span><span class="c-fnt">· </span><span class="c-txt">Backlog</span><span class="c-txt">           </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-txt">                                            </span><span class="c-fnt">│</span><span class="c-mut">search, read, create</span><span class="c-txt">    </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">  </span><span class="c-fnt">· </span><span class="c-txt">Roadmap</span><span class="c-txt">           </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-h1">Welcome</span><span class="c-txt">                                     </span><span class="c-fnt">│</span><span class="c-mut">and link them.</span><span class="c-txt">          </span><span class="c-fnt">│</span>
+<span class="c-mut"> ◈ </span><span class="c-fnt">│</span><span class="c-fnt">· </span><span class="c-txt">Ideas</span><span class="c-txt">               </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-fnt">───────────────</span><span class="c-txt">                             </span><span class="c-fnt">│</span><span class="c-txt">                        </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-fnt">· </span><span class="c-txt">Orphan</span><span class="c-txt">              </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-txt">                                            </span><span class="c-fnt">│</span><span class="c-grn">▸ search_notes</span><span class="c-mut">(&quot;Q3&quot;)</span><span class="c-txt">    </span><span class="c-fnt">│</span>
+<span class="c-mut"> ✦ </span><span class="c-fnt">│</span><span class="c-sel">· Welcome</span><span class="c-sel">             </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-txt">This is a demo vault. It links to </span><span class="c-lnk">Ideas</span><span class="c-txt">,</span><span class="c-txt">    </span><span class="c-fnt">│</span><span class="c-mut">  3 notes matched.</span><span class="c-txt">      </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-txt">to the </span><span class="c-lnk">roadmap</span><span class="c-txt">, and to </span><span class="c-lnk2">Not Written Yet</span><span class="c-txt">.</span><span class="c-txt">     </span><span class="c-fnt">│</span><span class="c-txt">                        </span><span class="c-fnt">│</span>
+<span class="c-mut"> ⚙ </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-txt">                                            </span><span class="c-fnt">│</span><span class="c-txt">Roadmap and Backlog</span><span class="c-txt">     </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-grn">☑</span><span class="c-txt"> Read this note</span><span class="c-txt">                            </span><span class="c-fnt">│</span><span class="c-txt">both mention it. Want</span><span class="c-txt">   </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-mut">☐</span><span class="c-txt"> Try the graph view with </span><span class="c-kbd">Ctrl+G</span><span class="c-txt">            </span><span class="c-fnt">│</span><span class="c-txt">me to link them?</span><span class="c-txt">        </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-txt">                                            </span><span class="c-fnt">│</span><span class="c-txt">                        </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-acc">▎ Callout</span><span class="c-txt">                                   </span><span class="c-fnt">│</span><span class="c-fnt">┌──────────────────────┐</span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-acc">▎</span><span class="c-mut"> Callouts render with a colored bar.</span><span class="c-txt">       </span><span class="c-fnt">│</span><span class="c-fnt">│</span><span class="c-mut">&gt; </span><span class="c-txt">yes, please</span><span class="c-txt">         </span><span class="c-fnt">│</span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-txt">                                            </span><span class="c-fnt">│</span><span class="c-fnt">└──────────────────────┘</span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-fnt">┌─────────┬────────┐</span><span class="c-txt">                        </span><span class="c-fnt">│</span><span class="c-txt">                        </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-fnt">│</span><span class="c-txt"> Feature </span><span class="c-fnt">│</span><span class="c-txt"> Status </span><span class="c-fnt">│</span><span class="c-txt">                        </span><span class="c-fnt">│</span><span class="c-txt">                        </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-fnt">├─────────┼────────┤</span><span class="c-txt">                        </span><span class="c-fnt">│</span><span class="c-txt">                        </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-fnt">│</span><span class="c-txt"> Reading </span><span class="c-fnt">│</span><span class="c-grn">   done </span><span class="c-fnt">│</span><span class="c-txt">                        </span><span class="c-fnt">│</span><span class="c-txt">                        </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-txt">                                            </span><span class="c-fnt">│</span><span class="c-txt">                        </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">│</span><span class="c-txt">                      </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-txt">                                            </span><span class="c-fnt">│</span><span class="c-txt">                        </span><span class="c-fnt">│</span>
+<span class="c-txt">   </span><span class="c-fnt">└──────────────────────┘</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-txt">                                            </span><span class="c-fnt">└────────────────────────┘</span>
+<span class="c-fnt"> </span><span class="c-mut">Tab</span><span class="c-fnt"> pane · </span><span class="c-mut">Enter</span><span class="c-fnt"> follow link · </span><span class="c-mut">Ctrl+E</span><span class="c-fnt"> edit · </span><span class="c-mut">?</span><span class="c-fnt"> keys</span><span class="c-fnt">                                                </span>
+<span class="c-bar"> READING </span><span class="c-mut">                                                                     </span><span class="c-mut">84 words  2 backlinks </span></pre>
+      </div>
+    </div>
+
+    <p class="demo-foot">
+      Eighteen themes ship with it, including Obsidian's own light and dark, and a
+      <code>terminal</code> theme that simply inherits whatever palette you've already
+      spent years tuning. Drop a TOML file next to your config to add one more.
+    </p>
+  </div>
+</section>
+
+<!-- ───────────────────── the honest three ───────────────────── -->
+<section class="promises" aria-label="What it does and doesn't do">
+  <div class="wrap promise-grid">
+    <div class="promise">
+      <h3>Nothing to migrate</h3>
+      <p>Point it at a folder of Markdown files and it just works. No import step, no sidecar database, no proprietary format waiting to trap you.</p>
+    </div>
+    <div class="promise">
+      <h3>Nothing to fight over</h3>
+      <p>Obsidian can stay open on the same vault at the same time. Edit here, edit there — they're the same files on the same disk.</p>
+    </div>
+    <div class="promise">
+      <h3>Nothing phoning home</h3>
+      <p>No telemetry, no analytics, not even an update check. Unless you turn the assistant on, it never opens a socket.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── features ─────────────────────────── -->
+<section id="features" class="features" aria-labelledby="features-h">
+  <div class="wrap">
+    <p class="kicker">What's inside</p>
+    <h2 id="features-h">Everything you reach for, where your hands already are.</h2>
+
+    <div class="bento">
+      <article class="card span2">
+        <div class="card-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M4 10h10M4 15h13M4 20h7"/></svg>
+        </div>
+        <h3>Markdown that still looks like Markdown</h3>
+        <p>
+          Live preview in Obsidian's dialect: <code>[[wikilinks]]</code> that dim when
+          they don't resolve yet, <code>#tags</code>, <code>- [ ]</code> tasks,
+          <code>&gt; [!note]</code> callouts, tables, and fenced code with syntax
+          highlighting. Frontmatter is optional — a stray <code>.md</code> file you
+          dragged in from somewhere else shows up like everything else.
+        </p>
+      </article>
+
+      <article class="card">
+        <div class="card-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7L11.8 5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12.2 19"/></svg>
+        </div>
+        <h3>Links that point both ways</h3>
+        <p>
+          A backlinks pane showing the exact line each link sits on, an outline, and a
+          tag browser. Follow a link to a note that doesn't exist and it gets written for
+          you. Rename a note and every wikilink pointing at it is rewritten too.
+        </p>
+      </article>
+
+      <article class="card">
+        <div class="card-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="17" r="2.5"/><path d="M8 8.6 10.4 15M16.4 8.2 13.6 15M8.4 6.5h7.2"/></svg>
+        </div>
+        <h3>A graph that earns its screen</h3>
+        <p>
+          Force-directed with Barnes–Hut repulsion, so it stays smooth on a big vault and
+          stops burning CPU the moment it settles. Notes that are only <em>linked to</em>
+          show up hollow — usually the most useful thing on screen, because those are the
+          notes you meant to write.
+        </p>
+      </article>
+
+      <article class="card">
+        <div class="card-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" opacity=".35"/></svg>
+        </div>
+        <h3>Eighteen themes, then yours</h3>
+        <p>
+          Obsidian's light and dark, Catppuccin, Tokyo Night, Gruvbox, Nord, Solarized,
+          Dracula, Rosé Pine, Everforest — plus a <code>terminal</code> theme that just
+          uses your palette. Your own theme is a TOML file; anything you leave unset is
+          inherited from whatever it <code>extends</code>.
+        </p>
+      </article>
+
+      <article class="card">
+        <div class="card-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H4l2.2-2.6A8 8 0 1 1 21 12Z"/><path d="M9 11h6M9 14.5h3.5"/></svg>
+        </div>
+        <h3>An assistant that shows its work</h3>
+        <p>
+          A chat panel that acts on the vault through the very same commands you use — it
+          can search, read, create, edit, rename, link and delete notes, and put one on
+          your screen. Every tool call appears in the transcript, so you're reading what
+          it actually did rather than trusting a summary of it.
+          <span class="muted">Bring an Anthropic key, point it at Ollama on localhost, or leave it switched off entirely — nothing else in the app depends on it.</span>
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── graph ─────────────────────────── -->
+<section class="graph-sec" aria-labelledby="graph-h">
+  <div class="wrap graph-grid">
+    <div class="graph-copy">
+      <p class="kicker">Ctrl+G</p>
+      <h2 id="graph-h">The notes you meant to write, made visible.</h2>
+      <p>
+        Every vault accumulates them: a link you typed in a hurry to a note you never got
+        around to. In the graph they're the hollow circles — pulled into place by
+        everything that points at them, waiting for you.
+      </p>
+      <p>
+        <strong>Ctrl+Shift+G</strong> narrows it down to just the neighbourhood of the note
+        you have open, which is usually the question you were actually asking.
+      </p>
+    </div>
+    <div class="graph-frame">
+      <canvas id="graph" width="720" height="460" role="img" aria-label="An animated force-directed graph of notes. Filled circles are notes that exist; hollow circles are notes that are linked to but not yet written."></canvas>
+      <div class="graph-legend">
+        <span><i class="node-solid" aria-hidden="true"></i> written</span>
+        <span><i class="node-hollow" aria-hidden="true"></i> linked, not written yet</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── privacy ─────────────────────────── -->
+<section id="privacy" class="privacy" aria-labelledby="privacy-h">
+  <div class="wrap">
+    <p class="kicker">Privacy, in plain words</p>
+    <h2 id="privacy-h">Your notes are the most personal thing on your machine.<br>We treat them that way.</h2>
+
+    <p class="privacy-lede">
+      obsidian-tui makes <strong>no network connections at all</strong> unless you use the
+      assistant. Only one crate in the whole workspace has an HTTP dependency — the vault,
+      the editor and the graph physically cannot reach the network.
+    </p>
+
+    <div class="privacy-grid">
+      <div class="pcard">
+        <h3>If you do send a message, this is what leaves</h3>
+        <ul class="ticks">
+          <li>the message you typed</li>
+          <li>the note you have open, if <code>include_active_note</code> is on</li>
+          <li>whatever notes the assistant reads with its tools while answering</li>
+        </ul>
+        <p class="pnote">That's the entire list. It goes to the provider you configured, under that provider's terms, and nothing is ever sent in the background.</p>
+      </div>
+
+      <div class="pcard">
+        <h3>If you'd rather it never leaves at all</h3>
+        <pre class="code"><code><span class="tk-sec">[agent]</span>
+<span class="tk-key">provider</span> = <span class="tk-str">"openai"</span>
+<span class="tk-key">base_url</span> = <span class="tk-str">"http://localhost:11434/v1"</span>
+<span class="tk-key">model</span> = <span class="tk-str">"llama3.1"</span></code></pre>
+        <p class="pnote">Ollama, LM Studio, vLLM — anything OpenAI-shaped. Or set <code>provider = "offline"</code> and the assistant simply isn't there.</p>
+      </div>
+    </div>
+
+    <p class="privacy-foot">
+      Your API key is read from the environment and is <strong>never</strong> written to the
+      config file, never logged, and never included in an error message. Set
+      <code>allow_writes = false</code> to leave the assistant with search and read only.
+    </p>
+  </div>
+</section>
+
+<!-- ─────────────────────────── keys ─────────────────────────── -->
+<section id="keys" class="keys" aria-labelledby="keys-h">
+  <div class="wrap">
+    <p class="kicker">Muscle memory</p>
+    <h2 id="keys-h">Obsidian's shortcuts where it has them. Vim's where it doesn't.</h2>
+    <p class="section-lede">
+      Nothing new to learn on day one. A hint bar above the status line shows the keys that
+      apply to wherever you're standing, and <kbd>?</kbd> opens the full list. When it starts
+      feeling like training wheels, turn it off from the command palette.
+    </p>
+
+    <div class="keytable">
+      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>O</kbd></span><span class="kd">Quick switcher</span></div>
+      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>P</kbd></span><span class="kd">Command palette</span></div>
+      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>F</kbd></span><span class="kd">Search every note</span></div>
+      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>E</kbd></span><span class="kd">Reading ↔ editing</span></div>
+      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>N</kbd> / <kbd>Ctrl</kbd><kbd>D</kbd></span><span class="kd">New note / today's daily note</span></div>
+      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>G</kbd></span><span class="kd">Graph — add <kbd>Shift</kbd> for the local one</span></div>
+      <div class="krow"><span class="kk"><kbd>Ctrl</kbd><kbd>L</kbd></span><span class="kd">Assistant panel</span></div>
+      <div class="krow"><span class="kk"><kbd>Tab</kbd></span><span class="kd">Move between panes</span></div>
+      <div class="krow"><span class="kk"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd></span><span class="kd">Move within one</span></div>
+      <div class="krow"><span class="kk"><kbd>Enter</kbd></span><span class="kd">Open, or follow a link</span></div>
+    </div>
+
+    <p class="keys-foot">
+      And if you'd rather point at things: the ribbon icons are buttons, notes and folders
+      and tabs are clickable, graph nodes select, and the scroll wheel scrolls whichever
+      pane is under your pointer — not the focused one.
+    </p>
+  </div>
+</section>
+
+<!-- ─────────────────────────── install ─────────────────────────── -->
+<section id="install" class="install" aria-labelledby="install-h">
+  <div class="wrap">
+    <p class="kicker">Two minutes, tops</p>
+    <h2 id="install-h">Pick whichever one you already trust.</h2>
+
+    <div class="tabs" role="tablist" aria-label="Installation method">
+      <button role="tab" id="t-brew"  aria-controls="p-brew"  aria-selected="true"  class="tab is-on">Homebrew</button>
+      <button role="tab" id="t-curl"  aria-controls="p-curl"  aria-selected="false" class="tab" tabindex="-1">curl</button>
+      <button role="tab" id="t-npm"   aria-controls="p-npm"   aria-selected="false" class="tab" tabindex="-1">npm</button>
+      <button role="tab" id="t-cargo" aria-controls="p-cargo" aria-selected="false" class="tab" tabindex="-1">cargo</button>
+    </div>
+
+    <div class="panels">
+      <div role="tabpanel" id="p-brew" aria-labelledby="t-brew" class="panel is-on" tabindex="0">
+        <button class="copy-cmd wide" data-copy="brew install iamrohithrnair/tap/obsidian-tui">
+          <span class="sigil" aria-hidden="true">$</span><code>brew install iamrohithrnair/tap/obsidian-tui</code>
+          <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
+        </button>
+        <p class="panel-note">macOS and Linux, from the project's own tap.</p>
+      </div>
+
+      <div role="tabpanel" id="p-curl" aria-labelledby="t-curl" class="panel" tabindex="0" hidden>
+        <button class="copy-cmd wide" data-copy="curl -fsSL https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/install.sh | sh">
+          <span class="sigil" aria-hidden="true">$</span><code>curl -fsSL https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/install.sh | sh</code>
+          <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
+        </button>
+        <p class="panel-note">Grabs the right build for your machine and verifies its checksum before it moves anything. <code>OTUI_BIN_DIR</code> chooses where it lands; <code>OTUI_VERSION</code> pins a release. Piping a script into a shell deserves a read first — <a href="https://github.com/iamrohithrnair/obsidian-tui/blob/main/install.sh">here it is</a>.</p>
+      </div>
+
+      <div role="tabpanel" id="p-npm" aria-labelledby="t-npm" class="panel" tabindex="0" hidden>
+        <button class="copy-cmd wide" data-copy="npx obsidian-tui ~/Notes">
+          <span class="sigil" aria-hidden="true">$</span><code>npx obsidian-tui ~/Notes</code>
+          <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
+        </button>
+        <p class="panel-note">Try it without installing anything. <code>npm install -g obsidian-tui</code> when you decide to keep it.</p>
+      </div>
+
+      <div role="tabpanel" id="p-cargo" aria-labelledby="t-cargo" class="panel" tabindex="0" hidden>
+        <button class="copy-cmd wide" data-copy="cargo install --git https://github.com/iamrohithrnair/obsidian-tui obsidian-tui">
+          <span class="sigil" aria-hidden="true">$</span><code>cargo install --git https://github.com/iamrohithrnair/obsidian-tui obsidian-tui</code>
+          <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
+        </button>
+        <p class="panel-note">Needs Rust 1.88 or newer. This is also the route for Intel Macs, which build from source.</p>
+      </div>
+    </div>
+
+    <div class="run">
+      <h3>Then point it at something</h3>
+      <pre class="code"><code><span class="tk-cmd">obsidian-tui</span> ~/Notes           <span class="tk-cm"># a specific vault</span>
+<span class="tk-cmd">obsidian-tui</span>                   <span class="tk-cm"># whatever Obsidian had open last</span>
+<span class="tk-cmd">obsidian-tui</span> --list-vaults     <span class="tk-cm"># everything Obsidian knows about</span></code></pre>
+      <p class="panel-note">
+        Obsidian has no official CLI, only its URI scheme — so this works too:
+        <code>obsidian-tui 'obsidian://open?vault=Notes&amp;file=Ideas'</code>. And for the days
+        you don't want a UI at all:
+        <code>obsidian-tui ~/Notes --prompt "which notes mention the Q3 migration?"</code>
+      </p>
+      <p class="panel-note">
+        Prebuilt for Apple silicon, Linux <code>x86_64</code> and <code>aarch64</code>, and
+        Windows <code>x86_64</code>.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── faq ─────────────────────────── -->
+<section class="faq" aria-labelledby="faq-h">
+  <div class="wrap">
+    <p class="kicker">Reasonable worries</p>
+    <h2 id="faq-h">The things you'd want to ask first.</h2>
+
+    <details>
+      <summary>Is this going to do something to my vault?</summary>
+      <p>
+        It reads a plain folder of Markdown files — no import, no database, no lock-in.
+        It writes when you ask it to: saving a note, creating one by following a link that
+        didn't resolve, or renaming one, which also rewrites the wikilinks pointing at it.
+        Nothing happens behind your back.
+      </p>
+    </details>
+
+    <details>
+      <summary>Can I keep Obsidian open while I use it?</summary>
+      <p>
+        Yes — that's the point. It's the same folder on the same disk, and both apps are
+        happy to be in it at once. Use whichever one suits the moment.
+      </p>
+    </details>
+
+    <details>
+      <summary>Do I need an API key?</summary>
+      <p>
+        Only if you want the assistant. Without one the panel still opens and explains how
+        to set it up, and every other part of the app carries on exactly as before. Set
+        <code>ANTHROPIC_API_KEY</code> (or <code>OPENAI_API_KEY</code>) and restart.
+      </p>
+    </details>
+
+    <details>
+      <summary>Can the AI run entirely on my own machine?</summary>
+      <p>
+        Yes. Set <code>provider = "openai"</code> with a <code>base_url</code> pointing at
+        Ollama, LM Studio, vLLM or anything else that speaks the OpenAI shape, and nothing
+        leaves your laptop.
+      </p>
+    </details>
+
+    <details>
+      <summary>What about my Obsidian plugins and themes?</summary>
+      <p>
+        Plugins are Obsidian's, and they stay there — this reads the files underneath, so
+        anything a plugin wrote is just text you can see. Themes are separate: eighteen ship
+        with the app, and you can write your own in TOML, borrowing from any of them.
+      </p>
+    </details>
+
+    <details>
+      <summary>Which platforms?</summary>
+      <p>
+        Binaries are published for Apple silicon, Linux <code>x86_64</code> and
+        <code>aarch64</code>, and Windows <code>x86_64</code>. Intel Macs build from source
+        with <code>cargo</code>. Config lands in the usual place for your OS on first run,
+        with every default spelled out so you can see what you're changing.
+      </p>
+    </details>
+  </div>
+</section>
+
+<!-- ─────────────────────────── closing ─────────────────────────── -->
+<section class="closer">
+  <div class="glow glow-b" aria-hidden="true"></div>
+  <div class="wrap">
+    <h2>Your notes are already on your machine.</h2>
+    <p>Now you don't have to leave the terminal to think in them.</p>
+    <div class="cta-row center">
+      <button class="copy-cmd" data-copy="brew install iamrohithrnair/tap/obsidian-tui">
+        <span class="sigil" aria-hidden="true">$</span><code>brew install iamrohithrnair/tap/obsidian-tui</code>
+        <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
+      </button>
+      <a class="btn btn-solid" href="https://github.com/iamrohithrnair/obsidian-tui">Read the source</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <div class="foot-brand">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <path d="M16 2.5 27.5 12.4 16 29.6 4.5 12.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M16 2.5V29.6M4.5 12.4h23" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".45"/>
+      </svg>
+      <div>
+        <p class="foot-name">obsidian-tui</p>
+        <p class="foot-sub">MIT licensed. Built in Rust, in the open.</p>
+      </div>
+    </div>
+
+    <nav class="foot-links" aria-label="Footer">
+      <a href="https://github.com/iamrohithrnair/obsidian-tui">Source</a>
+      <a href="https://github.com/iamrohithrnair/obsidian-tui/releases/latest">Releases</a>
+      <a href="https://github.com/iamrohithrnair/obsidian-tui/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/iamrohithrnair/obsidian-tui/issues">Report a bug</a>
+    </nav>
+  </div>
+
+  <div class="wrap credits">
+    <p>
+      Standing on the shoulders of three excellent terminal note-takers: the three-pane
+      layout and theming of <a href="https://github.com/sazardev/shiki">shiki</a>, the graph
+      work of <a href="https://github.com/reekta92/clin-rs">clin</a>, and the vault
+      integration of <a href="https://github.com/erikjuhani/basalt">basalt</a>. The agent
+      runtime follows <a href="https://github.com/earendil-works/pi">pi</a>, reimplemented in
+      Rust. Not affiliated with Obsidian.md.
+    </p>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js" defer></script>
+</body>
+</html>
