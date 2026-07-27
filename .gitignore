@@ -1,0 +1,11 @@
+# Build output
+/target/
+
+# Local editor and OS noise
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Anything a contributor points at their own vault with
+/demo-vault/

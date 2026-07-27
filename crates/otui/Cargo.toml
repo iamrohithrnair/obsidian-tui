@@ -1,0 +1,27 @@
+[package]
+name = "otui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "obsidian-tui"
+
+[[bin]]
+name = "obsidian-tui"
+path = "src/main.rs"
+
+[dependencies]
+otui-core.workspace = true
+otui-theme.workspace = true
+otui-agent.workspace = true
+ratatui.workspace = true
+crossterm.workspace = true
+serde.workspace = true
+toml.workspace = true
+dirs.workspace = true
+anyhow.workspace = true
+unicode-width.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+otui-core = { workspace = true, features = ["test-support"] }
