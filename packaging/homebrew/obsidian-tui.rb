@@ -8,7 +8,7 @@ class ObsidianTui < Formula
   desc "Obsidian-like terminal UI for Markdown vaults, with a graph and an assistant"
   homepage "https://github.com/iamrohithrnair/obsidian-tui"
   version "0.1.0"
-  license "MIT"
+  license "GPL-3.0-or-later"
 
   on_macos do
     on_arm do

@@ -6,7 +6,7 @@
     "type": "git",
     "url": "git+https://github.com/iamrohithrnair/obsidian-tui.git"
   },
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "author": "Rohith Nair",
   "os": [
     "darwin"
