@@ -55,6 +55,11 @@ pub fn commands() -> Vec<Entry> {
             Action::ToggleGraphUnresolved,
         ),
         Entry::new("Graph: toggle tags", "", Action::ToggleGraphTags),
+        Entry::new(
+            "Graph: toggle attachments",
+            "",
+            Action::ToggleGraphAttachments,
+        ),
         Entry::new("Graph: toggle orphans", "", Action::ToggleGraphOrphans),
         Entry::new("Open this note in Obsidian", "", Action::OpenInObsidian),
         Entry::new("Reload vault from disk", "", Action::Refresh),
@@ -372,6 +377,10 @@ pub fn dispatch(app: &mut App, action: Action) {
         }
         Action::ToggleGraphTags => {
             app.config.graph.show_tags = !app.config.graph.show_tags;
+            app.refresh_graph();
+        }
+        Action::ToggleGraphAttachments => {
+            app.config.graph.show_attachments = !app.config.graph.show_attachments;
             app.refresh_graph();
         }
         Action::ToggleGraphOrphans => {

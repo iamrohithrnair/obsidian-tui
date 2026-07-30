@@ -319,10 +319,79 @@ fn handle_mouse(app: &mut App, mouse: crossterm::event::MouseEvent) -> bool {
             }
             handle_click(app, point)
         }
+        // Dragging a node pins it where you put it, which is how you untangle a
+        // knot of links that the layout has folded onto itself.
+        MouseEventKind::Drag(MouseButton::Left) => drag_graph_node(app, point),
+        MouseEventKind::Up(MouseButton::Left) => release_graph_node(app),
         MouseEventKind::ScrollDown => handle_scroll(app, point, 3),
         MouseEventKind::ScrollUp => handle_scroll(app, point, -3),
         _ => false,
     }
+}
+
+/// Maps a screen point to graph space using the bounds the last frame recorded.
+fn graph_point(
+    rect: ratatui::layout::Rect,
+    x_bounds: [f64; 2],
+    y_bounds: [f64; 2],
+    (x, y): (u16, u16),
+) -> otui_core::graph::Vec2 {
+    let fx = f64::from(x.saturating_sub(rect.x)) / f64::from(rect.width.max(1));
+    let fy = f64::from(y.saturating_sub(rect.y)) / f64::from(rect.height.max(1));
+    otui_core::graph::Vec2::new(
+        (x_bounds[0] + fx * (x_bounds[1] - x_bounds[0])) as f32,
+        // Canvas y grows upward, terminal rows grow downward.
+        (y_bounds[1] - fy * (y_bounds[1] - y_bounds[0])) as f32,
+    )
+}
+
+fn drag_graph_node(app: &mut App, point: (u16, u16)) -> bool {
+    let Some((rect, x_bounds, y_bounds)) = app.regions.graph else {
+        return false;
+    };
+    let Some(graph) = app.graph.as_mut() else {
+        return false;
+    };
+
+    // The grab happens on the first drag event rather than on the click, so a
+    // plain click still just selects.
+    let held = match graph.dragging {
+        Some(node) => node,
+        None => {
+            if !hit(rect, point) {
+                return false;
+            }
+            let radius = ((x_bounds[1] - x_bounds[0]) / 20.0) as f32;
+            let Some(node) = graph
+                .simulation
+                .nearest(graph_point(rect, x_bounds, y_bounds, point), radius)
+            else {
+                return false;
+            };
+            graph.dragging = Some(node);
+            graph.selected = Some(node);
+            node
+        }
+    };
+
+    graph
+        .simulation
+        .drag(held, graph_point(rect, x_bounds, y_bounds, point));
+    true
+}
+
+fn release_graph_node(app: &mut App) -> bool {
+    let Some(graph) = app.graph.as_mut() else {
+        return false;
+    };
+    let Some(node) = graph.dragging.take() else {
+        return false;
+    };
+    // Released back into the simulation rather than left pinned: a pin the user
+    // can't see is a layout that never settles again for reasons they can't
+    // explain.
+    graph.simulation.release(node);
+    true
 }
 
 fn hit(rect: ratatui::layout::Rect, (x, y): (u16, u16)) -> bool {
@@ -408,16 +477,10 @@ fn handle_click(app: &mut App, point: (u16, u16)) -> bool {
         if hit(rect, point) {
             app.focus = app::Focus::Graph;
             if let Some(graph) = app.graph.as_mut() {
-                let fx = f64::from(point.0 - rect.x) / f64::from(rect.width.max(1));
-                let fy = f64::from(point.1 - rect.y) / f64::from(rect.height.max(1));
-                let x = x_bounds[0] + fx * (x_bounds[1] - x_bounds[0]);
-                // Canvas y grows upward, terminal rows grow downward.
-                let y = y_bounds[1] - fy * (y_bounds[1] - y_bounds[0]);
-
-                let point = otui_core::graph::Vec2::new(x as f32, y as f32);
                 // Generous radius: a node is a few characters wide on screen.
                 let radius = ((x_bounds[1] - x_bounds[0]) / 20.0) as f32;
-                if let Some(node) = graph.simulation.nearest(point, radius) {
+                let target = graph_point(rect, x_bounds, y_bounds, point);
+                if let Some(node) = graph.simulation.nearest(target, radius) {
                     graph.selected = Some(node);
                 }
             }

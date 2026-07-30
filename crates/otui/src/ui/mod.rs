@@ -189,14 +189,14 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
         }
     } else if app.view == View::Graph {
         &[
+            ("↑↓←→", "walk"),
             ("hjkl", "pan"),
             ("+/-", "zoom"),
             ("f", "fit"),
-            ("Tab", "next node"),
             ("Enter", "open"),
+            ("drag", "move"),
             ("L", "labels"),
             ("?", "help"),
-            ("q", "quit"),
         ]
     } else {
         match app.focus {

@@ -106,12 +106,24 @@ pub struct GraphView {
     pub zoom: f32,
     /// When set, the graph shows only this note's neighborhood.
     pub local_root: Option<NoteId>,
+    /// World-space extent the view frames at zoom 1.
+    ///
+    /// Held rather than measured each frame: the layout grows while it settles,
+    /// so recomputing the fit from live bounds rescales the whole picture on
+    /// every tick and the graph appears to breathe. It is refreshed when the
+    /// layout stops moving and whenever the user asks to refit.
+    pub span: f32,
+    /// Node currently held by the mouse.
+    pub dragging: Option<usize>,
 }
 
 /// Zoom limits. Below the lower bound the graph is a smudge; above the upper
 /// one a single node fills the pane.
 pub const MIN_ZOOM: f32 = 0.2;
 pub const MAX_ZOOM: f32 = 20.0;
+
+/// Padding around the laid-out graph when the view is fitted to it.
+const FIT_PADDING: f32 = 1.15;
 
 impl GraphView {
     /// Frames the whole layout.
@@ -123,6 +135,13 @@ impl GraphView {
         let (min_x, min_y, max_x, max_y) = self.simulation.graph.bounds();
         self.center = Vec2::new((min_x + max_x) / 2.0, (min_y + max_y) / 2.0);
         self.zoom = 1.0;
+        self.refit_span();
+    }
+
+    /// Recomputes the framed extent from the layout's current bounds.
+    pub fn refit_span(&mut self) {
+        let (min_x, min_y, max_x, max_y) = self.simulation.graph.bounds();
+        self.span = (max_x - min_x).max(max_y - min_y).max(1.0) * FIT_PADDING;
     }
 
     /// Centres on a node and selects it.
@@ -149,6 +168,47 @@ impl GraphView {
                 .unwrap_or(0),
         };
         self.focus_node(next);
+    }
+
+    /// Moves the selection to the nearest node in a direction.
+    ///
+    /// Nearest *overall* is the wrong answer: pressing right should reach the
+    /// note to the right even when a closer one sits just above, or the arrow
+    /// keys stop feeling like movement through the picture. Candidates behind
+    /// the cursor are rejected outright, and the rest are scored by distance
+    /// plus how far off-axis they sit, so alignment beats a small head start.
+    pub fn select_in_direction(&mut self, dx: f32, dy: f32) {
+        let nodes = &self.simulation.graph.nodes;
+        if nodes.is_empty() {
+            return;
+        }
+        let Some(current) = self.selected.and_then(|i| nodes.get(i)).map(|n| n.pos) else {
+            // Nothing selected yet, so an arrow key means "start somewhere
+            // worth looking at" — the same entry point Tab uses.
+            self.cycle_selection(0);
+            return;
+        };
+
+        let mut best: Option<(usize, f32)> = None;
+        for (index, node) in nodes.iter().enumerate() {
+            if Some(index) == self.selected {
+                continue;
+            }
+            let ox = node.pos.x - current.x;
+            let oy = node.pos.y - current.y;
+            if ox * dx + oy * dy <= 0.0 {
+                continue;
+            }
+            let off_axis = (ox * dy - oy * dx).abs();
+            let score = ox.hypot(oy) + off_axis * 2.0;
+            if best.is_none_or(|(_, b)| score < b) {
+                best = Some((index, score));
+            }
+        }
+
+        if let Some((index, _)) = best {
+            self.selected = Some(index);
+        }
     }
 
     pub fn zoom_by(&mut self, factor: f32) {
@@ -212,6 +272,7 @@ pub enum Action {
     ToggleGraphLabels,
     ToggleGraphUnresolved,
     ToggleGraphTags,
+    ToggleGraphAttachments,
     ToggleGraphOrphans,
 
     // Vault
@@ -507,7 +568,18 @@ impl App {
 
     /// Opens the graph, optionally restricted to one note's neighborhood.
     pub fn open_graph(&mut self, local_root: Option<NoteId>) {
-        let graph = Graph::build(&self.index, &self.graph_options());
+        let mut graph = Graph::build(&self.index, &self.graph_options());
+
+        // The local graph is cut down to a graph of its own before anything is
+        // laid out, so the neighbourhood settles into the pane it will be shown
+        // in. Filtering at draw time instead leaves it laid out for a picture
+        // it never gets, and drawn with edges running off to nodes that aren't
+        // there.
+        if let Some(root) = local_root.and_then(|id| graph.node_of_note(id)) {
+            let neighborhood = graph.neighborhood(root, self.config.graph.local_depth);
+            graph = graph.subgraph(&neighborhood);
+        }
+
         let mut simulation = Simulation::new(graph);
         // Settle before the first frame so the graph opens readable rather
         // than as an exploding cloud.
@@ -524,13 +596,18 @@ impl App {
                 Vec2::new((min_x + max_x) / 2.0, (min_y + max_y) / 2.0)
             });
 
-        self.graph = Some(GraphView {
+        let mut view = GraphView {
             center,
             simulation,
             selected,
             zoom: 1.0,
             local_root,
-        });
+            span: 1.0,
+            dragging: None,
+        };
+        view.refit_span();
+
+        self.graph = Some(view);
         self.view = View::Graph;
         self.focus = Focus::Graph;
     }
@@ -688,6 +765,130 @@ mod tests {
         vault.write("B.md", "# B\n");
         vault.write("Folder/C.md", "# C\n");
         vault
+    }
+
+    #[test]
+    fn the_local_graph_holds_only_the_neighborhood() {
+        let vault = TempVault::new("local-graph");
+        vault.write("Hub.md", "[[Near]]\n");
+        vault.write("Near.md", "[[Far]]\n");
+        vault.write("Far.md", "end\n");
+        vault.write("Unrelated.md", "nothing\n");
+        let mut app = app(&vault);
+
+        let hub = app.index.id_of_rel("Hub.md").unwrap();
+        app.open_graph(Some(hub));
+
+        let graph = app.graph.as_ref().expect("graph");
+        let labels: Vec<&str> = graph
+            .simulation
+            .graph
+            .nodes
+            .iter()
+            .map(|n| n.label.as_str())
+            .collect();
+        assert_eq!(
+            labels,
+            vec!["Hub", "Near"],
+            "depth 1 from Hub, and nothing else in the vault"
+        );
+        assert_eq!(
+            graph.selected,
+            Some(0),
+            "the note the graph was opened for is selected"
+        );
+    }
+
+    #[test]
+    fn the_local_graph_is_framed_on_its_own_extent() {
+        // The bug this guards: fitting the view to the whole vault's bounds
+        // while drawing only a neighbourhood, which leaves the local graph a
+        // speck in the corner of an empty pane.
+        let vault = TempVault::new("local-frame");
+        let mut wide = String::new();
+        for i in 0..40 {
+            wide.push_str(&format!("[[N{i}]]\n"));
+            vault.write(&format!("N{i}.md"), "spread out\n");
+        }
+        vault.write("Wide.md", &wide);
+        vault.write("Pair.md", "[[Mate]]\n");
+        vault.write("Mate.md", "back\n");
+        let mut app = app(&vault);
+
+        app.open_graph(None);
+        let whole = app.graph.as_ref().expect("graph").span;
+
+        let pair = app.index.id_of_rel("Pair.md").unwrap();
+        app.open_graph(Some(pair));
+        let local = app.graph.as_ref().expect("graph").span;
+
+        assert!(
+            local < whole,
+            "two linked notes must frame tighter than a 40-spoke vault: {local} vs {whole}"
+        );
+    }
+
+    #[test]
+    fn framing_holds_still_while_the_layout_settles() {
+        let vault = sample();
+        let mut app = app(&vault);
+        app.open_graph(None);
+
+        let graph = app.graph.as_mut().expect("graph");
+        let before = graph.span;
+        graph.simulation.reheat();
+        graph.simulation.step();
+        assert_eq!(
+            graph.span, before,
+            "a step must not rescale the view, or the graph appears to breathe"
+        );
+    }
+
+    #[test]
+    fn arrows_walk_to_the_node_they_point_at() {
+        let vault = sample();
+        let mut app = app(&vault);
+        app.open_graph(None);
+        let graph = app.graph.as_mut().expect("graph");
+
+        // A closer node off to the side must lose to an aligned one further
+        // away, or arrow keys stop tracking the direction pressed.
+        graph.simulation.drag(0, Vec2::new(0.0, 0.0));
+        graph.simulation.drag(1, Vec2::new(40.0, 0.0));
+        graph.simulation.drag(2, Vec2::new(4.0, 30.0));
+        graph.selected = Some(0);
+
+        graph.select_in_direction(1.0, 0.0);
+        assert_eq!(
+            graph.selected,
+            Some(1),
+            "right reaches the node to the right"
+        );
+
+        graph.selected = Some(0);
+        graph.select_in_direction(0.0, 1.0);
+        assert_eq!(graph.selected, Some(2), "up reaches the node above");
+
+        // Nothing lies left of the origin node, so the selection stays put
+        // rather than wrapping to the far side of the graph.
+        graph.selected = Some(0);
+        graph.select_in_direction(-1.0, 0.0);
+        assert_eq!(graph.selected, Some(0));
+    }
+
+    #[test]
+    fn an_arrow_with_nothing_selected_starts_at_a_hub() {
+        let vault = sample();
+        let mut app = app(&vault);
+        app.open_graph(None);
+        let graph = app.graph.as_mut().expect("graph");
+        graph.selected = None;
+
+        graph.select_in_direction(1.0, 0.0);
+        assert!(
+            graph.selected.is_some(),
+            "an arrow key always lands somewhere"
+        );
     }
 
     #[test]

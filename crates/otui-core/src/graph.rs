@@ -331,6 +331,51 @@ impl Graph {
         out
     }
 
+    /// A graph holding only `indices` and the edges that run between them.
+    ///
+    /// The local graph needs its own layout rather than a filtered view of the
+    /// whole vault's. Laying a neighbourhood out as part of a five-thousand-note
+    /// picture scatters it across coordinates the local view never shows, so it
+    /// arrives as a clump in one corner of an otherwise empty pane. Positions
+    /// are re-seeded, so the neighbourhood settles into the space it actually
+    /// has.
+    #[must_use]
+    pub fn subgraph(&self, indices: &[usize]) -> Self {
+        let mut remap = vec![usize::MAX; self.nodes.len()];
+        let mut nodes = Vec::with_capacity(indices.len());
+        for &index in indices {
+            if index >= self.nodes.len() || remap[index] != usize::MAX {
+                continue;
+            }
+            remap[index] = nodes.len();
+            nodes.push(self.nodes[index].clone());
+        }
+
+        let kept = |node: usize| remap.get(node).copied().filter(|&n| n != usize::MAX);
+        let edges = self
+            .edges
+            .iter()
+            .filter_map(|edge| {
+                Some(Edge {
+                    from: kept(edge.from)?,
+                    to: kept(edge.to)?,
+                })
+            })
+            .collect();
+
+        let mut graph = Self {
+            nodes,
+            edges,
+            adjacency: Vec::new(),
+        };
+        // Degree is recounted over the kept edges, which is what the layout
+        // should react to: a hub's pull inside the neighbourhood comes from the
+        // links you can see, not from the hundred you can't.
+        graph.rebuild_adjacency();
+        graph.seed_positions();
+        graph
+    }
+
     /// Bounding box of all node positions as `(min_x, min_y, max_x, max_y)`.
     ///
     /// Returns a unit box for an empty graph so callers can divide by its size
@@ -916,6 +961,49 @@ mod tests {
         assert_eq!(graph.neighborhood(a, 0).len(), 1);
         assert_eq!(graph.neighborhood(a, 1).len(), 2);
         assert_eq!(graph.neighborhood(a, 2).len(), 3);
+    }
+
+    #[test]
+    fn a_subgraph_stands_on_its_own() {
+        let vault = TempVault::new("subgraph");
+        vault.write("A.md", "[[B]]\n");
+        vault.write("B.md", "[[C]]\n");
+        vault.write("C.md", "end\n");
+
+        let index = vault.index();
+        let graph = Graph::build(&index, &GraphOptions::default());
+        let a = graph
+            .node_of_note(index.id_of_rel("A.md").unwrap())
+            .unwrap();
+
+        let local = graph.subgraph(&graph.neighborhood(a, 1));
+
+        let labels: Vec<&str> = local.nodes.iter().map(|n| n.label.as_str()).collect();
+        assert_eq!(labels, vec!["A", "B"], "one hop from A reaches B, not C");
+        assert_eq!(
+            local.edges.len(),
+            1,
+            "B's link to C has nowhere to land and must be dropped, not left dangling"
+        );
+        // Indices are remapped, or an edge points past the end of the node list.
+        for edge in &local.edges {
+            assert!(edge.from < local.nodes.len() && edge.to < local.nodes.len());
+        }
+        // Degree is recounted over the kept edges: inside this view B is a leaf.
+        assert_eq!(local.nodes[1].degree, 1, "B keeps only its link to A");
+        // Positions are re-seeded, or the layout starts with every node stacked
+        // on the coordinates it held in the full graph.
+        assert_ne!(local.nodes[0].pos, local.nodes[1].pos);
+    }
+
+    #[test]
+    fn a_subgraph_ignores_indices_that_do_not_exist() {
+        let vault = linked_vault();
+        let index = vault.index();
+        let graph = Graph::build(&index, &GraphOptions::default());
+
+        let local = graph.subgraph(&[0, 0, usize::MAX, 999]);
+        assert_eq!(local.nodes.len(), 1, "duplicates and strays are skipped");
     }
 
     #[test]

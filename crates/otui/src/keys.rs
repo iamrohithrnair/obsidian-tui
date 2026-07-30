@@ -502,10 +502,18 @@ fn handle_graph(app: &mut App, key: KeyEvent) {
     let step = 20.0 / graph.zoom;
 
     match key.code {
-        KeyCode::Char('h') | KeyCode::Left => graph.center.x -= step,
-        KeyCode::Char('l') | KeyCode::Right => graph.center.x += step,
-        KeyCode::Char('k') | KeyCode::Up => graph.center.y += step,
-        KeyCode::Char('j') | KeyCode::Down => graph.center.y -= step,
+        KeyCode::Char('h') => graph.center.x -= step,
+        KeyCode::Char('l') => graph.center.x += step,
+        KeyCode::Char('k') => graph.center.y += step,
+        KeyCode::Char('j') => graph.center.y -= step,
+        // Arrows walk the selection from node to node, which is how you read a
+        // graph; `hjkl` pans the camera. Binding both to panning left no way to
+        // step through the picture except Tab, which jumps by link count and so
+        // teleports across the vault.
+        KeyCode::Left => graph.select_in_direction(-1.0, 0.0),
+        KeyCode::Right => graph.select_in_direction(1.0, 0.0),
+        KeyCode::Up => graph.select_in_direction(0.0, 1.0),
+        KeyCode::Down => graph.select_in_direction(0.0, -1.0),
         KeyCode::Char('+' | '=') => graph.zoom_by(1.25),
         KeyCode::Char('-' | '_') => graph.zoom_by(1.0 / 1.25),
         // `f` to fit and `0` to reset are the two conventions graph and image
@@ -543,6 +551,7 @@ fn handle_graph(app: &mut App, key: KeyEvent) {
         KeyCode::Char('L') => dispatch(app, Action::ToggleGraphLabels),
         KeyCode::Char('u') => dispatch(app, Action::ToggleGraphUnresolved),
         KeyCode::Char('t') => dispatch(app, Action::ToggleGraphTags),
+        KeyCode::Char('a') => dispatch(app, Action::ToggleGraphAttachments),
         KeyCode::Char('r') if !ctrl => {
             app.refresh_graph();
             app.info("graph rebuilt");
@@ -1035,6 +1044,51 @@ mod binding_tests {
         press(&mut app, 'r');
         assert_eq!(app.view, View::Graph);
         assert!(app.graph.is_some());
+    }
+
+    #[test]
+    fn arrows_move_the_selection_and_hjkl_moves_the_camera() {
+        let (_v, mut app) = graph_app();
+        {
+            // Two nodes side by side, so "right" has an unambiguous answer.
+            let graph = app.graph.as_mut().unwrap();
+            graph
+                .simulation
+                .drag(0, otui_core::graph::Vec2::new(0.0, 0.0));
+            graph
+                .simulation
+                .drag(1, otui_core::graph::Vec2::new(30.0, 0.0));
+            graph.selected = Some(0);
+        }
+        let center = app.graph.as_ref().unwrap().center;
+
+        handle(
+            &mut app,
+            KeyEvent::new(KeyCode::Right, KeyModifiers::empty()),
+        );
+        let graph = app.graph.as_ref().unwrap();
+        assert_eq!(graph.selected, Some(1), "→ walks to the next node");
+        assert_eq!(graph.center, center, "→ does not pan");
+
+        handle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('l'), KeyModifiers::empty()),
+        );
+        let graph = app.graph.as_ref().unwrap();
+        assert!(graph.center.x > center.x, "l still pans");
+        assert_eq!(
+            graph.selected,
+            Some(1),
+            "panning does not move the selection"
+        );
+    }
+
+    #[test]
+    fn a_toggles_attachments() {
+        let (_v, mut app) = graph_app();
+        let before = app.config.graph.show_attachments;
+        press(&mut app, 'a');
+        assert_ne!(app.config.graph.show_attachments, before);
     }
 
     #[test]

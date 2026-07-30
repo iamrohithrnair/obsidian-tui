@@ -34,8 +34,6 @@ const MAX_LABELS: usize = 60;
 /// Braille dots per cell, horizontally and vertically.
 const DOTS_X: f64 = 2.0;
 const DOTS_Y: f64 = 4.0;
-/// Padding around the laid-out graph when the view is fitted to it.
-const FIT_PADDING: f64 = 1.15;
 
 /// The mark that stands for a node.
 ///
@@ -75,6 +73,13 @@ pub fn draw(
     // Keep stepping until settled; an idle graph costs nothing.
     if !graph.simulation.is_settled() {
         graph.simulation.step();
+        // The layout spreads as it settles, so the extent measured when it
+        // opened is too small by the time it stops. Refitting once here — and
+        // not every frame — is what keeps the picture framed without making it
+        // rescale under the user on every tick.
+        if graph.simulation.is_settled() {
+            graph.refit_span();
+        }
     }
 
     let focused = app.focus == Focus::Graph;
@@ -95,16 +100,6 @@ pub fn draw(
         return;
     }
 
-    // Local mode hides everything outside the focused note's neighborhood.
-    let neighborhood: Option<Vec<usize>> = graph.local_root.and_then(|root| {
-        graph.simulation.graph.node_of_note(root).map(|node| {
-            graph
-                .simulation
-                .graph
-                .neighborhood(node, app.config.graph.local_depth)
-        })
-    });
-
     let (x_bounds, y_bounds) = viewport(graph, canvas_area);
     regions.graph = Some((canvas_area, x_bounds, y_bounds));
 
@@ -117,12 +112,6 @@ pub fn draw(
         .x_bounds(x_bounds)
         .y_bounds(y_bounds)
         .paint(|ctx: &mut Context| {
-            let visible = |index: usize| {
-                neighborhood
-                    .as_ref()
-                    .is_none_or(|nodes| nodes.contains(&index))
-            };
-
             // Only edges live on the canvas; nodes are drawn as glyphs
             // afterwards, over the top.
             for edge in &simulation.graph.edges {
@@ -132,9 +121,6 @@ pub fn draw(
                 ) else {
                     continue;
                 };
-                if !visible(edge.from) && !visible(edge.to) {
-                    continue;
-                }
                 let touches_selection = selected == Some(edge.from) || selected == Some(edge.to);
                 ctx.draw(&CanvasLine {
                     x1: f64::from(a.pos.x),
@@ -152,26 +138,10 @@ pub fn draw(
 
     frame.render_widget(canvas, canvas_area);
 
-    draw_nodes(
-        frame,
-        app,
-        palette,
-        canvas_area,
-        x_bounds,
-        y_bounds,
-        neighborhood.as_deref(),
-    );
+    draw_nodes(frame, app, palette, canvas_area, x_bounds, y_bounds);
 
     if show_labels {
-        draw_labels(
-            frame,
-            app,
-            palette,
-            canvas_area,
-            x_bounds,
-            y_bounds,
-            neighborhood.as_deref(),
-        );
+        draw_labels(frame, app, palette, canvas_area, x_bounds, y_bounds);
     }
     draw_legend(frame, app, palette, legend_row, focused);
 }
@@ -181,15 +151,15 @@ pub fn draw(
 /// A braille dot is half a cell wide and a quarter of a cell tall, and terminal
 /// cells are about twice as tall as they are wide, so dots come out square.
 /// Scaling both axes by the same factor is what keeps the layout from being
-/// stretched, and taking the larger factor is what keeps every node on screen.
+/// stretched, and fitting the span into whichever axis is shorter in dots is
+/// what keeps every node on screen.
+///
+/// The span comes from [`GraphView::span`] rather than from live bounds, so a
+/// resize reframes the graph but a still-settling layout doesn't rescale it.
 fn viewport(graph: &GraphView, area: Rect) -> ([f64; 2], [f64; 2]) {
-    let (min_x, min_y, max_x, max_y) = graph.simulation.graph.bounds();
-    let span_x = f64::from(max_x - min_x).max(1.0) * FIT_PADDING;
-    let span_y = f64::from(max_y - min_y).max(1.0) * FIT_PADDING;
-
     let dots_x = f64::from(area.width.max(1)) * DOTS_X;
     let dots_y = f64::from(area.height.max(1)) * DOTS_Y;
-    let dot = (span_x / dots_x).max(span_y / dots_y) / f64::from(graph.zoom.max(0.01));
+    let dot = f64::from(graph.span.max(1.0)) / dots_x.min(dots_y) / f64::from(graph.zoom.max(0.01));
 
     let half_x = dot * dots_x / 2.0;
     let half_y = dot * dots_y / 2.0;
@@ -209,12 +179,23 @@ fn draw_nodes(
     area: Rect,
     x_bounds: [f64; 2],
     y_bounds: [f64; 2],
-    neighborhood: Option<&[usize]>,
 ) {
     let Some(graph) = app.graph.as_ref() else {
         return;
     };
     let nodes = &graph.simulation.graph.nodes;
+
+    // Resolved once rather than per node: asking whether each of five thousand
+    // nodes appears in the selection's adjacency list is a scan per node, and
+    // this runs every frame while the layout settles.
+    let mut is_neighbor = vec![false; nodes.len()];
+    if let Some(selected) = graph.selected {
+        for &neighbor in graph.simulation.graph.neighbors(selected) {
+            if let Some(flag) = is_neighbor.get_mut(neighbor) {
+                *flag = true;
+            }
+        }
+    }
 
     // Least-connected first, so that when two nodes fall in the same cell the
     // one that better orients the reader is the one left showing.
@@ -222,18 +203,13 @@ fn draw_nodes(
     order.sort_by_key(|&i| nodes[i].degree);
 
     for index in order {
-        if !neighborhood.is_none_or(|set| set.contains(&index)) {
-            continue;
-        }
         let node = &nodes[index];
         let Some((x, y)) = project(node.pos, area, x_bounds, y_bounds) else {
             continue;
         };
 
         let is_selected = graph.selected == Some(index);
-        let is_neighbor = graph
-            .selected
-            .is_some_and(|s| graph.simulation.graph.neighbors(s).contains(&index));
+        let is_neighbor = is_neighbor[index];
 
         let color = if is_selected {
             palette.graph_node_focused
@@ -264,23 +240,17 @@ fn draw_labels(
     area: Rect,
     x_bounds: [f64; 2],
     y_bounds: [f64; 2],
-    neighborhood: Option<&[usize]>,
 ) {
     let Some(graph) = app.graph.as_ref() else {
         return;
     };
     let nodes = &graph.simulation.graph.nodes;
 
-    let shown = |index: usize| neighborhood.is_none_or(|set| set.contains(&index));
-
     // Every node is reserved before any label is placed, so a label never
     // covers the thing it names — or one of its neighbours. A node is exactly
     // one cell, which is what leaves enough room for most labels to land.
     let mut occupied: Vec<Rect> = Vec::new();
-    for (index, node) in nodes.iter().enumerate() {
-        if !shown(index) {
-            continue;
-        }
+    for node in nodes {
         if let Some((x, y)) = project(node.pos, area, x_bounds, y_bounds) {
             occupied.push(Rect {
                 x,
@@ -301,9 +271,6 @@ fn draw_labels(
     for index in order {
         if drawn >= MAX_LABELS {
             break;
-        }
-        if !shown(index) {
-            continue;
         }
         let node = &nodes[index];
         let selected = graph.selected == Some(index);
