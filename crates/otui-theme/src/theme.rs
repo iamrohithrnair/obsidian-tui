@@ -302,7 +302,9 @@ impl Theme {
             callout_quote: s.muted.into(),
 
             graph_bg: s.bg.into(),
-            graph_node: s.muted.into(),
+            // Brighter than `graph_edge` on purpose: links should read as
+            // connective tissue behind the notes, not compete with them.
+            graph_node: s.text.into(),
             graph_node_focused: s.accent.into(),
             graph_node_neighbor: s.cyan.into(),
             graph_node_unresolved: s.faint.into(),

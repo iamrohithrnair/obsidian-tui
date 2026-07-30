@@ -1,25 +1,29 @@
 //! The graph view.
 //!
-//! Nodes and edges are drawn on a braille canvas, which gives four times the
-//! vertical resolution of text cells and makes the layout legible in a
-//! terminal. Labels are drawn as text on top, only where there's room, because
-//! a graph with every label shown is unreadable past a few dozen notes — the
-//! same reason Obsidian fades labels out as you zoom away.
+//! Edges are drawn on a braille canvas, which gives twice the horizontal and
+//! four times the vertical resolution of text cells and so keeps long diagonal
+//! links smooth. Nodes are *not*: they're single text glyphs drawn on top at
+//! cell resolution.
 //!
-//! A node is rasterized onto the canvas's own dot lattice rather than sampled
-//! at a fixed number of angles. Sampling leaves gaps as soon as the node is
-//! more than a couple of dots across, which is what turns a graph into a field
-//! of speckle; stepping the lattice draws a solid disc at every size.
+//! Splitting the two is what makes the view readable. A node rasterized into
+//! braille is a blob one or two cells across, and two of those blobs sitting
+//! next to each other merge into a single shape, so a cluster of notes reads as
+//! one smear rather than as five notes. One glyph per node can never merge with
+//! its neighbour, and the glyph itself carries the node's degree and kind.
+//!
+//! Labels are drawn only where there's room, because a graph with every label
+//! shown is unreadable past a few dozen notes — the same reason Obsidian fades
+//! labels out as you zoom away.
 
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::symbols::Marker;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::canvas::{Canvas, Context, Line as CanvasLine, Points};
+use ratatui::widgets::canvas::{Canvas, Context, Line as CanvasLine};
 use ratatui::widgets::{Paragraph, Widget};
 use ratatui::Frame;
 
-use otui_core::graph::{NodeKind, Vec2};
+use otui_core::graph::{Node, NodeKind, Vec2};
 use otui_theme::Palette;
 
 use crate::app::{App, Focus, GraphView, Regions};
@@ -33,16 +37,22 @@ const DOTS_Y: f64 = 4.0;
 /// Padding around the laid-out graph when the view is fitted to it.
 const FIT_PADDING: f64 = 1.15;
 
-/// A node's radius in canvas dots. Well-connected notes draw larger, as in
-/// Obsidian. Held in dots rather than graph units so a node stays the same size
-/// on screen however far the view is zoomed in.
-fn radius_dots(degree: usize) -> f64 {
-    match degree {
-        0 => 1.6,
-        1..=2 => 2.4,
-        3..=5 => 3.2,
-        6..=11 => 4.0,
-        _ => 5.0,
+/// The mark that stands for a node.
+///
+/// Notes get heavier as they gain links, which is how Obsidian sizes them and
+/// what lets you find the hubs at a glance. A link with no note behind it is
+/// hollow — Obsidian's own distinction, and the fastest way to spot the notes
+/// you meant to write.
+fn glyph(node: &Node) -> char {
+    match node.kind {
+        NodeKind::Unresolved | NodeKind::Attachment => '○',
+        NodeKind::Tag => '◆',
+        NodeKind::Note(_) => match node.degree {
+            0 => '·',
+            1..=2 => '•',
+            3..=5 => '●',
+            _ => '◉',
+        },
     }
 }
 
@@ -95,7 +105,7 @@ pub fn draw(
         })
     });
 
-    let (x_bounds, y_bounds, dot) = viewport(graph, canvas_area);
+    let (x_bounds, y_bounds) = viewport(graph, canvas_area);
     regions.graph = Some((canvas_area, x_bounds, y_bounds));
 
     let simulation = &graph.simulation;
@@ -113,7 +123,8 @@ pub fn draw(
                     .is_none_or(|nodes| nodes.contains(&index))
             };
 
-            // Edges first so nodes sit on top of them.
+            // Only edges live on the canvas; nodes are drawn as glyphs
+            // afterwards, over the top.
             for edge in &simulation.graph.edges {
                 let (Some(a), Some(b)) = (
                     simulation.graph.nodes.get(edge.from),
@@ -137,54 +148,19 @@ pub fn draw(
                     },
                 });
             }
-
-            ctx.layer();
-
-            for (index, node) in simulation.graph.nodes.iter().enumerate() {
-                if !visible(index) {
-                    continue;
-                }
-                let is_selected = selected == Some(index);
-                let is_neighbor =
-                    selected.is_some_and(|s| simulation.graph.neighbors(s).contains(&index));
-
-                let color = if is_selected {
-                    palette.graph_node_focused
-                } else if is_neighbor {
-                    palette.graph_node_neighbor
-                } else {
-                    match node.kind {
-                        NodeKind::Note(_) => palette.graph_node,
-                        NodeKind::Unresolved => palette.graph_node_unresolved,
-                        NodeKind::Tag => palette.graph_node_tag,
-                        NodeKind::Attachment => palette.graph_node_unresolved,
-                    }
-                };
-
-                let radius = radius_dots(node.degree) * dot;
-
-                // Notes that exist are solid; a link with no note behind it is
-                // hollow, which is how Obsidian distinguishes the two and the
-                // fastest way to spot the notes you meant to write.
-                let coords = match node.kind {
-                    NodeKind::Unresolved | NodeKind::Attachment => ring(node.pos, radius, dot),
-                    NodeKind::Note(_) | NodeKind::Tag => disc(node.pos, radius, dot),
-                };
-                ctx.draw(&Points {
-                    coords: &coords,
-                    color,
-                });
-
-                if is_selected {
-                    ctx.draw(&Points {
-                        coords: &ring(node.pos, radius + 2.0 * dot, dot),
-                        color: palette.graph_node_focused,
-                    });
-                }
-            }
         });
 
     frame.render_widget(canvas, canvas_area);
+
+    draw_nodes(
+        frame,
+        app,
+        palette,
+        canvas_area,
+        x_bounds,
+        y_bounds,
+        neighborhood.as_deref(),
+    );
 
     if show_labels {
         draw_labels(
@@ -200,14 +176,13 @@ pub fn draw(
     draw_legend(frame, app, palette, legend_row, focused);
 }
 
-/// The canvas bounds for the current pan and zoom, plus the size of one canvas
-/// dot in graph units.
+/// The canvas bounds for the current pan and zoom.
 ///
 /// A braille dot is half a cell wide and a quarter of a cell tall, and terminal
 /// cells are about twice as tall as they are wide, so dots come out square.
 /// Scaling both axes by the same factor is what keeps the layout from being
 /// stretched, and taking the larger factor is what keeps every node on screen.
-pub fn viewport(graph: &GraphView, area: Rect) -> ([f64; 2], [f64; 2], f64) {
+fn viewport(graph: &GraphView, area: Rect) -> ([f64; 2], [f64; 2]) {
     let (min_x, min_y, max_x, max_y) = graph.simulation.graph.bounds();
     let span_x = f64::from(max_x - min_x).max(1.0) * FIT_PADDING;
     let span_y = f64::from(max_y - min_y).max(1.0) * FIT_PADDING;
@@ -223,61 +198,63 @@ pub fn viewport(graph: &GraphView, area: Rect) -> ([f64; 2], [f64; 2], f64) {
     (
         [f64::from(center.x) - half_x, f64::from(center.x) + half_x],
         [f64::from(center.y) - half_y, f64::from(center.y) + half_y],
-        dot,
     )
 }
 
-/// Points filling a disc, stepped across the canvas's dot lattice so the shape
-/// comes out solid at every size.
-fn disc(center: Vec2, radius: f64, dot: f64) -> Vec<(f64, f64)> {
-    let cx = f64::from(center.x);
-    let cy = f64::from(center.y);
-    if dot <= 0.0 || radius <= dot {
-        return vec![(cx, cy)];
-    }
-    // A node covering more of the screen than this means the viewport is wrong,
-    // and rasterizing it point by point would only make that slow as well.
-    let steps = ((radius / dot).ceil() as i32).min(64);
-    let limit = radius * radius;
-    let mut points = Vec::with_capacity(((2 * steps + 1) * (2 * steps + 1)) as usize);
-    for gy in -steps..=steps {
-        for gx in -steps..=steps {
-            let dx = f64::from(gx) * dot;
-            let dy = f64::from(gy) * dot;
-            if dx * dx + dy * dy <= limit {
-                points.push((cx + dx, cy + dy));
-            }
+/// Draws one glyph per node, over the edges the canvas has already painted.
+fn draw_nodes(
+    frame: &mut Frame,
+    app: &App,
+    palette: &Palette,
+    area: Rect,
+    x_bounds: [f64; 2],
+    y_bounds: [f64; 2],
+    neighborhood: Option<&[usize]>,
+) {
+    let Some(graph) = app.graph.as_ref() else {
+        return;
+    };
+    let nodes = &graph.simulation.graph.nodes;
+
+    // Least-connected first, so that when two nodes fall in the same cell the
+    // one that better orients the reader is the one left showing.
+    let mut order: Vec<usize> = (0..nodes.len()).collect();
+    order.sort_by_key(|&i| nodes[i].degree);
+
+    for index in order {
+        if !neighborhood.is_none_or(|set| set.contains(&index)) {
+            continue;
         }
-    }
-    points
-}
+        let node = &nodes[index];
+        let Some((x, y)) = project(node.pos, area, x_bounds, y_bounds) else {
+            continue;
+        };
 
-/// Points forming an unfilled circle, sampled densely enough that neighbouring
-/// samples land on adjacent dots and the outline reads as continuous.
-fn ring(center: Vec2, radius: f64, dot: f64) -> Vec<(f64, f64)> {
-    let cx = f64::from(center.x);
-    let cy = f64::from(center.y);
-    if dot <= 0.0 || radius <= dot {
-        return vec![(cx, cy)];
-    }
-    let steps = ((std::f64::consts::TAU * radius / dot).ceil() as usize).clamp(8, 512);
-    (0..steps)
-        .map(|i| {
-            let angle = std::f64::consts::TAU * i as f64 / steps as f64;
-            (cx + radius * angle.cos(), cy + radius * angle.sin())
-        })
-        .collect()
-}
+        let is_selected = graph.selected == Some(index);
+        let is_neighbor = graph
+            .selected
+            .is_some_and(|s| graph.simulation.graph.neighbors(s).contains(&index));
 
-/// A node's on-screen half-extent in cells: columns each side, then rows each
-/// side. Rounded up, because a disc that isn't aligned to the cell grid bleeds
-/// into the next row or column.
-fn label_offsets(degree: usize) -> (u16, u16) {
-    let radius = radius_dots(degree);
-    (
-        (radius / DOTS_X).ceil() as u16,
-        (radius / DOTS_Y).ceil() as u16,
-    )
+        let color = if is_selected {
+            palette.graph_node_focused
+        } else if is_neighbor {
+            palette.graph_node_neighbor
+        } else {
+            match node.kind {
+                NodeKind::Note(_) => palette.graph_node,
+                NodeKind::Unresolved | NodeKind::Attachment => palette.graph_node_unresolved,
+                NodeKind::Tag => palette.graph_node_tag,
+            }
+        };
+        let mut style = Style::default().fg(color);
+        if is_selected {
+            style = style.add_modifier(Modifier::BOLD);
+        }
+
+        frame
+            .buffer_mut()
+            .set_string(x, y, glyph(node).to_string(), style);
+    }
 }
 
 fn draw_labels(
@@ -297,19 +274,19 @@ fn draw_labels(
     let shown = |index: usize| neighborhood.is_none_or(|set| set.contains(&index));
 
     // Every node is reserved before any label is placed, so a label never
-    // covers the thing it names — or one of its neighbours.
+    // covers the thing it names — or one of its neighbours. A node is exactly
+    // one cell, which is what leaves enough room for most labels to land.
     let mut occupied: Vec<Rect> = Vec::new();
     for (index, node) in nodes.iter().enumerate() {
         if !shown(index) {
             continue;
         }
         if let Some((x, y)) = project(node.pos, area, x_bounds, y_bounds) {
-            let (half_x, half_y) = label_offsets(node.degree);
             occupied.push(Rect {
-                x: x.saturating_sub(half_x),
-                y: y.saturating_sub(half_y),
-                width: half_x * 2 + 1,
-                height: half_y * 2 + 1,
+                x,
+                y,
+                width: 1,
+                height: 1,
             });
         }
     }
@@ -337,12 +314,11 @@ fn draw_labels(
 
         let label = truncate(&node.label, 18);
         let width = label.chars().count() as u16;
-        let (_, half_y) = label_offsets(node.degree);
         // Centring the label on the node can push it past the pane's left edge,
         // where it would be drawn over the neighbouring pane; clamp instead.
         let rect = Rect {
             x: x.saturating_sub(width / 2).max(area.x),
-            y: y.saturating_add(half_y + 1),
+            y: y.saturating_add(1),
             width,
             height: 1,
         };
@@ -458,79 +434,31 @@ mod tests {
     }
 
     #[test]
-    fn a_disc_is_solid_on_the_dot_lattice() {
-        let points = disc(Vec2::default(), 4.0, 1.0);
-        assert!(points.contains(&(0.0, 0.0)));
-        assert!(points.contains(&(3.0, 0.0)));
-        assert!(points.contains(&(2.0, 2.0)));
-        assert!(
-            !points.iter().any(|(x, y)| x * x + y * y > 16.0),
-            "nothing outside the radius"
-        );
-        assert!(points.len() > 40, "a radius-4 disc covers ~49 lattice dots");
+    fn a_note_gets_heavier_as_it_gains_links() {
+        let note = |degree| Node {
+            label: "n".into(),
+            kind: NodeKind::Note(0),
+            pos: Vec2::default(),
+            vel: Vec2::default(),
+            degree,
+            pinned: false,
+        };
+        // The ramp has to be strictly increasing, or degree stops being
+        // readable off the glyph.
+        let marks: Vec<char> = [0, 1, 3, 30].into_iter().map(|d| glyph(&note(d))).collect();
+        assert_eq!(marks, vec!['\u{b7}', '\u{2022}', '\u{25cf}', '\u{25c9}']);
     }
 
     #[test]
-    fn a_tiny_node_is_a_single_dot() {
-        assert_eq!(disc(Vec2::default(), 0.5, 1.0).len(), 1);
-        assert_eq!(ring(Vec2::default(), 0.5, 1.0).len(), 1);
-    }
-
-    #[test]
-    fn a_ring_is_hollow_and_densely_sampled() {
-        let radius = 4.0;
-        let points = ring(Vec2::default(), radius, 1.0);
-        assert!(
-            points.len() >= 25,
-            "samples must land at most a dot apart, got {}",
-            points.len()
-        );
-        for (x, y) in &points {
-            assert!(
-                (x.hypot(*y) - radius).abs() < 1e-6,
-                "every point sits on the circle"
-            );
-        }
-    }
-
-    #[test]
-    fn rasterizing_a_huge_node_stays_bounded() {
-        // A degenerate viewport must not turn into a multi-million-point loop.
-        assert!(disc(Vec2::default(), 1e6, 1.0).len() <= 129 * 129);
-    }
-
-    #[test]
-    fn node_size_grows_with_connectedness() {
-        assert!(radius_dots(0) < radius_dots(3));
-        assert!(radius_dots(3) < radius_dots(30));
-    }
-}
-
-#[cfg(test)]
-mod label_layout_tests {
-    use super::{label_offsets, radius_dots, DOTS_X, DOTS_Y};
-
-    #[test]
-    fn a_label_clears_the_whole_node_it_names() {
-        for degree in [0, 1, 3, 8, 30] {
-            let radius = radius_dots(degree);
-            let (half_x, half_y) = label_offsets(degree);
-            // The reserved box has to contain the disc, or the label lands on
-            // top of the node — the bug this guards against.
-            assert!(
-                f64::from(half_x) * DOTS_X >= radius,
-                "degree {degree}: {half_x} columns is too narrow for radius {radius}"
-            );
-            assert!(
-                f64::from(half_y) * DOTS_Y >= radius,
-                "degree {degree}: {half_y} rows is too short for radius {radius}"
-            );
-        }
-    }
-
-    #[test]
-    fn even_the_smallest_node_reserves_a_cell() {
-        let (half_x, half_y) = label_offsets(0);
-        assert!(half_x >= 1 && half_y >= 1, "a node always occupies a cell");
+    fn a_link_with_no_note_behind_it_is_hollow() {
+        let unresolved = Node {
+            label: "Ghost".into(),
+            kind: NodeKind::Unresolved,
+            pos: Vec2::default(),
+            vel: Vec2::default(),
+            degree: 1,
+            pinned: false,
+        };
+        assert_eq!(glyph(&unresolved), '\u{25cb}');
     }
 }

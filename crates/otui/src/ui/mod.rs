@@ -718,6 +718,38 @@ mod tests {
     }
 
     #[test]
+    fn the_graph_draws_distinct_nodes_edges_and_labels() {
+        let (_vault, mut app) = demo_app();
+        app.open_graph(None);
+        // Settle before looking: an unsettled layout is still a spiral.
+        let graph = app.graph.as_mut().expect("graph");
+        graph.simulation.run(4000);
+        graph.fit();
+
+        let screen = render(&mut app, 140, 40).join("\n");
+
+        // A note reads as a filled mark and a link with no note behind it as a
+        // hollow one — the distinction that tells you what you have yet to
+        // write.
+        assert!(screen.contains('•'), "a linked note is a filled mark");
+        assert!(
+            screen.contains('○'),
+            "the unresolved [[Nowhere]] link is hollow"
+        );
+        // Links have to be visible, or the picture is a scatter plot.
+        assert!(
+            screen
+                .chars()
+                .any(|c| ('\u{2801}'..='\u{28ff}').contains(&c)),
+            "edges are drawn as braille"
+        );
+        // Every node in a graph this small should find room for its label.
+        for label in ["Welcome", "Ideas", "Nowhere", "Deep"] {
+            assert!(screen.contains(label), "{label} is labelled");
+        }
+    }
+
+    #[test]
     fn overlays_render_over_the_app() {
         let (_vault, mut app) = demo_app();
 

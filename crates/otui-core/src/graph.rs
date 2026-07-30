@@ -386,11 +386,17 @@ pub struct ForceParams {
 
 impl Default for ForceParams {
     fn default() -> Self {
+        // Tuned for spread rather than for any particular scale: the view
+        // auto-fits to the layout's bounding box, so only the ratio of
+        // node spacing to graph diameter reaches the screen. `repel` is low
+        // relative to that ratio because repulsion is degree-weighted (see
+        // `mass_of`), and gravity is high enough to keep orphans from drifting
+        // out far enough to set the zoom for everyone else.
         Self {
-            repel: 900.0,
+            repel: 300.0,
             link_distance: 32.0,
             link_strength: 0.06,
-            center_gravity: 0.012,
+            center_gravity: 0.06,
             damping: 0.82,
             theta: 0.8,
             dt: 0.85,
@@ -468,13 +474,22 @@ impl Simulation {
         }
 
         // Link springs.
+        //
+        // A link's pull is divided by the lesser of its two endpoints' degrees.
+        // Without that, every link into a hub pulls at full strength and the
+        // hub's neighbourhood collapses onto it; a leaf hanging off a hub still
+        // gets pulled home at full strength, because the leaf is the lesser end.
         for edge in &self.graph.edges {
             let a = self.graph.nodes[edge.from].pos;
             let b = self.graph.nodes[edge.to].pos;
+            let crowding = 1.0
+                + self.graph.nodes[edge.from]
+                    .degree
+                    .min(self.graph.nodes[edge.to].degree) as f32;
             let dx = b.x - a.x;
             let dy = b.y - a.y;
             let dist = (dx * dx + dy * dy).sqrt().max(0.01);
-            let pull = (dist - self.params.link_distance) * self.params.link_strength;
+            let pull = (dist - self.params.link_distance) * self.params.link_strength / crowding;
             let fx = dx / dist * pull;
             let fy = dy / dist * pull;
             forces[edge.from].x += fx;
@@ -598,8 +613,19 @@ struct Cell {
     /// center of mass has already absorbed the incoming body by the time a
     /// leaf splits, so it can't be used to re-place the resident one.
     body_pos: Vec2,
+    /// That body's mass, kept for the same reason as `body_pos`.
+    body_mass: f32,
     children: [usize; 4],
     leaf: bool,
+}
+
+/// How hard a node pushes its neighbours away.
+///
+/// Weighting by degree is what stops a hub from collecting its whole
+/// neighbourhood into a single illegible clump: the more links a note has, the
+/// more room it claims, which is also how it reads in Obsidian.
+fn mass_of(node: &Node) -> f32 {
+    1.0 + node.degree as f32
 }
 
 impl Cell {
@@ -613,6 +639,7 @@ impl Cell {
             com_y: 0.0,
             body: NO_CELL,
             body_pos: Vec2::default(),
+            body_mass: 0.0,
             children: [NO_CELL; 4],
             leaf: true,
         }
@@ -646,18 +673,18 @@ impl QuadTree {
             root: 0,
         };
         for (i, node) in nodes.iter().enumerate() {
-            tree.insert(0, i, node.pos, 0);
+            tree.insert(0, i, node.pos, mass_of(node), 0);
         }
         tree
     }
 
-    fn insert(&mut self, cell: usize, body: usize, pos: Vec2, depth: usize) {
+    fn insert(&mut self, cell: usize, body: usize, pos: Vec2, mass: f32, depth: usize) {
         // Accumulate the center of mass on the way down.
         {
             let c = &mut self.cells[cell];
-            let total = c.mass + 1.0;
-            c.com_x = (c.com_x * c.mass + pos.x) / total;
-            c.com_y = (c.com_y * c.mass + pos.y) / total;
+            let total = c.mass + mass;
+            c.com_x = (c.com_x * c.mass + pos.x * mass) / total;
+            c.com_y = (c.com_y * c.mass + pos.y * mass) / total;
             c.mass = total;
 
             if c.half <= MIN_HALF || depth > MAX_TREE_DEPTH {
@@ -667,9 +694,9 @@ impl QuadTree {
             }
         }
 
-        let (leaf, existing, existing_pos) = {
+        let (leaf, existing, existing_pos, existing_mass) = {
             let c = &self.cells[cell];
-            (c.leaf, c.body, c.body_pos)
+            (c.leaf, c.body, c.body_pos, c.body_mass)
         };
 
         if leaf {
@@ -677,6 +704,7 @@ impl QuadTree {
                 let c = &mut self.cells[cell];
                 c.body = body;
                 c.body_pos = pos;
+                c.body_mass = mass;
                 return;
             }
             // Split, then push the resident body down before the new one.
@@ -687,11 +715,11 @@ impl QuadTree {
             }
             self.subdivide(cell);
             let quadrant = self.quadrant_of(cell, existing_pos);
-            self.insert(quadrant, existing, existing_pos, depth + 1);
+            self.insert(quadrant, existing, existing_pos, existing_mass, depth + 1);
         }
 
         let quadrant = self.quadrant_of(cell, pos);
-        self.insert(quadrant, body, pos, depth + 1);
+        self.insert(quadrant, body, pos, mass, depth + 1);
     }
 
     fn subdivide(&mut self, cell: usize) {
@@ -974,6 +1002,53 @@ mod tests {
         assert!(
             linked < unlinked,
             "linked {linked} should be closer than unlinked {unlinked}"
+        );
+    }
+
+    /// How well spread a settled layout is.
+    ///
+    /// The closest pair of nodes, measured against the spacing an even scatter
+    /// over the same bounding box would give. Below 1 the layout is clumpier
+    /// than an even scatter; this is the number that decides whether the graph
+    /// reads as distinct notes or as one smear, because the view auto-fits to
+    /// the bounding box and so only relative spacing survives to the screen.
+    fn spread(sim: &Simulation) -> f32 {
+        let nodes = &sim.graph.nodes;
+        let mut closest = f32::MAX;
+        for (i, a) in nodes.iter().enumerate() {
+            for b in &nodes[i + 1..] {
+                closest = closest.min((a.pos.x - b.pos.x).hypot(a.pos.y - b.pos.y));
+            }
+        }
+        let (min_x, min_y, max_x, max_y) = sim.graph.bounds();
+        let diameter = (max_x - min_x).max(max_y - min_y);
+        closest / (diameter / (nodes.len() as f32).sqrt())
+    }
+
+    #[test]
+    fn the_layout_spreads_nodes_out() {
+        // The shape that used to collapse: a hub with many spokes, a couple of
+        // interlinked notes off to one side, an orphan, and an unresolved link.
+        let vault = TempVault::new("spread");
+        let mut hub = String::new();
+        for i in 0..8 {
+            hub.push_str(&format!("[[S{i}]]\n"));
+            vault.write(&format!("S{i}.md"), "[[Hub]]\n");
+        }
+        hub.push_str("[[Ghost]]\n");
+        vault.write("Hub.md", &hub);
+        vault.write("A.md", "[[B]] and [[Hub]]\n");
+        vault.write("B.md", "[[A]]\n");
+        vault.write("Orphan.md", "no links\n");
+
+        let index = vault.index();
+        let mut sim = Simulation::new(Graph::build(&index, &GraphOptions::default()));
+        sim.run(MAX_STEPS);
+
+        let spread = spread(&sim);
+        assert!(
+            spread > 0.5,
+            "nodes are bunched too tightly to tell apart: spread {spread}"
         );
     }
 
