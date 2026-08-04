@@ -171,6 +171,48 @@ pub(crate) fn post_stream(
     Ok(Box::new(response_body.into_reader()))
 }
 
+/// How long to wait when asking a provider a small question, like its model list.
+///
+/// Far shorter than a completion's budget: this runs while someone is waiting to
+/// pick from a menu, and a local server that isn't running should say so quickly
+/// rather than appearing to hang.
+const QUERY_TIMEOUT_SECS: u64 = 15;
+
+/// Issues a GET and parses the JSON body.
+///
+/// `bearer` is sent as an `Authorization` header when present. Kept separate from
+/// `headers` because whether to send one at all depends on whether a key was
+/// found, and an empty bearer token is rejected by some servers that would
+/// happily have answered with no header at all.
+pub(crate) fn get_json(url: &str, headers: &[(&str, &str)], bearer: Option<&str>) -> Result<Value> {
+    let mut request = ureq::get(url)
+        .config()
+        .http_status_as_error(false)
+        .timeout_global(Some(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS)))
+        .build();
+
+    for (key, value) in headers {
+        request = request.header(*key, *value);
+    }
+    if let Some(token) = bearer {
+        request = request.header("authorization", &format!("Bearer {token}"));
+    }
+
+    let response = request
+        .call()
+        .map_err(|err| Error::Transport(err.to_string()))?;
+    let status = response.status().as_u16();
+    let text = response
+        .into_body()
+        .read_to_string()
+        .map_err(|err| Error::Transport(err.to_string()))?;
+
+    if !(200..300).contains(&status) {
+        return Err(Error::Http { status, body: text });
+    }
+    serde_json::from_str(&text).map_err(|err| Error::Protocol(err.to_string()))
+}
+
 /// Reads an environment variable, treating blank as absent.
 ///
 /// An exported-but-empty key is a common shell accident, and failing with

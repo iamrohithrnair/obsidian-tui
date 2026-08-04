@@ -264,9 +264,18 @@ pub enum Action {
     OpenThemePicker,
     OpenVaultPicker,
     OpenHelp,
+    /// The list of backends the app knows how to reach.
+    OpenProviderPicker,
+    /// Asks the current provider what models it has, then offers them.
+    OpenModelPicker,
+    /// Types in an API key for the current provider.
+    PromptApiKey,
 
     // Settings
     SetTheme(String),
+    /// Switch backend, taking the endpoint and default model with it.
+    SetProvider(String),
+    SetModel(String),
     OpenVault(PathBuf),
     ToggleLineNumbers,
     ToggleGraphLabels,
@@ -333,6 +342,11 @@ pub struct App {
     /// The overlay on top of everything, if any.
     pub modal: Option<crate::modal::Modal>,
     pub chat: Chat,
+    /// API keys typed in rather than exported. Read once at startup, since it is
+    /// only ever written by this app.
+    pub auth: crate::auth::Auth,
+    /// A model list on its way back from a provider.
+    pub lookup: crate::agent::Lookup,
     pub status: Status,
     /// Pictures drawn in the reading pane. Starts switched off, and is replaced
     /// once the terminal has been asked what it can draw — a question that has
@@ -379,6 +393,8 @@ impl App {
             regions: Regions::default(),
             modal: None,
             chat,
+            auth: crate::auth::Auth::load(),
+            lookup: crate::agent::Lookup::default(),
             status: Status::default(),
             images: crate::images::Images::disabled(),
             scenes: crate::ui::drawing::Scenes::default(),

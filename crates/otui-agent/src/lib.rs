@@ -26,6 +26,7 @@
 //! }
 //! ```
 
+pub mod catalog;
 pub mod error;
 pub mod provider;
 pub mod session;
@@ -51,14 +52,12 @@ pub enum ProviderKind {
 }
 
 impl ProviderKind {
+    /// The protocol a provider name speaks, per the [catalog].
+    ///
+    /// [catalog]: crate::catalog
     #[must_use]
     pub fn parse(name: &str) -> Option<Self> {
-        match name.trim().to_lowercase().as_str() {
-            "anthropic" | "claude" => Some(Self::Anthropic),
-            "openai" | "openai-compatible" | "ollama" | "local" => Some(Self::OpenAiCompatible),
-            "offline" | "none" | "mock" => Some(Self::Offline),
-            _ => None,
-        }
+        catalog::find(name).map(|preset| preset.kind.clone())
     }
 
     #[must_use]
@@ -82,13 +81,28 @@ pub fn build_provider(
     base_url: Option<&str>,
     model: Option<&str>,
 ) -> Box<dyn Provider> {
+    build_provider_with_key(kind, base_url, model, None)
+}
+
+/// Builds a provider with a key the caller resolved itself.
+///
+/// The UI stores keys of its own, so it knows about credentials this crate has no
+/// business reading files to find. `None` falls back to the environment, which is
+/// what a library user with nothing else configured expects.
+#[must_use]
+pub fn build_provider_with_key(
+    kind: &ProviderKind,
+    base_url: Option<&str>,
+    model: Option<&str>,
+    api_key: Option<String>,
+) -> Box<dyn Provider> {
     match kind {
-        ProviderKind::Anthropic => match provider::anthropic::Anthropic::from_env(base_url) {
+        ProviderKind::Anthropic => match provider::anthropic::Anthropic::new(api_key, base_url) {
             Ok(provider) => Box::new(provider),
             Err(_) => Box::new(provider::mock::Mock::offline_notice()),
         },
         ProviderKind::OpenAiCompatible => Box::new(provider::openai::OpenAiCompatible::new(
-            base_url, None, model,
+            base_url, api_key, model,
         )),
         ProviderKind::Offline => Box::new(provider::mock::Mock::offline_notice()),
     }
@@ -99,11 +113,20 @@ pub fn build_provider(
 /// Used to show a hint in the UI before the user sends a doomed first message.
 #[must_use]
 pub fn is_configured(kind: &ProviderKind, base_url: Option<&str>) -> bool {
+    has_credentials(kind, base_url, None)
+}
+
+/// As [`is_configured`], for a key the caller resolved itself.
+#[must_use]
+pub fn has_credentials(kind: &ProviderKind, base_url: Option<&str>, api_key: Option<&str>) -> bool {
+    let given = api_key.is_some_and(|key| !key.trim().is_empty());
     match kind {
-        ProviderKind::Anthropic => provider::anthropic::Anthropic::from_env(base_url).is_ok(),
+        ProviderKind::Anthropic => {
+            given || provider::anthropic::Anthropic::from_env(base_url).is_ok()
+        }
         // A local server needs no key, so a configured base URL is enough.
         ProviderKind::OpenAiCompatible => {
-            base_url.is_some() || std::env::var("OPENAI_API_KEY").is_ok()
+            given || base_url.is_some() || std::env::var("OPENAI_API_KEY").is_ok()
         }
         ProviderKind::Offline => false,
     }

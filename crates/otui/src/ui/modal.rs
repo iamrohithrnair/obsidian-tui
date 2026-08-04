@@ -157,12 +157,17 @@ fn draw_prompt(frame: &mut Frame, prompt: &Prompt, palette: &Palette, area: Rect
     let inner = block.inner(rect);
     frame.render_widget(block, rect);
 
+    // A secret is masked, but its length shows, so a paste that arrived short or
+    // doubled is visible.
+    let shown = if prompt.intent.secret() {
+        "•".repeat(prompt.value.chars().count())
+    } else {
+        prompt.value.clone()
+    };
+
     Paragraph::new(Line::from(vec![
         Span::styled("› ", Style::default().fg(palette.text_accent)),
-        Span::styled(
-            prompt.value.clone(),
-            Style::default().fg(palette.text_normal),
-        ),
+        Span::styled(shown, Style::default().fg(palette.text_normal)),
     ]))
     .render(inner, frame.buffer_mut());
 
@@ -282,7 +287,10 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
         &[
             ("Ctrl+L", "Toggle the chat panel / focus it"),
             ("Enter", "Send"),
-            ("/", "Slash command (type / for the list)"),
+            ("/", "Slash command — ↑↓ to browse, Tab or Enter to pick"),
+            ("/provider", "Choose a backend: Anthropic, OpenAI, Ollama…"),
+            ("/model", "Choose a model, from what the provider offers"),
+            ("/key", "Store an API key for this provider"),
             ("Ctrl+C", "Stop the current turn"),
             ("Ctrl+R", "Clear the conversation"),
         ],

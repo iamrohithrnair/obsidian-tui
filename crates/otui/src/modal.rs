@@ -17,6 +17,8 @@ pub enum PickerKind {
     Themes,
     Vaults,
     Search,
+    Providers,
+    Models,
 }
 
 impl PickerKind {
@@ -28,6 +30,8 @@ impl PickerKind {
             Self::Themes => "Themes",
             Self::Vaults => "Open vault",
             Self::Search => "Search",
+            Self::Providers => "Assistant provider",
+            Self::Models => "Model",
         }
     }
 
@@ -39,6 +43,8 @@ impl PickerKind {
             Self::Themes => "Filter themes…",
             Self::Vaults => "Filter vaults…",
             Self::Search => "Search all notes…",
+            Self::Providers => "Filter providers…",
+            Self::Models => "Filter models…",
         }
     }
 }
@@ -246,6 +252,19 @@ pub enum PromptIntent {
     RenameNote,
     /// Filter typed into the explorer.
     FilterExplorer,
+    /// An API key for the named provider. Typed characters are masked.
+    ApiKey(String),
+}
+
+impl PromptIntent {
+    /// Whether what is being typed should be hidden.
+    ///
+    /// Only for secrets. A note's name is not one, and hiding it would be
+    /// baffling; a key on screen is a key in a screen share.
+    #[must_use]
+    pub fn secret(&self) -> bool {
+        matches!(self, Self::ApiKey(_))
+    }
 }
 
 impl Prompt {

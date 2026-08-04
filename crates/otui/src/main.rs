@@ -3,6 +3,7 @@
 mod actions;
 mod agent;
 mod app;
+mod auth;
 mod cli;
 mod config;
 mod editor;
@@ -303,6 +304,20 @@ fn event_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut App) -> io::Res
             needs_redraw = true;
         }
 
+        // A provider that has answered with its model list opens the picker it
+        // was asked for.
+        if let Some(result) = app.lookup.take() {
+            match result {
+                Ok(models) => {
+                    app.status.text.clear();
+                    actions::show_models(app, models);
+                }
+                Err(err) => app.error(format!("could not list models: {err}")),
+            }
+            needs_redraw = true;
+            last_status = Instant::now();
+        }
+
         // Status messages fade so the bar goes back to showing the mode.
         if !app.status.text.is_empty() && last_status.elapsed() > Duration::from_secs(6) {
             app.status.text.clear();
@@ -545,7 +560,9 @@ fn handle_scroll(app: &mut App, point: (u16, u16), delta: isize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    use crossterm::event::{
+        KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    };
     use otui_core::test_support::TempVault;
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
@@ -598,6 +615,18 @@ mod tests {
     /// The colour of the test picture. Half-blocks paint it into cell colours
     /// rather than glyphs, so this is what proves it reached the screen.
     const INK: ratatui::style::Color = ratatui::style::Color::Rgb(200, 30, 30);
+
+    /// Presses a key and redraws, as the event loop would.
+    fn press(terminal: &mut Terminal<TestBackend>, app: &mut App, code: KeyCode) {
+        keys::handle(app, KeyEvent::new(code, KeyModifiers::empty()));
+        terminal.draw(|frame| ui::draw(frame, app)).expect("draw");
+    }
+
+    fn type_keys(terminal: &mut Terminal<TestBackend>, app: &mut App, text: &str) {
+        for ch in text.chars() {
+            press(terminal, app, KeyCode::Char(ch));
+        }
+    }
 
     /// Rows of the drawn frame, as plain text.
     fn screen(terminal: &Terminal<TestBackend>) -> Vec<String> {
@@ -900,6 +929,59 @@ mod tests {
         let (_v, mut app) = demo();
         lay_out(&mut app);
         assert!(!click(&mut app, 159, 39), "the status bar is not a target");
+    }
+
+    /// Setting the assistant up without leaving the keyboard or reading a manual:
+    /// open the panel, type a slash, arrow to the command, pick a provider from
+    /// the menu, type a key into the masked prompt.
+    #[test]
+    fn the_assistant_can_be_configured_from_the_panel_alone() {
+        let (vault, mut app) = demo();
+        let mut terminal = Terminal::new(TestBackend::new(120, 40)).expect("terminal");
+        app.auth = auth::Auth::at(vault.path().join("auth.json"));
+
+        keys::handle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('l'), KeyModifiers::CONTROL),
+        );
+        assert_eq!(app.focus, app::Focus::Chat);
+
+        // `/provider` reached by typing enough of it to be unambiguous.
+        type_keys(&mut terminal, &mut app, "/prov");
+        press(&mut terminal, &mut app, KeyCode::Enter);
+        assert_eq!(app.chat.input, "/provider ", "Enter fills in the command");
+        press(&mut terminal, &mut app, KeyCode::Enter);
+
+        // The provider menu, with Anthropic at the top, taken as it stands.
+        let Some(modal::Modal::Picker(picker)) = app.modal.as_ref() else {
+            panic!("expected the provider menu, got {:?}", app.modal);
+        };
+        assert_eq!(picker.kind, modal::PickerKind::Providers);
+        press(&mut terminal, &mut app, KeyCode::Enter);
+        assert_eq!(app.config.agent.provider, "anthropic");
+
+        // And a key, typed into a prompt that shows dots rather than the key.
+        type_keys(&mut terminal, &mut app, "/key");
+        press(&mut terminal, &mut app, KeyCode::Enter);
+        type_keys(&mut terminal, &mut app, "sk-ant-typed");
+
+        let rows = screen(&terminal).join("\n");
+        assert!(
+            !rows.contains("sk-ant-typed"),
+            "the key must not appear on screen"
+        );
+        assert!(rows.contains("••••"), "masked instead:\n{rows}");
+
+        press(&mut terminal, &mut app, KeyCode::Enter);
+        assert_eq!(
+            auth::key_for("anthropic", &app.auth).as_deref(),
+            Some("sk-ant-typed"),
+            "and it is what the next request will use"
+        );
+        assert!(
+            screen(&terminal).join("\n").contains("Anthropic"),
+            "the panel now says who is answering"
+        );
     }
 
     #[test]

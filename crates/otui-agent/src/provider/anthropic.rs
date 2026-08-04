@@ -30,10 +30,22 @@ pub struct Anthropic {
 impl Anthropic {
     /// Builds a connector from the environment.
     pub fn from_env(base_url: Option<&str>) -> Result<Self> {
-        let api_key = super::env_key(ENV_VAR).ok_or(Error::MissingCredentials {
-            provider: "anthropic",
-            env_var: ENV_VAR,
-        })?;
+        Self::new(None, base_url)
+    }
+
+    /// Builds a connector with a key from wherever the caller found it.
+    ///
+    /// The environment is still consulted when none is given, so exporting the
+    /// variable keeps working on its own.
+    pub fn new(api_key: Option<String>, base_url: Option<&str>) -> Result<Self> {
+        let api_key = api_key
+            .map(|key| key.trim().to_string())
+            .filter(|key| !key.is_empty())
+            .or_else(|| super::env_key(ENV_VAR))
+            .ok_or(Error::MissingCredentials {
+                provider: "anthropic",
+                env_var: ENV_VAR,
+            })?;
         Ok(Self {
             api_key,
             base_url: base_url.unwrap_or(API_URL).to_string(),

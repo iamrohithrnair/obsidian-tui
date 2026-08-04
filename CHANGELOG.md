@@ -36,6 +36,20 @@ All notable changes to this project are documented here. The format follows
 - Excalidraw draws near-black ink on white paper. A stroke that would vanish into
   the theme's background is drawn in the theme's text colour instead; every colour
   the author chose deliberately is kept.
+- **The assistant can be set up from inside the app.** `/provider` offers the
+  eight backends it knows how to reach — Anthropic, OpenAI, Ollama, LM Studio,
+  OpenRouter, Groq, a custom endpoint, or off — and choosing one sets its address
+  as well, so nobody has to remember Ollama's port.
+- `/model` asks the provider which models it actually has and offers the list.
+  Better than a table shipped in the binary: names change monthly, and a local
+  server's list depends on what you've pulled. The request runs off the draw loop,
+  so the app stays usable while it waits.
+- `/key` stores an API key for the current provider, typed into a prompt that
+  shows dots. Kept in `auth.json` beside the config, mode `0600` — deliberately
+  not in `config.toml`, which people commit to dotfiles repositories. An exported
+  variable still wins, so nothing that worked before behaves differently.
+- The chat panel's title now names the model that will answer, or says what is
+  missing and which command fixes it.
 
 ### Fixed
 
@@ -55,6 +69,12 @@ All notable changes to this project are documented here. The format follows
 - Dragging a node with the mouse pins it, which the layout engine always
   supported and nothing called.
 - `a` toggles attachments in the graph.
+- **Arrow keys walk the slash-command list.** The list appeared on `/` but could
+  only be used by typing a name you already knew; `↑`/`↓` now move through it and
+  it scrolls to follow. `Esc` abandons a half-typed command before it closes the
+  panel.
+- `/logout` deletes the stored key rather than only saying the environment still
+  has one, and only mentions the environment variable when it is actually set.
 
 ## [0.1.2] — 2026-07-27
 

@@ -215,17 +215,29 @@ the transcript, so you can see what it did rather than trusting a summary.
 
 ## The assistant
 
-Set a key and restart:
+Set it up without leaving the app: `Ctrl+L` opens the panel, then
+
+- `/provider` — pick from Anthropic, OpenAI, Ollama, LM Studio, OpenRouter, Groq,
+  a custom endpoint, or off. Choosing one sets its address for you.
+- `/key` — type a key into a masked prompt. Kept in `auth.json` beside the
+  config, mode `0600`, never in `config.toml`.
+- `/model` — asks the provider which models it has and offers the list, rather
+  than making you remember a name. Local servers answer with whatever you've
+  pulled.
+
+The panel's title says which model is answering, or what is still missing.
+
+If you'd rather use the environment, that still works and takes precedence:
 
 ```sh
-export ANTHROPIC_API_KEY=sk-ant-...
+export ANTHROPIC_API_KEY=sk-ant-...      # or OPENAI_API_KEY, GROQ_API_KEY, …
 ```
 
-Or run it entirely offline against a local model:
+Or configure it by hand:
 
 ```toml
 [agent]
-provider = "openai"                      # any OpenAI-compatible server
+provider = "ollama"                      # or any OpenAI-compatible server
 base_url = "http://localhost:11434/v1"   # Ollama, LM Studio, vLLM, OpenRouter…
 model = "llama3.1"
 ```
@@ -243,7 +255,8 @@ Set `allow_writes = false` under `[agent]` to give it search and read only.
 
 ### Slash commands
 
-Type `/` in the chat box for a completion list; `Tab` completes, `Enter` runs.
+Type `/` in the chat box for the list, `↑`/`↓` to walk it, `Tab` or `Enter` to
+take one, `Enter` again to run it. `Esc` abandons what you were typing.
 Commands are handled locally and never reach the model: `/model` changes the
 model rather than asking the current one to.
 
@@ -252,7 +265,8 @@ model rather than asking the current one to.
 | `/help` | List the commands |
 | `/new`, `/compact` | Start over, or trim older turns to free up context |
 | `/save`, `/resume`, `/sessions` | Keep a conversation and pick it up later |
-| `/provider`, `/model`, `/base-url` | Point the agent at a different backend |
+| `/provider`, `/model` | Choose a backend and a model, from menus |
+| `/key`, `/base-url` | Store an API key; point at another endpoint |
 | `/login`, `/logout`, `/status` | Credentials and what the next turn will do |
 | `/writes`, `/context`, `/reasoning` | Toggle what the agent may do and see |
 | `/tools`, `/vault`, `/obsidian` | What's available: tools, index, Obsidian CLI |
@@ -294,9 +308,11 @@ to stop it reading notes on its own, set `allow_writes = false`. That leaves
 search and read, which still read note contents, so use a local model if that
 matters to you.
 
-Your API key is read from the environment (`ANTHROPIC_API_KEY` or
-`OPENAI_API_KEY`) and is never written to the config file, never logged, and
-never included in any error message.
+Your API key comes from the environment (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`
+and so on) or, if you'd rather type it once, from `auth.json` beside the config
+file — written mode `0600`, never in `config.toml`, never logged, and never
+included in an error message. The environment wins when both are set, so a key
+exported for one run takes effect without editing anything.
 
 ## Configuration
 
@@ -334,7 +350,7 @@ same state.
 ## Development
 
 ```sh
-cargo test --workspace          # 516 tests
+cargo test --workspace          # 542 tests
 cargo clippy --workspace --all-targets
 cargo fmt --all --check
 ```

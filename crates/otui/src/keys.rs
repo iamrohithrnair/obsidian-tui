@@ -447,25 +447,24 @@ fn handle_sidebar(app: &mut App, key: KeyEvent) {
 fn handle_chat(app: &mut App, key: KeyEvent) {
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
 
+    // While a slash command is being typed, the arrow keys belong to the list of
+    // commands rather than to the transcript — a menu on screen is what the keys
+    // obviously act on, and it is the only way to read the list without knowing
+    // the names already.
+    let completions = if app.chat.busy {
+        Vec::new()
+    } else {
+        crate::slash::completions(&app.chat.input)
+    };
+    if !completions.is_empty() && handle_completions(app, key, &completions) {
+        return;
+    }
+
     match key.code {
-        // A slash command runs locally instead of being sent. `/model` should
-        // change the model, not ask the current one to change it.
         KeyCode::Enter if !app.chat.busy && crate::slash::is_command(&app.chat.input) => {
-            let input = app.chat.input.trim().to_string();
-            app.chat.input.clear();
-            app.chat.cursor = 0;
-            if let crate::slash::Outcome::Unknown(name) = crate::slash::run(app, &input) {
-                app.error(format!("unknown command '/{name}'; /help lists them"));
-            }
+            run_command(app);
         }
         KeyCode::Enter if !app.chat.busy => agent::send(app),
-        // Tab completes the command being typed, the way a shell would.
-        KeyCode::Tab if crate::slash::is_command(&app.chat.input) => {
-            if let Some(command) = crate::slash::completions(&app.chat.input).first() {
-                app.chat.input = format!("/{} ", command.name);
-                app.chat.cursor = app.chat.input.chars().count();
-            }
-        }
         KeyCode::Char('c' | 'C') if ctrl => {
             app.chat.cancel();
             app.info("stopping…");
@@ -490,6 +489,59 @@ fn handle_chat(app: &mut App, key: KeyEvent) {
         }
         KeyCode::Esc => app.focus = Focus::Note,
         _ => {}
+    }
+}
+
+/// Keys that belong to the slash-command list. Returns whether one was used.
+fn handle_completions(
+    app: &mut App,
+    key: KeyEvent,
+    completions: &[&'static crate::slash::SlashCommand],
+) -> bool {
+    let selected = || {
+        completions
+            .get(app.chat.completion)
+            .or(completions.first())
+            .map(|command| command.name)
+    };
+
+    match key.code {
+        // Only when there is something to choose between: with the command
+        // already named, the arrows still belong to the transcript.
+        KeyCode::Up if completions.len() > 1 => app.chat.move_completion(-1, completions.len()),
+        KeyCode::Down if completions.len() > 1 => app.chat.move_completion(1, completions.len()),
+        // Tab fills in the highlighted command, the way a shell would.
+        KeyCode::Tab => {
+            if let Some(name) = selected() {
+                app.chat.complete_with(name);
+            }
+        }
+        // Enter takes the highlight when the name is still being typed, and runs
+        // the command once it is settled. So `/` then arrows then Enter fills it
+        // in, and Enter again runs it — while typing `/help` and pressing Enter
+        // runs it outright, without a detour through the menu.
+        KeyCode::Enter => match selected().filter(|name| !settled(&app.chat.input, name)) {
+            Some(name) => app.chat.complete_with(name),
+            None => run_command(app),
+        },
+        // Abandoning what you were typing is what Escape means here; the list
+        // closes with it, and a second Escape leaves the panel.
+        KeyCode::Esc => app.chat.clear_input(),
+        _ => return false,
+    }
+    true
+}
+
+/// Whether the input already names this command, rather than a prefix of it.
+fn settled(input: &str, name: &str) -> bool {
+    crate::slash::parse(input).is_some_and(|(typed, _)| typed.eq_ignore_ascii_case(name))
+}
+
+fn run_command(app: &mut App) {
+    let input = app.chat.input.trim().to_string();
+    app.chat.clear_input();
+    if let crate::slash::Outcome::Unknown(name) = crate::slash::run(app, &input) {
+        app.error(format!("unknown command '/{name}'; /help lists them"));
     }
 }
 
@@ -878,6 +930,82 @@ mod chat_command_tests {
             app.chat.input.chars().count(),
             "the cursor follows the completion"
         );
+    }
+
+    #[test]
+    fn arrows_walk_the_command_list_and_enter_takes_the_highlight() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "/");
+
+        let names: Vec<&str> = crate::slash::completions("/")
+            .iter()
+            .map(|command| command.name)
+            .collect();
+        assert!(names.len() > 3, "a bare slash offers everything");
+
+        press(&mut app, KeyCode::Down);
+        press(&mut app, KeyCode::Down);
+        assert_eq!(app.chat.completion, 2, "the highlight moved");
+
+        press(&mut app, KeyCode::Enter);
+        assert_eq!(
+            app.chat.input,
+            format!("/{} ", names[2]),
+            "Enter takes the highlighted command rather than running the first"
+        );
+
+        press(&mut app, KeyCode::Enter);
+        assert!(
+            app.chat.input.is_empty(),
+            "and Enter again runs it, since the name is settled"
+        );
+    }
+
+    #[test]
+    fn the_highlight_wraps_and_resets_as_the_command_is_typed() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "/");
+
+        press(&mut app, KeyCode::Up);
+        assert_eq!(
+            app.chat.completion,
+            crate::slash::completions("/").len() - 1,
+            "up from the top wraps to the bottom"
+        );
+
+        type_str(&mut app, "s");
+        assert_eq!(
+            app.chat.completion, 0,
+            "a keystroke changes the list, so the highlight starts over"
+        );
+    }
+
+    #[test]
+    fn a_named_command_leaves_the_arrows_to_the_transcript() {
+        let (_v, mut app) = app();
+        app.chat.scroll = 9;
+        app.chat.follow = true;
+        type_str(&mut app, "/model ");
+
+        press(&mut app, KeyCode::Up);
+        assert_eq!(app.chat.completion, 0, "there is nothing left to choose");
+        assert!(
+            !app.chat.follow && app.chat.scroll < 9,
+            "so Up scrolls the conversation, as it does while writing a message"
+        );
+    }
+
+    #[test]
+    fn escape_abandons_a_half_typed_command_before_leaving_the_panel() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "/sess");
+
+        press(&mut app, KeyCode::Esc);
+        assert!(app.chat.input.is_empty(), "the command is abandoned");
+        assert_eq!(app.focus, Focus::Chat, "but the panel keeps focus");
+
+        press(&mut app, KeyCode::Esc);
+        assert_eq!(app.focus, Focus::Note, "a second Escape leaves");
     }
 
     #[test]
