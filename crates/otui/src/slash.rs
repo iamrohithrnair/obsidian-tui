@@ -553,7 +553,7 @@ fn status_text(app: &App) -> String {
     let provider = &app.config.agent.provider;
     let usage = app.chat.usage;
     format!(
-        "provider  {}\nmodel     {}\nendpoint  {}\nkey       {}\nwrites    {}\ncontext   {}\nturns     {}\ntokens    {} in / {} out",
+        "provider  {}\nmodel     {}\nendpoint  {}\nkey       {}\nnetwork   {}\nwrites    {}\ncontext   {}\nturns     {}\ntokens    {} in / {} out",
         provider,
         app.config.agent.model(),
         app.config.agent.base_url.as_deref().unwrap_or("(default)"),
@@ -562,6 +562,9 @@ fn status_text(app: &App) -> String {
         } else {
             "not needed".to_string()
         },
+        // Which roots and which proxy. On a managed network this is the line that
+        // turns "it just fails" into something actionable.
+        otui_agent::http::trust(),
         on_off(app.config.agent.allow_writes),
         on_off(app.config.agent.include_active_note),
         app.chat.conversation.len(),
@@ -1063,6 +1066,11 @@ mod tests {
         assert!(text.contains("provider"));
         assert!(text.contains("model"));
         assert!(text.contains("tokens"));
+        assert!(
+            text.contains("network") && text.contains("roots"),
+            "on a managed network, which roots and which proxy is the whole \
+             diagnosis: {text}"
+        );
     }
 
     #[test]

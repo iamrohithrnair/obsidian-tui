@@ -314,6 +314,35 @@ file — written mode `0600`, never in `config.toml`, never logged, and never
 included in an error message. The environment wins when both are set, so a key
 exported for one run takes effect without editing anything.
 
+## Behind a corporate proxy
+
+Managed networks usually terminate TLS at a proxy and re-sign it with the
+company's own certificate authority. That CA is in your machine's trust store but
+not in the root list compiled into this binary, so requests would fail with
+"unknown issuer" and no hint as to why.
+
+A CA bundle named in the environment is used instead, the same way curl and
+everything built on OpenSSL do it — the first of these that is set wins:
+
+```
+OTUI_CA_BUNDLE  SSL_CERT_FILE  REQUESTS_CA_BUNDLE
+CURL_CA_BUNDLE  NODE_EXTRA_CA_CERTS  CARGO_HTTP_CAINFO  SSL_CERT_DIR
+```
+
+On a laptop already set up for such a network one of these is usually exported
+already, so there is nothing to do. The bundle *replaces* the built-in roots, as
+it does for curl, so it needs to be a complete one — which an IT-provided bundle
+normally is. A named bundle that can't be read leaves the built-in roots in place
+rather than trusting nothing, and `/status` says so.
+
+Proxies are read from `HTTPS_PROXY`, `ALL_PROXY` and `NO_PROXY` with no
+configuration. `/status` reports both, which is the fastest way to tell a missing
+CA from a missing proxy:
+
+```
+network   roots 146 from $SSL_CERT_FILE (/etc/ssl/corp.pem), via proxy.corp:8080
+```
+
 ## Configuration
 
 Written on first run, with every default spelled out:

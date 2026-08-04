@@ -28,6 +28,7 @@
 
 pub mod catalog;
 pub mod error;
+pub mod http;
 pub mod provider;
 pub mod session;
 pub mod sse;

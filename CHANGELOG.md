@@ -50,6 +50,20 @@ All notable changes to this project are documented here. The format follows
   variable still wins, so nothing that worked before behaves differently.
 - The chat panel's title now names the model that will answer, or says what is
   missing and which command fixes it.
+- **The assistant works behind a corporate TLS proxy.** Such a proxy re-signs
+  traffic with the company's own certificate authority, which is in the machine's
+  trust store but not in the root list compiled into the binary, so every request
+  failed with "unknown issuer". A CA bundle named by `SSL_CERT_FILE`,
+  `CURL_CA_BUNDLE`, `REQUESTS_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS`,
+  `CARGO_HTTP_CAINFO`, `SSL_CERT_DIR` or `OTUI_CA_BUNDLE` is used instead — the
+  same convention curl and everything built on OpenSSL follow, so a laptop already
+  set up for that network needs no configuration. A directory of certificates works
+  as well as a single file, and a bundle that can't be read leaves the built-in
+  roots in place rather than trusting nothing.
+- `/status` reports which roots and which proxy are in use, which is what
+  distinguishes a missing CA from a missing proxy.
+- Requests now share one HTTP client, so a turn with several tool calls reuses its
+  connection instead of repeating the TLS handshake.
 
 ### Fixed
 

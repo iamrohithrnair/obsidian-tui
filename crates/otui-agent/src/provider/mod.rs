@@ -145,7 +145,8 @@ pub(crate) fn post_stream(
     body: &Value,
     timeout_secs: u64,
 ) -> Result<Box<dyn Read + Send>> {
-    let mut request = ureq::post(url)
+    let mut request = crate::http::agent()
+        .post(url)
         .config()
         // Read the body on failure instead of getting a bare status code.
         .http_status_as_error(false)
@@ -185,7 +186,8 @@ const QUERY_TIMEOUT_SECS: u64 = 15;
 /// found, and an empty bearer token is rejected by some servers that would
 /// happily have answered with no header at all.
 pub(crate) fn get_json(url: &str, headers: &[(&str, &str)], bearer: Option<&str>) -> Result<Value> {
-    let mut request = ureq::get(url)
+    let mut request = crate::http::agent()
+        .get(url)
         .config()
         .http_status_as_error(false)
         .timeout_global(Some(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS)))
