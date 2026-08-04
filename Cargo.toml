@@ -40,6 +40,7 @@ dirs = "6"
 anyhow = "1"
 unicode-width = "0.2"
 ureq = { version = "3", features = ["json"] }
+lz-str = "0.2"
 
 [profile.release]
 lto = true

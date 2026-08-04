@@ -6,6 +6,7 @@
 //! the terminal narrows, so the note itself is the last thing to lose space.
 
 pub mod chat;
+pub mod drawing;
 pub mod graph;
 pub mod modal;
 pub mod note;

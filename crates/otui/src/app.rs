@@ -338,6 +338,8 @@ pub struct App {
     /// once the terminal has been asked what it can draw — a question that has
     /// to be put before the alternate screen is entered.
     pub images: crate::images::Images,
+    /// The Excalidraw scene currently on screen, kept parsed between frames.
+    pub scenes: crate::ui::drawing::Scenes,
     pub quit: bool,
 }
 
@@ -379,6 +381,7 @@ impl App {
             chat,
             status: Status::default(),
             images: crate::images::Images::disabled(),
+            scenes: crate::ui::drawing::Scenes::default(),
             quit: false,
             theme: ActiveTheme::new(theme),
             themes,

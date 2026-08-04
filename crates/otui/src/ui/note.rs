@@ -14,13 +14,14 @@ use ratatui::widgets::{Paragraph, Widget};
 use ratatui::Frame;
 use ratatui_image::sliced::{SignedPosition, SlicedImage};
 
+use otui_core::excalidraw;
 use otui_core::index::VaultIndex;
 use otui_core::markdown::{self, Align, Block, BlockKind, Marker, SpanKind, Table};
 use otui_theme::Palette;
 
 use crate::app::{App, Mode, Regions};
 use crate::images::{self, Images};
-use crate::ui::{icons, scrollbar, truncate};
+use crate::ui::{drawing, icons, scrollbar, truncate};
 
 /// Left padding inside the note pane, matching Obsidian's generous margins.
 const PADDING: u16 = 2;
@@ -215,6 +216,26 @@ fn draw_reading(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect)
         Paragraph::new("could not read this note").render(area, frame.buffer_mut());
         return;
     };
+
+    // An Excalidraw note is a wrapper around a scene: its Markdown is a warning
+    // banner and a wall of compressed base64, and the drawing is the content.
+    // Judged by the file name, so an ordinary note that happens to have a
+    // `## Drawing` heading is still read as prose.
+    let is_drawing = app
+        .index
+        .note(id)
+        .is_some_and(|note| excalidraw::is_drawing(&note.meta.rel));
+    if is_drawing {
+        let scroll = app.active().map_or(0, |tab| tab.scroll);
+        if let Some(scene) = app.scenes.get(&content) {
+            let rows = drawing::draw(frame, palette, area, scene, scroll);
+            let max_scroll = rows.saturating_sub(area.height as usize);
+            if let Some(tab) = app.active_mut() {
+                tab.scroll = tab.scroll.min(max_scroll);
+            }
+            return;
+        }
+    }
 
     let width = area.width.saturating_sub(1) as usize;
     let document = markdown::parse(&content);

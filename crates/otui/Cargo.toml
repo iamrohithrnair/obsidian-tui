@@ -26,4 +26,5 @@ unicode-width.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+lz-str.workspace = true
 otui-core = { workspace = true, features = ["test-support"] }

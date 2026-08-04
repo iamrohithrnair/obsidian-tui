@@ -24,6 +24,18 @@ All notable changes to this project are documented here. The format follows
   down to fit.
 - A picture that can't be drawn — no support in the terminal, a missing file, a
   URL on the web — leaves its alt text in place rather than a hole.
+- **Excalidraw notes open as drawings.** A `.excalidraw.md` note used to show a
+  warning banner and a wall of compressed base64, which is the one thing in a
+  vault that a text reader could make no sense of at all. The scene is now drawn
+  as vectors on a braille canvas: rectangles, ellipses, diamonds, lines, arrows
+  with heads, freehand strokes, and the text labels, rotation included. Both the
+  plain `json` and the compressed `compressed-json` block the Obsidian plugin
+  writes are read, as is a legacy `.excalidraw` JSON file.
+- The drawing is scaled to the pane's width and scrolls vertically like the prose
+  it replaces, since diagrams are usually far taller than a terminal.
+- Excalidraw draws near-black ink on white paper. A stroke that would vanish into
+  the theme's background is drawn in the theme's text colour instead; every colour
+  the author chose deliberately is kept.
 
 ### Fixed
 

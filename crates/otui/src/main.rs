@@ -699,6 +699,53 @@ mod tests {
     }
 
     #[test]
+    fn an_excalidraw_note_is_shown_as_a_diagram_not_as_its_markdown() {
+        let scene = r##"{"type": "excalidraw", "elements": [
+            {"type": "rectangle", "x": 0, "y": 0, "width": 400, "height": 200,
+             "strokeColor": "#e03131", "backgroundColor": "transparent",
+             "fillStyle": "solid", "strokeStyle": "solid"},
+            {"type": "text", "x": 40, "y": 80, "width": 200, "height": 25,
+             "text": "Ingest", "strokeColor": "#1971c2",
+             "backgroundColor": "transparent", "fillStyle": "hachure"},
+            {"type": "arrow", "x": 400, "y": 100, "width": 120, "height": 0,
+             "points": [[0, 0], [120, 0]], "strokeColor": "#2f9e44",
+             "backgroundColor": "transparent", "fillStyle": "solid"}
+        ]}"##;
+        // Compressed, as Obsidian's plugin writes it by default.
+        let packed = lz_str::compress_to_base64(scene);
+        let vault = TempVault::new("draw-excalidraw");
+        vault.write(
+            "Flow.excalidraw.md",
+            &format!(
+                "---\nexcalidraw-plugin: parsed\n---\n\n\
+                 # Excalidraw Data\n\n## Text Elements\nIngest ^abc\n\n\
+                 ## Drawing\n```compressed-json\n{packed}\n```\n%%\n"
+            ),
+        );
+
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        let note = app.index.id_of_rel("Flow.excalidraw.md").expect("indexed");
+        app.open_note(note);
+
+        let mut terminal = Terminal::new(TestBackend::new(120, 40)).expect("terminal");
+        terminal
+            .draw(|frame| ui::draw(frame, &mut app))
+            .expect("draw");
+        let rendered = screen(&terminal);
+        let all = rendered.join("\n");
+
+        assert!(
+            all.chars().any(|c| ('\u{2800}'..='\u{28ff}').contains(&c)),
+            "the shapes are drawn as braille: {all}"
+        );
+        assert!(all.contains("Ingest"), "and the labels are readable: {all}");
+        assert!(
+            !all.contains("compressed-json") && !all.contains(&packed[..24]),
+            "the base64 the drawing is stored as never reaches the screen"
+        );
+    }
+
+    #[test]
     fn clicking_a_ribbon_icon_runs_its_action() {
         let (_v, mut app) = demo();
         lay_out(&mut app);

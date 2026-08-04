@@ -181,6 +181,12 @@ works. Decoding happens off the draw loop, and the space a picture needs is
 worked out before it is decoded, so nothing jumps as it appears. A picture that
 can't be drawn leaves its alt text where it was.
 
+**Excalidraw.** A `.excalidraw.md` note opens as the drawing, not as the wall of
+compressed base64 it is stored as. Shapes, arrows, freehand strokes and labels are
+drawn as vectors on a braille canvas, so a diagram reads the same in every
+terminal whether or not it can show pictures. Scaled to the pane's width and
+scrolled vertically, like the prose it replaces.
+
 **Explorer.** The file tree opens with your most recently edited notes at the
 top, which is usually where you left off. `s` steps through the other orders:
 modified, created and file name, each in both directions. Folders stay
@@ -328,7 +334,7 @@ same state.
 ## Development
 
 ```sh
-cargo test --workspace          # 498 tests
+cargo test --workspace          # 516 tests
 cargo clippy --workspace --all-targets
 cargo fmt --all --check
 ```
