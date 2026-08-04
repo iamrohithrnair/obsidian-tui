@@ -10,7 +10,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::links::{self, Heading, LinkRef};
 use crate::note::{self, Frontmatter, NoteMeta};
@@ -341,6 +341,41 @@ impl VaultIndex {
         &self.attachments
     }
 
+    /// Finds the file a non-note link points at, as an absolute path.
+    ///
+    /// `from` is the directory of the note holding the link, which is where a
+    /// relative target like `./diagram.png` or `assets/diagram.png` is looked up
+    /// first. A bare filename falls back to the whole vault, because that is how
+    /// Obsidian resolves `![[diagram.png]]` no matter which folder it sits in.
+    #[must_use]
+    pub fn attachment_path(&self, target: &str, from: Option<&Path>) -> Option<PathBuf> {
+        if target.is_empty() || is_external(target) {
+            return None;
+        }
+
+        // A target may be percent-encoded, since that is what an editor writes
+        // when a filename contains a space.
+        let decoded = percent_decode(target);
+        let candidates = [decoded.as_str(), target];
+
+        for candidate in candidates {
+            if let Some(dir) = from {
+                let path = dir.join(candidate);
+                if path.is_file() {
+                    return Some(path);
+                }
+            }
+            let path = self.vault.path.join(candidate);
+            if path.is_file() {
+                return Some(path);
+            }
+            if let Some(rel) = self.find_attachment(candidate) {
+                return Some(self.vault.path.join(rel));
+            }
+        }
+        None
+    }
+
     #[must_use]
     pub fn id_of_rel(&self, rel: &str) -> Option<NoteId> {
         self.by_rel.get(rel).copied()
@@ -576,6 +611,36 @@ fn links_with_context(body: &str) -> Vec<(LinkRef, String)> {
         .collect()
 }
 
+/// Decodes `%20`-style escapes, which editors write for spaces in filenames.
+///
+/// Anything that isn't a valid escape is passed through, so a literal `%` in a
+/// filename survives.
+fn percent_decode(target: &str) -> String {
+    if !target.contains('%') {
+        return target.to_string();
+    }
+    let bytes = target.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let escape = (bytes[i] == b'%' && i + 2 < bytes.len())
+            .then(|| std::str::from_utf8(&bytes[i + 1..i + 3]).ok())
+            .flatten()
+            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
+        match escape {
+            Some(byte) => {
+                out.push(byte);
+                i += 3;
+            }
+            None => {
+                out.push(bytes[i]);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8(out).unwrap_or_else(|_| target.to_string())
+}
+
 fn is_external(target: &str) -> bool {
     // A scheme-prefixed target is a URL. `obsidian://` is included so a link
     // into the desktop app isn't mistaken for a missing note.
@@ -680,6 +745,47 @@ mod tests {
             index.note(a).unwrap().links[0].target,
             LinkTarget::Attachment("assets/diagram.png".into())
         );
+    }
+
+    #[test]
+    fn attachment_paths_prefer_the_note_s_own_folder() {
+        let vault = TempVault::new("attach-path");
+        vault.write("notes/A.md", "x\n");
+        vault.write("notes/diagram.png", "near");
+        vault.write("diagram.png", "far");
+
+        let index = vault.index();
+        let from = index.vault.path.join("notes");
+
+        assert_eq!(
+            index.attachment_path("diagram.png", Some(&from)),
+            Some(from.join("diagram.png")),
+            "a sibling file wins over one of the same name at the vault root"
+        );
+        assert_eq!(
+            index.attachment_path("diagram.png", None),
+            Some(index.vault.path.join("diagram.png")),
+            "without a note to sit next to, the vault is searched"
+        );
+    }
+
+    #[test]
+    fn attachment_paths_survive_encoded_spaces_and_ignore_urls() {
+        let vault = TempVault::new("attach-encoded");
+        vault.write("my diagram.png", "binary");
+
+        let index = vault.index();
+
+        assert_eq!(
+            index.attachment_path("my%20diagram.png", None),
+            Some(index.vault.path.join("my diagram.png")),
+            "editors percent-encode spaces when they write a link"
+        );
+        assert_eq!(
+            index.attachment_path("https://example.com/a.png", None),
+            None
+        );
+        assert_eq!(index.attachment_path("nothing.png", None), None);
     }
 
     #[test]

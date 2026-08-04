@@ -41,6 +41,7 @@ pub mod icons {
     pub const TASK_DONE: &str = "☑";
     pub const TASK_TODO: &str = "☐";
     pub const SCROLL_THUMB: &str = "│";
+    pub const IMAGE: &str = "▨";
 }
 
 /// Minimum width before the left sidebar is dropped.

@@ -7,6 +7,7 @@ mod cli;
 mod config;
 mod editor;
 mod explorer;
+mod images;
 mod keys;
 mod modal;
 mod obsidian;
@@ -225,6 +226,14 @@ fn run(app: &mut App) -> io::Result<()> {
         hook(info);
     }));
 
+    // Asking the terminal what pictures it can draw means writing to stdout and
+    // reading the reply from stdin, so it has to happen while the terminal is
+    // still in its normal mode — before the alternate screen below.
+    app.images = images::Images::probe(app.config.images.enabled, app.config.images.max_rows);
+    if app.config.images.enabled && !app.images.enabled() {
+        app.info("this terminal won't say what it can draw — images will show as alt text");
+    }
+
     // `init` panics when there's no terminal — in a pipe, a CI job, or a
     // headless shell. That's a normal way to invoke a program by mistake, so
     // it deserves an explanation rather than a backtrace.
@@ -285,6 +294,12 @@ fn event_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut App) -> io::Res
         }
 
         if agent::poll(app) {
+            needs_redraw = true;
+        }
+
+        // A picture that finished encoding has to be drawn into the space the
+        // last frame already left for it.
+        if app.images.poll() {
             needs_redraw = true;
         }
 
@@ -578,6 +593,109 @@ mod tests {
                 modifiers: crossterm::event::KeyModifiers::empty(),
             },
         )
+    }
+
+    /// The colour of the test picture. Half-blocks paint it into cell colours
+    /// rather than glyphs, so this is what proves it reached the screen.
+    const INK: ratatui::style::Color = ratatui::style::Color::Rgb(200, 30, 30);
+
+    /// Rows of the drawn frame, as plain text.
+    fn screen(terminal: &Terminal<TestBackend>) -> Vec<String> {
+        let buffer = terminal.backend().buffer();
+        (0..buffer.area.height)
+            .map(|y| {
+                (0..buffer.area.width)
+                    .map(|x| buffer[(x, y)].symbol())
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// The first row painted with the picture's colour.
+    fn picture_row(terminal: &Terminal<TestBackend>) -> Option<usize> {
+        let buffer = terminal.backend().buffer();
+        (0..buffer.area.height)
+            .find(|&y| (0..buffer.area.width).any(|x| buffer[(x, y)].bg == INK))
+            .map(usize::from)
+    }
+
+    /// Draws until the picture has been encoded, or gives up.
+    fn draw_until_loaded(terminal: &mut Terminal<TestBackend>, app: &mut App) {
+        for _ in 0..200 {
+            terminal.draw(|frame| ui::draw(frame, app)).expect("draw");
+            if picture_row(terminal).is_some() {
+                return;
+            }
+            app.images.poll();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        panic!(
+            "the picture never arrived:\n{}",
+            screen(terminal).join("\n")
+        );
+    }
+
+    #[test]
+    fn a_picture_is_drawn_over_the_rows_reserved_for_it_and_scrolls_with_the_text() {
+        let vault = TempVault::new("draw-image");
+        let image = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(200, 100, {
+            let ratatui::style::Color::Rgb(r, g, b) = INK else {
+                unreachable!()
+            };
+            image::Rgb([r, g, b])
+        }));
+        let mut png = Vec::new();
+        image
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .expect("encode png");
+        vault.write_bytes("chart.png", &png);
+        // Long enough to scroll: a note that fits the pane never moves.
+        let filler = "lorem ipsum\n\n".repeat(60);
+        vault.write(
+            "Note.md",
+            &format!("# Note\n\n![a chart](chart.png)\n\nAfter\n\n{filler}"),
+        );
+
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        app.images = images::Images::halfblocks(16);
+        let note = app.index.id_of_rel("Note.md").expect("indexed");
+        app.open_note(note);
+
+        let mut terminal = Terminal::new(TestBackend::new(120, 40)).expect("terminal");
+        draw_until_loaded(&mut terminal, &mut app);
+
+        let top = picture_row(&terminal).expect("a row of the picture");
+        let before = screen(&terminal);
+        assert!(
+            before.iter().any(|row| row.contains("After")),
+            "the text below it is still there: {before:#?}"
+        );
+        assert!(
+            !before.iter().any(|row| row.contains("a chart")),
+            "the alt text gives way to the picture itself"
+        );
+
+        // Scrolling moves the picture with the prose rather than pinning it.
+        app.active_mut().expect("tab").scroll = 2;
+        terminal
+            .draw(|frame| ui::draw(frame, &mut app))
+            .expect("draw");
+        assert_eq!(
+            picture_row(&terminal),
+            Some(top - 2),
+            "it scrolled up with everything else"
+        );
+
+        // Scrolled past its last row, it leaves nothing behind.
+        app.active_mut().expect("tab").scroll = 40;
+        terminal
+            .draw(|frame| ui::draw(frame, &mut app))
+            .expect("draw");
+        assert_eq!(
+            picture_row(&terminal),
+            None,
+            "and scrolls fully out of view"
+        );
     }
 
     #[test]

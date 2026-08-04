@@ -21,6 +21,7 @@ pub struct Config {
     pub ui: UiConfig,
     pub editor: EditorConfig,
     pub graph: GraphConfig,
+    pub images: ImageConfig,
     pub agent: AgentConfig,
 }
 
@@ -34,6 +35,7 @@ impl Default for Config {
             ui: UiConfig::default(),
             editor: EditorConfig::default(),
             graph: GraphConfig::default(),
+            images: ImageConfig::default(),
             agent: AgentConfig::default(),
         }
     }
@@ -125,6 +127,31 @@ impl Default for EditorConfig {
             new_note_folder: String::new(),
             daily_folder: "Daily".into(),
             daily_format: "%Y-%m-%d".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ImageConfig {
+    /// Draw pictures in the reading pane. Turn this off to get alt text back,
+    /// which is what a terminal that cannot draw them shows anyway.
+    pub enabled: bool,
+    /// Tallest a single picture may be drawn, in terminal rows.
+    ///
+    /// A cap rather than a size: a picture is never scaled up, and a wide one
+    /// is bounded by the pane instead. It stops a portrait photo from taking
+    /// several screens on its own.
+    pub max_rows: u16,
+}
+
+impl Default for ImageConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            // Two thirds of an 80x24 terminal: big enough to read a diagram,
+            // small enough to leave the prose around it visible.
+            max_rows: 16,
         }
     }
 }
@@ -386,6 +413,15 @@ mod tests {
         let parsed: Config = toml::from_str(&text).expect("parse");
         assert_eq!(parsed.theme, "gruvbox-dark");
         assert_eq!(parsed.ui.chat_width, config.ui.chat_width);
+    }
+
+    #[test]
+    fn an_older_config_without_an_images_section_still_gets_pictures() {
+        // Upgrading shouldn't silently turn a feature off, and a file written
+        // before the section existed is exactly that case.
+        let config: Config = toml::from_str("theme = \"gruvbox-dark\"\n").expect("parse");
+        assert!(config.images.enabled);
+        assert!(config.images.max_rows > 0);
     }
 
     #[test]

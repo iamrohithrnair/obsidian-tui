@@ -51,6 +51,16 @@ impl TempVault {
         path
     }
 
+    /// Writes a file that isn't text, such as an image.
+    pub fn write_bytes(&self, rel: &str, content: &[u8]) -> PathBuf {
+        let path = self.path.join(rel);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent dir");
+        }
+        fs::write(&path, content).expect("write file");
+        path
+    }
+
     #[must_use]
     pub fn read(&self, rel: &str) -> String {
         fs::read_to_string(self.path.join(rel)).unwrap_or_default()

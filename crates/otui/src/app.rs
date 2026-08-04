@@ -334,6 +334,10 @@ pub struct App {
     pub modal: Option<crate::modal::Modal>,
     pub chat: Chat,
     pub status: Status,
+    /// Pictures drawn in the reading pane. Starts switched off, and is replaced
+    /// once the terminal has been asked what it can draw — a question that has
+    /// to be put before the alternate screen is entered.
+    pub images: crate::images::Images,
     pub quit: bool,
 }
 
@@ -374,6 +378,7 @@ impl App {
             modal: None,
             chat,
             status: Status::default(),
+            images: crate::images::Images::disabled(),
             quit: false,
             theme: ActiveTheme::new(theme),
             themes,
@@ -648,6 +653,9 @@ impl App {
             self.error(format!("refresh failed: {err}"));
             return;
         }
+        // A reload is the one moment the user has said the files on disk have
+        // changed, so it is also when an edited picture should be read again.
+        self.images.forget();
 
         self.tabs.retain(|_| true);
         let mut rebuilt = Vec::new();

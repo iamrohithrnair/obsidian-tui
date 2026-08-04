@@ -19,6 +19,20 @@ otui-agent = { path = "crates/otui-agent", version = "0.1.1" }
 
 ratatui = "0.30"
 crossterm = "0.29"
+# Kitty, iTerm2 and sixel with a halfblocks fallback. Default features are off
+# to keep the optional C bindings (libchafa, libsixel) out of the build, so the
+# binary stays pure Rust and cross-compiles.
+ratatui-image = { version = "11", default-features = false, features = [
+    "crossterm",
+    "image-defaults",
+] }
+image = { version = "0.25", default-features = false, features = [
+    "png",
+    "jpeg",
+    "gif",
+    "webp",
+    "bmp",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.9"

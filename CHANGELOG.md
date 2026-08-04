@@ -4,6 +4,46 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Pictures are drawn in the reading pane.** `![[chart.png]]` and
+  `![alt](assets/chart.png)` render as real images in terminals that support
+  Kitty's graphics protocol, iTerm2's, or sixel, and as half-block mosaics
+  everywhere else. The terminal is asked what it can do at startup, before the
+  alternate screen is entered, since that question is answered on stdin.
+- Obsidian's `![[chart.png|400]]` width, in pixels, is honoured. Anything else
+  after the pipe stays an alias, which is only ever used as alt text.
+- Decoding happens off the draw loop, so a large photo doesn't stall scrolling.
+  The rows a picture will need are worked out from its header on the first
+  frame, so text below it doesn't jump when the picture arrives.
+- `images.enabled` and `images.max_rows` in the config. `max_rows` caps how tall
+  one picture may be drawn, so a portrait photo doesn't take several screens on
+  its own. A picture is never scaled up, and one wider than the pane is scaled
+  down to fit.
+- A picture that can't be drawn — no support in the terminal, a missing file, a
+  URL on the web — leaves its alt text in place rather than a hole.
+
+### Fixed
+
+- **The local graph is laid out on its own.** It was a filtered view of the whole
+  vault: positioned among every other note, framed to their bounds, and drawn
+  with edges running off to nodes outside the neighbourhood, so it arrived as a
+  clump in the corner of an empty pane. The neighbourhood is now cut into a graph
+  of its own before anything is positioned.
+- The graph no longer rescales on every tick while its layout settles.
+
+### Changed
+
+- **Arrow keys walk the graph.** They moved the camera, which left Tab as the
+  only way through the picture, and Tab steps by link count so it can jump across
+  the vault. Arrows now select the nearest node in the direction pressed; `hjkl`
+  still moves the camera.
+- Dragging a node with the mouse pins it, which the layout engine always
+  supported and nothing called.
+- `a` toggles attachments in the graph.
+
 ## [0.1.2] — 2026-07-27
 
 ### Added

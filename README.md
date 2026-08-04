@@ -174,6 +174,13 @@ The ribbon icons are buttons, and most of the UI is clickable:
 callouts, tables, and fenced code with syntax highlighting. Frontmatter is
 optional: a Markdown file dropped in from anywhere shows up.
 
+**Pictures.** `![[chart.png]]` and `![alt](assets/chart.png)` are drawn in the
+reading pane — real pixels in Kitty, Ghostty, WezTerm, iTerm2 and anything that
+speaks sixel, and half-block mosaics everywhere else. Obsidian's `|400` width
+works. Decoding happens off the draw loop, and the space a picture needs is
+worked out before it is decoded, so nothing jumps as it appears. A picture that
+can't be drawn leaves its alt text where it was.
+
 **Explorer.** The file tree opens with your most recently edited notes at the
 top, which is usually where you left off. `s` steps through the other orders:
 modified, created and file name, each in both directions. Folders stay
@@ -295,6 +302,14 @@ Written on first run, with every default spelled out:
 
 Custom themes go in a `themes/` directory beside it.
 
+Pictures can be turned off, and capped, under `[images]`:
+
+```toml
+[images]
+enabled = true
+max_rows = 16    # tallest one picture may be drawn, in terminal rows
+```
+
 ## Layout
 
 ```
@@ -313,9 +328,15 @@ same state.
 ## Development
 
 ```sh
-cargo test --workspace          # 473 tests
+cargo test --workspace          # 498 tests
 cargo clippy --workspace --all-targets
 cargo fmt --all --check
+```
+
+Behind a corporate proxy that re-signs TLS, point cargo at your CA bundle:
+
+```sh
+CARGO_HTTP_CAINFO="$SSL_CERT_FILE" cargo build
 ```
 
 Releases are cut by tagging. Pushing a `v*` tag builds every target, publishes
@@ -367,6 +388,12 @@ coding-agent harness. The assistant's architecture follows its shape closely:
 the streaming tool-calling loop, and the idea that slash commands are handled
 by the client and never reach the model. Reimplemented in Rust; the design
 credit is pi's.
+
+**[glry](https://github.com/uherman/glry)** by uherman (MIT). A terminal image
+gallery. Where I learned that the terminal has to be asked what it can draw
+*before* the alternate screen is entered, and that encoding belongs off the draw
+loop. Pictures here are drawn by
+[ratatui-image](https://github.com/ratatui/ratatui-image) (MIT).
 
 Licensing note, since two of these are copyleft: nothing was copied, so the
 choice of licence here was a free one rather than an obligation. It went to the
