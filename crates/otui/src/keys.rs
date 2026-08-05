@@ -11,7 +11,7 @@ use crate::actions::{self, dispatch};
 use crate::agent;
 use crate::app::{Action, App, Focus, Mode, View};
 use crate::modal::{Modal, PickerKind, Prompt, PromptIntent};
-use crate::ui::panes::{sidebar_targets, SidebarTarget};
+use crate::ui::panes::{SidebarTarget, sidebar_targets};
 
 /// Columns moved per keypress when panning a wide table sideways.
 const PAN_STEP: isize = 4;

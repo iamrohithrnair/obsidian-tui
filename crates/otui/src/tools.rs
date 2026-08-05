@@ -31,8 +31,18 @@ pub fn specs(allow_writes: bool) -> Vec<ToolSpec> {
             "search_notes",
             "Search the full text of every note. Call this whenever the answer depends on what is written in the vault, before answering any question about the user's notes.",
             ToolSpec::object_schema(&[
-                ("query", "string", "Text to look for. Case-insensitive unless it contains capitals.", true),
-                ("limit", "integer", "Maximum notes to return (default 20).", false),
+                (
+                    "query",
+                    "string",
+                    "Text to look for. Case-insensitive unless it contains capitals.",
+                    true,
+                ),
+                (
+                    "limit",
+                    "integer",
+                    "Maximum notes to return (default 20).",
+                    false,
+                ),
             ]),
         ),
         ToolSpec::new(
@@ -57,7 +67,12 @@ pub fn specs(allow_writes: bool) -> Vec<ToolSpec> {
             "list_notes",
             "List notes, optionally in one folder. Call this to get oriented in an unfamiliar vault.",
             ToolSpec::object_schema(&[
-                ("folder", "string", "Vault-relative folder; omit for the whole vault.", false),
+                (
+                    "folder",
+                    "string",
+                    "Vault-relative folder; omit for the whole vault.",
+                    false,
+                ),
                 ("limit", "integer", "Maximum results (default 100).", false),
             ]),
         ),
@@ -86,7 +101,12 @@ pub fn specs(allow_writes: bool) -> Vec<ToolSpec> {
             "Show the local graph around a note: everything within N hops. Call this to explain how a topic connects to the rest of the vault.",
             ToolSpec::object_schema(&[
                 ("name", "string", "Note at the center.", true),
-                ("depth", "integer", "Hops to include (default 1, max 3).", false),
+                (
+                    "depth",
+                    "integer",
+                    "Hops to include (default 1, max 3).",
+                    false,
+                ),
             ]),
         ),
         ToolSpec::new(

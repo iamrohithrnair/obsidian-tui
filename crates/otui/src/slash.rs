@@ -716,11 +716,7 @@ fn toggle(args: &str, current: bool) -> Option<bool> {
 }
 
 fn on_off(value: bool) -> &'static str {
-    if value {
-        "on"
-    } else {
-        "off"
-    }
+    if value { "on" } else { "off" }
 }
 
 #[cfg(test)]

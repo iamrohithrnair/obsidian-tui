@@ -13,11 +13,11 @@ pub mod note;
 pub mod panes;
 
 use otui_theme::Palette;
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph, Widget};
-use ratatui::Frame;
 
 use crate::app::{Action, App, Focus, Regions, View};
 use crate::modal::Modal;
@@ -646,8 +646,8 @@ mod tests {
     use crate::config::Config;
     use otui_core::graph::Vec2;
     use otui_core::test_support::TempVault;
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
 
     /// Renders a full frame and returns it as text, one string per row.
     ///
@@ -1052,14 +1052,18 @@ mod tests {
         let (_vault, mut app) = demo_app();
 
         crate::actions::dispatch(&mut app, crate::app::Action::OpenPalette);
-        assert!(render(&mut app, 140, 40)
-            .join("\n")
-            .contains("Command palette"));
+        assert!(
+            render(&mut app, 140, 40)
+                .join("\n")
+                .contains("Command palette")
+        );
 
         crate::actions::dispatch(&mut app, crate::app::Action::OpenHelp);
-        assert!(render(&mut app, 140, 40)
-            .join("\n")
-            .contains("Keyboard shortcuts"));
+        assert!(
+            render(&mut app, 140, 40)
+                .join("\n")
+                .contains("Keyboard shortcuts")
+        );
     }
 
     #[test]

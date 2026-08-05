@@ -951,9 +951,11 @@ mod tests {
         let spans = parse_inline("see [docs](https://e.com) #project/alpha");
         assert!(spans.iter().any(|s| s.text == "docs"
             && matches!(&s.kind, SpanKind::Link { url } if url == "https://e.com")));
-        assert!(spans
-            .iter()
-            .any(|s| matches!(&s.kind, SpanKind::Tag(t) if t == "project/alpha")));
+        assert!(
+            spans
+                .iter()
+                .any(|s| matches!(&s.kind, SpanKind::Tag(t) if t == "project/alpha"))
+        );
     }
 
     #[test]
@@ -968,9 +970,11 @@ mod tests {
             spans[0].text, "a chart",
             "alt text is kept for the fallback"
         );
-        assert!(spans
-            .iter()
-            .any(|s| matches!(&s.kind, SpanKind::Link { url } if url == "assets/chart.png")));
+        assert!(
+            spans
+                .iter()
+                .any(|s| matches!(&s.kind, SpanKind::Link { url } if url == "assets/chart.png"))
+        );
     }
 
     #[test]

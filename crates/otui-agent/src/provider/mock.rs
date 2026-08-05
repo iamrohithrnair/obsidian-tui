@@ -8,7 +8,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::{Completion, Provider, Request, StopReason, StreamEvent};
 use crate::error::{Error, Result};

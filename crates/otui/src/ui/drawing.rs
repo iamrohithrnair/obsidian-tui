@@ -14,13 +14,13 @@
 //! prose it replaces — diagrams are often far taller than a terminal, and
 //! shrinking one to fit turns it into grey fuzz.
 
+use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::symbols::Marker;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::canvas::{Canvas, Context, Line as CanvasLine};
 use ratatui::widgets::{Paragraph, Widget};
-use ratatui::Frame;
 
 use otui_core::excalidraw::{Drawing, Element, Rgb, Shape};
 use otui_theme::Palette;

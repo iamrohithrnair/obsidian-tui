@@ -378,13 +378,17 @@ mod tests {
         assert_eq!(host.calls.len(), 1);
         assert_eq!(host.calls[0].name, "list_tags");
 
-        assert!(events
-            .iter()
-            .any(|e| matches!(e, AgentEvent::ToolCall { name, summary, .. }
-                if name == "list_tags" && summary.contains("prefix=project"))));
-        assert!(events
-            .iter()
-            .any(|e| matches!(e, AgentEvent::ToolResult { ok: true, .. })));
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, AgentEvent::ToolCall { name, summary, .. }
+                if name == "list_tags" && summary.contains("prefix=project")))
+        );
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, AgentEvent::ToolResult { ok: true, .. }))
+        );
 
         // user, assistant(tool_use), user(tool_result), assistant(text)
         assert_eq!(messages.len(), 4);
@@ -405,9 +409,11 @@ mod tests {
 
         let events = run(&provider, &mut host, &mut messages);
 
-        assert!(events
-            .iter()
-            .any(|e| matches!(e, AgentEvent::ToolResult { ok: false, .. })));
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, AgentEvent::ToolResult { ok: false, .. }))
+        );
         assert_eq!(events.last(), Some(&AgentEvent::Done));
 
         let results = messages[2].content.as_array().unwrap();
@@ -444,9 +450,11 @@ mod tests {
         );
 
         assert_eq!(host.calls.len(), 3, "capped at max_tool_rounds");
-        assert!(events
-            .iter()
-            .any(|e| matches!(e, AgentEvent::Failed(m) if m.contains("3 rounds"))));
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, AgentEvent::Failed(m) if m.contains("3 rounds")))
+        );
         assert_eq!(events.last(), Some(&AgentEvent::Done));
     }
 
@@ -458,9 +466,11 @@ mod tests {
 
         let events = run(&provider, &mut host, &mut messages);
 
-        assert!(events
-            .iter()
-            .any(|e| matches!(e, AgentEvent::Failed(m) if m.contains("rate limited"))));
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, AgentEvent::Failed(m) if m.contains("rate limited")))
+        );
         assert_eq!(events.last(), Some(&AgentEvent::Done));
     }
 
@@ -481,9 +491,11 @@ mod tests {
             &mut |e| events.push(e),
         );
 
-        assert!(events
-            .iter()
-            .any(|e| matches!(e, AgentEvent::Failed(m) if m == "cancelled")));
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, AgentEvent::Failed(m) if m == "cancelled"))
+        );
         assert_eq!(messages.len(), 1, "nothing was appended");
     }
 

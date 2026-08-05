@@ -614,11 +614,12 @@ mod tests {
         send(&mut app);
 
         // The transcript shows the attachment; the model message carries it.
-        assert!(app
-            .chat
-            .transcript
-            .iter()
-            .any(|e| matches!(e, Entry::Context(c) if c.contains("A.md"))));
+        assert!(
+            app.chat
+                .transcript
+                .iter()
+                .any(|e| matches!(e, Entry::Context(c) if c.contains("A.md")))
+        );
 
         app.chat.cancel();
     }

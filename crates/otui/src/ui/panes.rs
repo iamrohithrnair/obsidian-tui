@@ -1,10 +1,10 @@
 //! The file explorer and the outline/backlinks/tags sidebar.
 
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
-use ratatui::Frame;
 
 use otui_theme::Palette;
 
@@ -440,9 +440,11 @@ mod tests {
         let app = App::new(vault.vault(), Config::default()).expect("app");
 
         let lines = text_of(&tag_lines(&app, &palette(), 30));
-        assert!(lines
-            .iter()
-            .any(|l| l.contains("#project") && l.contains('2')));
+        assert!(
+            lines
+                .iter()
+                .any(|l| l.contains("#project") && l.contains('2'))
+        );
         assert!(lines.iter().any(|l| l.contains("#alpha")));
     }
 

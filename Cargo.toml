@@ -4,7 +4,7 @@ members = ["crates/otui-core", "crates/otui-theme", "crates/otui-agent", "crates
 
 [workspace.package]
 version = "0.2.0"
-edition = "2021"
+edition = "2024"
 # Set by the dependency chain, not by this code: ratatui-image pulls
 # icy_sixel, which pins quantette 0.5.1, which requires 1.90.
 rust-version = "1.90"

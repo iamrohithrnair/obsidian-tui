@@ -1,10 +1,10 @@
 //! The agent chat panel.
 
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph, Widget};
-use ratatui::Frame;
 
 use otui_theme::Palette;
 
@@ -387,12 +387,16 @@ mod tests {
         });
 
         let lines = text_of(&transcript_lines(&app, &palette(), 40));
-        assert!(lines
-            .iter()
-            .any(|l| l.starts_with('✓') && l.contains("create_note")));
-        assert!(lines
-            .iter()
-            .any(|l| l.starts_with('✗') && l.contains("read_note")));
+        assert!(
+            lines
+                .iter()
+                .any(|l| l.starts_with('✓') && l.contains("create_note"))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|l| l.starts_with('✗') && l.contains("read_note"))
+        );
     }
 
     #[test]

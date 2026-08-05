@@ -13,7 +13,7 @@ use ratatui::layout::Rect;
 use otui_core::graph::{Graph, GraphOptions, Simulation, Vec2};
 use otui_core::index::{NoteId, VaultIndex};
 use otui_core::vault::{ScanOptions, Vault};
-use otui_theme::{presets, ActiveTheme};
+use otui_theme::{ActiveTheme, presets};
 
 use crate::agent::Chat;
 use crate::config::Config;
@@ -427,7 +427,32 @@ impl App {
     /// A vault with no saved entry keeps the collapsed-by-default state set up
     /// in `new`, which is what a first run should look like.
     pub fn restore_ui_state(&mut self) {
-        let state = crate::state::State::load();
+        self.apply_ui_state(&crate::state::State::load());
+    }
+
+    /// Writes down how the explorer was left, for the next run.
+    pub fn save_ui_state(&self) {
+        let mut state = crate::state::State::load();
+        self.record_ui_state(&mut state);
+        state.save();
+    }
+
+    /// The same pair, against a named file rather than the default one, so a
+    /// test can exercise the round trip without touching the real config
+    /// directory or the process environment.
+    #[cfg(test)]
+    pub fn restore_ui_state_from(&mut self, path: &std::path::Path) {
+        self.apply_ui_state(&crate::state::State::load_from(path));
+    }
+
+    #[cfg(test)]
+    pub fn save_ui_state_to(&self, path: &std::path::Path) {
+        let mut state = crate::state::State::load_from(path);
+        self.record_ui_state(&mut state);
+        state.save_to(path);
+    }
+
+    fn apply_ui_state(&mut self, state: &crate::state::State) {
         let Some(expanded) = state
             .vault(&self.index.vault.path)
             .map(|saved| saved.expanded_folders.clone())
@@ -437,16 +462,13 @@ impl App {
         self.explorer.set_expanded(&expanded, &self.index);
     }
 
-    /// Writes down how the explorer was left, for the next run.
-    pub fn save_ui_state(&self) {
-        let mut state = crate::state::State::load();
+    fn record_ui_state(&self, state: &mut crate::state::State) {
         state.set_vault(
             &self.index.vault.path,
             crate::state::VaultState {
                 expanded_folders: self.explorer.expanded(&self.index),
             },
         );
-        state.save();
     }
 
     // ---- accessors -------------------------------------------------------
@@ -843,7 +865,6 @@ mod tests {
         // side of it is covered, but nothing proved the two ends met.
         let vault = sample();
         let state_file = vault.vault().path.join("state.json");
-        std::env::set_var("OTUI_STATE_FILE", &state_file);
 
         let mut first = app(&vault);
         assert!(first.explorer.expanded(&first.index).is_empty());
@@ -858,7 +879,7 @@ mod tests {
         first.explorer.selected = folder;
         first.explorer.toggle(&first.index);
         assert_eq!(first.explorer.expanded(&first.index), vec!["Folder"]);
-        first.save_ui_state();
+        first.save_ui_state_to(&state_file);
 
         // Start again: `new` collapses everything, `restore_ui_state` reopens
         // what was left open.
@@ -867,14 +888,12 @@ mod tests {
             second.explorer.expanded(&second.index).is_empty(),
             "a fresh App is collapsed until the saved state is applied"
         );
-        second.restore_ui_state();
+        second.restore_ui_state_from(&state_file);
         assert_eq!(
             second.explorer.expanded(&second.index),
             vec!["Folder"],
             "the folder left open was not reopened"
         );
-
-        std::env::remove_var("OTUI_STATE_FILE");
     }
 
     #[test]

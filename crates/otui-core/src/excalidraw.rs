@@ -412,7 +412,9 @@ mod tests {
             .map(|chunk| String::from_utf8_lossy(chunk).to_string())
             .collect::<Vec<_>>()
             .join("\n");
-        let note = format!("---\nexcalidraw-plugin: parsed\n---\n\n## Drawing\n```compressed-json\n{wrapped}\n```\n%%\n");
+        let note = format!(
+            "---\nexcalidraw-plugin: parsed\n---\n\n## Drawing\n```compressed-json\n{wrapped}\n```\n%%\n"
+        );
 
         let drawing = parse(&note).expect("parsed");
         assert_eq!(drawing.elements.len(), 3);

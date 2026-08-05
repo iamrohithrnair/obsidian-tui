@@ -1,7 +1,7 @@
 //! Conversation, tool and event types shared by every provider.
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// One turn in the conversation.
 ///

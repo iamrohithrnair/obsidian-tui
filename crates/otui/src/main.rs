@@ -584,8 +584,8 @@ mod tests {
         KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     };
     use otui_core::test_support::TempVault;
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
 
     fn demo() -> (TempVault, App) {
         let vault = TempVault::new("mouse");
