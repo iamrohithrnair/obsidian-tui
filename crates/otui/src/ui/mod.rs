@@ -38,7 +38,6 @@ pub mod icons {
     pub const SETTINGS: &str = "⚙";
     pub const BULLET: &str = "•";
     pub const QUOTE_BAR: &str = "▎";
-    pub const TASK_DONE: &str = "☑";
     pub const TASK_TODO: &str = "☐";
     pub const SCROLL_THUMB: &str = "│";
 }

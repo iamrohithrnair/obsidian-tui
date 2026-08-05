@@ -65,8 +65,9 @@ pub enum BlockKind {
 pub enum Marker {
     Bullet,
     Ordered(u64),
-    /// A `- [ ]` / `- [x]` task; `true` when checked.
-    Task(bool),
+    /// A `- [ ]` / `- [x]` task; the char is what's inside the brackets
+    /// (`' '` unchecked, `'x'` done, `/`, `-`, `!`, …).
+    Task(char),
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -377,7 +378,7 @@ fn list_item(line: &str) -> Option<(usize, Marker, &str)> {
                 if task.len() >= 2 && task.as_bytes()[1] == b']' {
                     let state = task.as_bytes()[0];
                     let text = task[2..].strip_prefix(' ').unwrap_or(&task[2..]);
-                    return Some((depth, Marker::Task(state != b' ' && state != b'\t'), text));
+                    return Some((depth, Marker::Task(state as char), text));
                 }
             }
             return Some((depth, Marker::Bullet, rest));
@@ -818,8 +819,29 @@ mod tests {
         assert_eq!(items[0], (0, Marker::Bullet, "one".into()));
         assert_eq!(items[1], (1, Marker::Bullet, "nested".into()));
         assert_eq!(items[2], (0, Marker::Ordered(1), "first".into()));
-        assert_eq!(items[3], (0, Marker::Task(false), "todo".into()));
-        assert_eq!(items[4], (0, Marker::Task(true), "done".into()));
+        assert_eq!(items[3], (0, Marker::Task(' '), "todo".into()));
+        assert_eq!(items[4], (0, Marker::Task('x'), "done".into()));
+    }
+
+    #[test]
+    fn preserves_custom_task_status_chars() {
+        let doc = parse_body("- [/] in progress\n- [!] important\n- [-] cancelled\n", 0);
+        let items: Vec<(usize, Marker, String)> = doc
+            .blocks
+            .iter()
+            .filter_map(|b| match &b.kind {
+                BlockKind::ListItem {
+                    depth,
+                    marker,
+                    spans,
+                } => Some((*depth, *marker, spans_to_text(spans))),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(items[0], (0, Marker::Task('/'), "in progress".into()));
+        assert_eq!(items[1], (0, Marker::Task('!'), "important".into()));
+        assert_eq!(items[2], (0, Marker::Task('-'), "cancelled".into()));
     }
 
     #[test]

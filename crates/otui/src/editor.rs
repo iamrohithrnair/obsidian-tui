@@ -401,6 +401,35 @@ impl Editor {
         self.modified = true;
     }
 
+    /// Applies `f` to the status char of every task line in the selection (or the
+    /// cursor line when there's no selection). Returns true if any line changed.
+    pub fn transform_tasks(&mut self, mut f: impl FnMut(char) -> char) -> bool {
+        let (start, end) = match self.selection() {
+            Some((a, b)) => (a.line, b.line),
+            None => (self.cursor.line, self.cursor.line),
+        };
+        let mut changed = false;
+        for line in start..=end {
+            if let Some((open, status, close)) = task_marker(&self.lines[line]) {
+                let next = f(status);
+                if next == status {
+                    continue;
+                }
+                if !changed {
+                    self.push_undo(EditKind::Structural);
+                    changed = true;
+                }
+                let mut updated = self.lines[line].clone();
+                updated.replace_range(open..close, &format!("[{next}]"));
+                self.lines[line] = updated;
+            }
+        }
+        if changed {
+            self.modified = true;
+        }
+        changed
+    }
+
     pub fn delete_selection(&mut self) {
         if self.selection().is_some() {
             self.push_undo(EditKind::Delete);
@@ -609,6 +638,39 @@ fn split_lines(text: &str) -> Vec<String> {
     lines
 }
 
+/// Returns `(open, status, close)` byte indices covering `[<status>]` if the
+/// line is a task line: optional ASCII whitespace, `-`/`*`/`+`, a space, then
+/// `[c]`. `open` points at `[`, `close` is one past `]`. A single status char
+/// is required; `[]`, `[ab]`, or a tab after the bullet are not tasks.
+fn task_marker(line: &str) -> Option<(usize, char, usize)> {
+    let bytes = line.as_bytes();
+    let mut i = 0;
+    // Skip ASCII whitespace (space/tab) ahead of the bullet.
+    while i < bytes.len() && matches!(bytes[i], b' ' | b'\t') {
+        i += 1;
+    }
+    if i >= bytes.len() || !matches!(bytes[i], b'-' | b'*' | b'+') {
+        return None;
+    }
+    // Mirror the core parser: exactly one space after the bullet, never a tab.
+    let open = i + 2;
+    if open >= bytes.len() || bytes[open - 1] != b' ' || bytes[open] != b'[' {
+        return None;
+    }
+    let close_rel = line[open..].find(']')?;
+    let close = open + close_rel + 1; // one past `]`
+    let status_slice = &line[open + 1..close - 1];
+    if status_slice.is_empty() {
+        return None;
+    }
+    let mut chars = status_slice.chars();
+    let status = chars.next()?;
+    if chars.next().is_some() {
+        return None;
+    }
+    Some((open, status, close))
+}
+
 #[cfg(test)]
 impl Editor {
     /// Test helper: move the cursor while extending the selection.
@@ -766,6 +828,73 @@ mod tests {
         ed.delete_line();
         assert_eq!(ed.text(), "one\nthree\n");
         assert_eq!(ed.cursor().line, 1);
+    }
+
+    #[test]
+    fn transform_tasks_cycles_status_forward_with_wrap() {
+        let mut ed = editor("- [ ] one\n- [x] two\n");
+        let advanced = ed.transform_tasks(|c| match c {
+            ' ' => '/',
+            '/' => 'x',
+            'x' => ' ',
+            other => other,
+        });
+        assert!(advanced);
+        assert_eq!(ed.text(), "- [/] one\n- [x] two\n", "cursor line only");
+    }
+
+    #[test]
+    fn transform_tasks_cycles_status_backward_with_wrap() {
+        let mut ed = editor("- [ ] one");
+        let advanced = ed.transform_tasks(|c| match c {
+            ' ' => 'x',
+            '/' => ' ',
+            'x' => '/',
+            other => other,
+        });
+        assert!(advanced);
+        assert_eq!(ed.text(), "- [x] one\n", "wraps back to the last state");
+    }
+
+    #[test]
+    fn transform_tasks_sets_status_directly() {
+        let mut ed = editor("- [x] done");
+        assert!(ed.transform_tasks(|_| ' '));
+        assert_eq!(ed.text(), "- [ ] done\n");
+    }
+
+    #[test]
+    fn transform_tasks_skips_plain_bullet_lines_in_a_selection() {
+        let mut ed = editor("- [ ] a\n- plain\n");
+        ed.goto(0, 0);
+        ed.begin_selection();
+        ed.goto_extend(1, 3);
+        assert!(ed.transform_tasks(|c| if c == ' ' { 'x' } else { c }));
+        assert_eq!(ed.text(), "- [x] a\n- plain\n", "plain line untouched");
+    }
+
+    #[test]
+    fn transform_tasks_on_a_non_task_line_is_a_no_op() {
+        let mut ed = editor("just text\n");
+        assert!(!ed.transform_tasks(|c| c));
+        assert_eq!(ed.text(), "just text\n");
+    }
+
+    #[test]
+    fn transform_tasks_is_a_single_undo_step() {
+        let mut ed = editor("- [ ] one\n- [x] two\n");
+        ed.goto(0, 0);
+        ed.begin_selection();
+        ed.goto_extend(1, 0);
+        ed.transform_tasks(|c| if c == ' ' { 'x' } else { ' ' });
+        assert_eq!(ed.text(), "- [x] one\n- [ ] two\n");
+
+        assert!(ed.undo());
+        assert_eq!(
+            ed.text(),
+            "- [ ] one\n- [x] two\n",
+            "one undo restores every line in the operation"
+        );
     }
 
     #[test]

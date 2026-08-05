@@ -60,6 +60,14 @@ pub fn commands() -> Vec<Entry> {
         Entry::new("Reload vault from disk", "", Action::Refresh),
         Entry::new("Save settings to config file", "", Action::SaveSettings),
         Entry::new("Keyboard shortcuts", "?", Action::OpenHelp),
+        // ---- tasks ------------------------------------------------------
+        Entry::new("Cycle task status", "Alt+Enter", Action::CycleTask),
+        Entry::new(
+            "Cycle task status (reverse)",
+            "Alt+Shift+Enter",
+            Action::CycleTaskReverse,
+        ),
+        Entry::new("Mark task as…", "", Action::MarkTask),
         Entry::new("Quit", "q", Action::Quit),
     ]
 }
@@ -85,6 +93,55 @@ fn cycle_sort_order(app: &mut App) {
         app.explorer.scroll_into_view(area.height as usize);
     }
     app.info(format!("sorted by {}; /config keeps it", next.label()));
+}
+
+/// Advances (or reverses) the task status of the current line / selection
+/// through the configured cycle.
+fn cycle_task(app: &mut App, reverse: bool) {
+    let cycle: Vec<char> = app.config.editor.task_cycle.chars().collect();
+    if cycle.len() < 2 {
+        return;
+    }
+    let Some(editor) = app.editor_mut() else {
+        app.error("open a note in editing mode first");
+        return;
+    };
+    let changed = editor.transform_tasks(|ch| {
+        let pos = cycle.iter().position(|&c| c == ch).unwrap_or(0);
+        let next = if reverse {
+            (pos + cycle.len() - 1) % cycle.len()
+        } else {
+            (pos + 1) % cycle.len()
+        };
+        cycle[next]
+    });
+    if !changed {
+        app.info("no task on this line");
+    }
+}
+
+/// Sets the task status directly.
+fn set_task_status(app: &mut App, status: char) {
+    let Some(editor) = app.editor_mut() else {
+        app.error("open a note in editing mode first");
+        return;
+    };
+    let changed = editor.transform_tasks(|_| status);
+    if !changed {
+        app.info("no task on this line");
+    }
+}
+
+/// Opens the "Mark task as…" picker listing every configured status.
+fn mark_task_prompt(app: &mut App) {
+    let entries: Vec<Entry> = app
+        .config
+        .editor
+        .task_cycle
+        .chars()
+        .map(|ch| Entry::new(format!("[{}]", ch), "", Action::MarkTaskAs(ch)))
+        .collect();
+    app.modal = Some(Modal::Picker(Picker::new(PickerKind::TaskStatus, entries)));
 }
 
 fn open_in_obsidian(app: &mut App) {
@@ -297,6 +354,12 @@ pub fn dispatch(app: &mut App, action: Action) {
                 Focus::Note
             };
         }
+
+        // ---- tasks ------------------------------------------------------
+        Action::CycleTask => cycle_task(app, false),
+        Action::CycleTaskReverse => cycle_task(app, true),
+        Action::MarkTask => mark_task_prompt(app),
+        Action::MarkTaskAs(status) => set_task_status(app, status),
 
         // ---- modals -----------------------------------------------------
         Action::OpenPalette => {
@@ -747,5 +810,81 @@ mod tests {
         dispatch(&mut app, Action::ToggleGraphUnresolved);
         let after = app.graph.as_ref().unwrap().simulation.graph.nodes.len();
         assert_ne!(before, after, "hiding unresolved notes changes the graph");
+    }
+
+    // ---- task cycling ----------------------------------------------------
+
+    /// Writes a task note into the index and opens it for editing, with the
+    /// cursor on line 0 (the task line).
+    fn open_task_note(app: &mut App, content: &str) {
+        let id = app.index.create_note("Tasks", content).expect("note");
+        app.open_note(id);
+        app.active_mut().unwrap().mode = Mode::Editing;
+    }
+
+    #[test]
+    fn cycling_a_task_advances_through_the_cycle() {
+        let (_v, mut app) = app();
+        open_task_note(&mut app, "- [ ] todo\n");
+
+        dispatch(&mut app, Action::CycleTask);
+        assert_eq!(app.editor_mut().unwrap().text(), "- [/] todo\n");
+
+        dispatch(&mut app, Action::CycleTask);
+        assert_eq!(app.editor_mut().unwrap().text(), "- [x] todo\n");
+
+        dispatch(&mut app, Action::CycleTask);
+        assert_eq!(app.editor_mut().unwrap().text(), "- [ ] todo\n", "wraps");
+    }
+
+    #[test]
+    fn cycling_reverse_goes_backward() {
+        let (_v, mut app) = app();
+        open_task_note(&mut app, "- [ ] todo\n");
+
+        dispatch(&mut app, Action::CycleTaskReverse);
+        assert_eq!(
+            app.editor_mut().unwrap().text(),
+            "- [x] todo\n",
+            "reverse wraps back to the last status"
+        );
+    }
+
+    #[test]
+    fn mark_task_as_sets_a_specific_status() {
+        let (_v, mut app) = app();
+        open_task_note(&mut app, "- [ ] todo\n");
+
+        dispatch(&mut app, Action::MarkTaskAs('!'));
+        assert_eq!(app.editor_mut().unwrap().text(), "- [!] todo\n");
+    }
+
+    #[test]
+    fn mark_task_opens_the_status_picker() {
+        let (_v, mut app) = app();
+        dispatch(&mut app, Action::MarkTask);
+
+        match app.modal.as_ref() {
+            Some(Modal::Picker(picker)) => {
+                assert_eq!(picker.kind, PickerKind::TaskStatus);
+                let labels: Vec<&str> = picker.visible().map(|(e, _)| e.label.as_str()).collect();
+                assert_eq!(labels, vec!["[ ]", "[/]", "[x]"]);
+            }
+            other => panic!("expected a task-status picker, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn cycling_a_non_task_line_reports_it() {
+        let (_v, mut app) = app();
+        open_task_note(&mut app, "plain text\n");
+
+        dispatch(&mut app, Action::CycleTask);
+        assert!(
+            app.status.text.contains("no task"),
+            "expected a message, got {:?}",
+            app.status.text
+        );
+        assert_eq!(app.editor_mut().unwrap().text(), "plain text\n");
     }
 }
