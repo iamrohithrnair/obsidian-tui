@@ -726,6 +726,83 @@ pub fn spans_to_text(spans: &[Span]) -> String {
     spans.iter().map(|s| s.text.as_str()).collect()
 }
 
+/// What one character of a source line is, for colouring it where it sits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Ink {
+    #[default]
+    Text,
+    /// Syntax rather than content: a `**`, a `[[`, the `#` of a heading.
+    Marker,
+    WikiLink,
+    Link,
+    Tag,
+    Math,
+}
+
+impl Ink {
+    fn of(kind: &SpanKind) -> Self {
+        match kind {
+            SpanKind::Text => Self::Text,
+            SpanKind::WikiLink { .. } => Self::WikiLink,
+            SpanKind::Link { .. } => Self::Link,
+            // Alt text standing in for a picture reads as a link to it.
+            SpanKind::Image { .. } => Self::Link,
+            SpanKind::Tag(_) => Self::Tag,
+            SpanKind::Math => Self::Math,
+        }
+    }
+}
+
+/// One character of a source line, and what to make of it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Paint {
+    pub style: Style,
+    pub ink: Ink,
+}
+
+/// Describes a source line character by character, without moving any of it.
+///
+/// The editor shows Markdown as it was typed, so it needs to know what each
+/// character *is* rather than what the reading pane would draw in its place.
+/// The styles come from [`parse_inline`] — one definition of the dialect, not
+/// two — and every character the parser dropped on the way is a delimiter, so
+/// it is reported as [`Ink::Marker`] for the editor to dim.
+///
+/// The result always has one entry per character of `line`.
+#[must_use]
+pub fn scan_inline(line: &str) -> Vec<Paint> {
+    let chars: Vec<char> = line.chars().collect();
+    // Syntax until the parser claims it as content.
+    let mut out = vec![
+        Paint {
+            style: Style::default(),
+            ink: Ink::Marker,
+        };
+        chars.len()
+    ];
+
+    let mut at = 0;
+    for span in parse_inline(line) {
+        let paint = Paint {
+            style: span.style,
+            ink: Ink::of(&span.kind),
+        };
+        // Span text is always a subsequence of the line: the parser either
+        // copies a character through or drops it.
+        for want in span.text.chars() {
+            while at < chars.len() && chars[at] != want {
+                at += 1;
+            }
+            if at == chars.len() {
+                return out;
+            }
+            out[at] = paint;
+            at += 1;
+        }
+    }
+    out
+}
+
 /// A short plain-text preview of a note body, as shown in list views.
 #[must_use]
 pub fn preview(body: &str, max_chars: usize) -> String {
@@ -999,6 +1076,67 @@ mod tests {
         let spans = parse_inline(r"\*not italic\*");
         assert_eq!(spans_to_text(&spans), "*not italic*");
         assert!(!spans.iter().any(|s| s.style.italic));
+    }
+
+    /// A one-character sketch of a scan: `.` content, `#` a delimiter.
+    fn shape(line: &str) -> String {
+        scan_inline(line)
+            .iter()
+            .map(|paint| if paint.ink == Ink::Marker { '#' } else { '.' })
+            .collect()
+    }
+
+    #[test]
+    fn scan_inline_marks_delimiters_where_they_sit() {
+        // The editor draws source, so it needs one entry per character, with the
+        // syntax told apart from the content rather than removed.
+        assert_eq!(shape("**bold** text"), "##....##.....");
+        assert_eq!(shape("a `code` b"), "..#....#..");
+        assert_eq!(shape("see [[Note]]"), "....##....##");
+        assert_eq!(shape("==mark=="), "##....##");
+    }
+
+    #[test]
+    fn scan_inline_always_describes_every_character() {
+        // Anything shorter would be indexed out of bounds while drawing.
+        for line in [
+            "",
+            "plain",
+            "a ** b",
+            "[[unclosed",
+            "` open",
+            r"\*escaped\*",
+            "héllo 日本語 **wide**",
+            "![](a.png)",
+            "[docs](https://e.com) #tag/deep",
+            "**nested `code` here**",
+        ] {
+            assert_eq!(
+                scan_inline(line).len(),
+                line.chars().count(),
+                "{line:?} was described by the wrong number of entries"
+            );
+        }
+    }
+
+    #[test]
+    fn scan_inline_carries_the_style_of_the_content_it_describes() {
+        let scan = scan_inline("**bold** and `code`");
+        assert!(scan[2].style.bold, "the b of bold");
+        assert!(!scan[0].style.bold, "not the delimiter");
+        assert!(scan[14].style.code, "the c of code");
+
+        let scan = scan_inline("a [[Target]] and a #tag");
+        assert_eq!(scan[4].ink, Ink::WikiLink);
+        assert_eq!(scan[20].ink, Ink::Tag);
+    }
+
+    #[test]
+    fn scan_inline_treats_an_unclosed_delimiter_as_content() {
+        // It renders as itself, so colouring it as syntax would be a lie about
+        // what the line is going to look like.
+        assert_eq!(shape("a ** b"), "......");
+        assert_eq!(shape("[[unclosed"), "..........");
     }
 
     #[test]

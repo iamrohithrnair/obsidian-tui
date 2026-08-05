@@ -6,6 +6,79 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-05
+
+The release that makes the editor usable for actually writing in: text wraps,
+the cursor goes where it looks like it goes, and Markdown is styled while you
+type it instead of only once you stop.
+
+### Added
+
+- **Long lines wrap while editing.** A line wider than the pane used to be cut
+  off at the edge, and since the editor had no way to pan sideways either, the
+  rest of it was not merely hidden but unreachable. `editor.wrap` has been in the
+  config file since the first release, documented as doing exactly this, and was
+  read by nothing; it now works, and setting it to `false` genuinely pans instead.
+  A wrapped row is marked with a `⤷` in the gutter, so a soft wrap is still
+  distinguishable from a real line break, and a wrapped list item is indented to
+  sit under its own text rather than under its bullet.
+- The arrow keys, `Home`, `End` and `PageUp`/`PageDown` move by the rows on
+  screen rather than by lines in the file. On a paragraph that fills four rows,
+  four presses of `Down` cross it — which is what every other editor does, and
+  the only behavior that makes sense once text wraps.
+- **Markdown is styled while you edit it**, the way Obsidian's live preview
+  styles it: headings coloured and bold, bullets drawn as `•`, task boxes as
+  `[☑]`, quotes as `▎`, and bold, italic, code, links, tags and `==highlights==`
+  in the same colours the reading pane uses. Nothing is hidden and nothing moves:
+  every glyph substituted in is exactly as wide as the character it stands for,
+  which is what keeps the caret exactly where the character is. The line the
+  cursor is on shows its syntax at full contrast, so what you edit is what you
+  see, and because the widths match, the text does not shift as the cursor
+  arrives or leaves. A fenced code block is drawn on its own background and its
+  contents are never read as Markdown.
+- **Clicking places the cursor, and dragging selects.** Both are resolved against
+  the text as it was actually drawn, so they land on the character under the
+  pointer however the line wrapped.
+- **`Enter` continues a list.** `- `, `* `, `1. ` and `- [ ] ` carry down to the
+  next line, an ordered list counts up, and a task always starts unchecked —
+  carrying "done" onto a line nobody has done yet would be a lie. Pressing it on
+  an item with nothing on it ends the list, which is how you stop.
+- **`Tab` and `Shift+Tab` nest and unnest a list item**, or indent every line of
+  a selection. In prose `Tab` is still a tab. `Shift+Tab` did nothing at all
+  before.
+- The status bar shows `Ln 12/40, Col 3` while editing, and how many characters
+  are selected.
+
+### Fixed
+
+- **The mouse wheel now scrolls while editing.** It was writing to the reading
+  view's scroll offset, which the editor never reads, so it silently did nothing.
+- The caret was positioned by counting characters and then clamped to the pane,
+  so on a long line it parked at the right margin and lied about where it was,
+  and on CJK or emoji text — where one character is two columns wide — it was in
+  the wrong place on any line containing one.
+- **`Ctrl+E` no longer reflows the note.** Reading laid prose out from the pane's
+  left edge while editing started it after the line-number gutter, so the two
+  modes wrapped the same paragraph to different widths and every line broke
+  somewhere else on the way in and out of the editor. The gutter's width is now
+  reserved in both modes — blank while reading — so switching restyles the page
+  without moving a word of it. It costs four columns of reading width, and
+  nothing at all when line numbers are switched off.
+- The scrollbar counted lines rather than rows, so it misreported how far through
+  a note with any wrapped lines in it you were.
+- The cursor line's highlight and a code block's background now reach the edge of
+  the pane instead of stopping wherever the text happened to end.
+- A caret was drawn in the note pane even when the keyboard belonged to the chat
+  panel or the file explorer.
+- The editor no longer scrolls past the end of a note that would fit on screen.
+- **The outline scrolled to the wrong place.** Picking a heading set the reading
+  view's scroll offset to the heading's line number in the file, but that offset
+  counts *rendered rows* — and prose wraps, headings gain a rule under them and a
+  picture takes a dozen rows, so the two numbers drift further apart the further
+  down the note you go. The draw pass now writes down which row each block landed
+  on, the same way it already records where it put every picture, and the jump is
+  translated through it.
+
 ### Changed
 
 - **Moved to the 2024 edition**, stable since Rust 1.85 and comfortably under
@@ -289,6 +362,7 @@ First release.
 - Unreadable vaults are reported clearly, including the macOS privacy
   permission that usually causes it.
 
+[0.3.0]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.3.0
 [0.2.0]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.2.0
 [0.1.2]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.2
 [0.1.1]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.1

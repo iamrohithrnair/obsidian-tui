@@ -140,6 +140,13 @@ doesn't. `?` shows the full list in the app.
 | `hjkl`, `g`, `G` | Move within a pane |
 | `Enter` | Open / follow a link |
 
+In the editor: `↑`/`↓`, `Home` and `End` follow the rows on screen, so a wrapped
+paragraph moves through a line at a time as it looks rather than as it is stored.
+`Enter` carries a list marker onto the next line and ends the list when you press
+it on an empty item; `Tab`/`Shift+Tab` nest and unnest a list item, and are still
+a tab in prose. `Ctrl+B`/`Ctrl+I` wrap the selection, `Ctrl+Space` starts one
+without holding `Shift`, and `Ctrl+Shift+K` deletes the line.
+
 In the file explorer: `/` filters by name, `s` changes the sort order, `Space`
 folds a folder, and `H`/`L` collapse or expand every folder at once.
 
@@ -165,6 +172,7 @@ The ribbon icons are buttons, and most of the UI is clickable:
 | A tab | Switches to it |
 | Outline / Backlinks / Tags | Switches panel |
 | A graph node | Selects it |
+| Text in the editor | Places the cursor; drag to select |
 | Scroll wheel | Scrolls the pane under the pointer, not the focused one |
 
 ## Features
@@ -173,6 +181,15 @@ The ribbon icons are buttons, and most of the UI is clickable:
 (dimmed when they don't resolve yet), `#tags`, `- [ ]` tasks, `> [!note]`
 callouts, tables, and fenced code with syntax highlighting. Frontmatter is
 optional: a Markdown file dropped in from anywhere shows up.
+
+**Editing.** Long lines wrap, so nothing is ever cut off at the edge of the pane,
+and the arrow keys follow the rows you can see. Markdown is styled as you type it
+— headings coloured, bullets drawn as `•`, tasks as `[☑]`, quotes as `▎` — but
+nothing is hidden and nothing moves: each glyph is exactly as wide as the
+character it stands for, so the cursor is always on the character it looks like
+it's on. The line you're editing shows its syntax at full contrast. Because both
+modes lay prose out in the same column at the same width, `Ctrl+E` restyles the
+page instead of reflowing it. Set `editor.wrap = false` to pan sideways instead.
 
 **Pictures.** `![[chart.png]]` and `![alt](assets/chart.png)` are drawn in the
 reading pane — real pixels in Kitty, Ghostty, WezTerm, iTerm2 and anything that
@@ -413,8 +430,8 @@ directory of `.sha256` files.
 
 ```sh
 # bump the version in Cargo.toml, update CHANGELOG.md, then:
-git tag -a v0.2.0 -m "v0.2.0"
-git push origin v0.2.0
+git tag -a v0.3.0 -m "v0.3.0"
+git push origin v0.3.0
 ```
 
 ## Credits

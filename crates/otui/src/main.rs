@@ -375,9 +375,12 @@ fn handle_mouse(app: &mut App, mouse: crossterm::event::MouseEvent) -> bool {
             }
             handle_click(app, point)
         }
-        // Dragging a node pins it where you put it, which is how you untangle a
-        // knot of links that the layout has folded onto itself.
-        MouseEventKind::Drag(MouseButton::Left) => drag_graph_node(app, point),
+        // Dragging over text selects it; dragging a node pins it where you put
+        // it, which is how you untangle a knot of links that the layout has
+        // folded onto itself.
+        MouseEventKind::Drag(MouseButton::Left) => {
+            place_caret(app, point, true) || drag_graph_node(app, point)
+        }
         MouseEventKind::Up(MouseButton::Left) => release_graph_node(app),
         MouseEventKind::ScrollDown => handle_scroll(app, point, 3),
         MouseEventKind::ScrollUp => handle_scroll(app, point, -3),
@@ -528,6 +531,12 @@ fn handle_click(app: &mut App, point: (u16, u16)) -> bool {
         return true;
     }
 
+    // Clicking text puts the caret there, as it does in any editor.
+    if place_caret(app, point, false) {
+        app.focus = app::Focus::Note;
+        return true;
+    }
+
     // In the graph, a click selects the node nearest the pointer.
     if let Some((rect, x_bounds, y_bounds)) = app.regions.graph
         && hit(rect, point)
@@ -558,6 +567,35 @@ fn handle_click(app: &mut App, point: (u16, u16)) -> bool {
     false
 }
 
+/// Puts the caret where the editor was clicked, extending the selection when
+/// the pointer is being dragged.
+///
+/// Resolved against the text rectangle the last frame recorded, so a click lands
+/// on the character that was actually drawn there however the line wrapped.
+fn place_caret(app: &mut App, point: (u16, u16), extend: bool) -> bool {
+    let Some((rect, scroll)) = app.regions.editor else {
+        return false;
+    };
+    if !hit(rect, point) {
+        return false;
+    }
+    let wrap = app.config.editor.wrap;
+    let Some(editor) = app.editor_mut() else {
+        return false;
+    };
+
+    let layout = editor.layout(rect.width as usize, wrap);
+    let row = scroll + (point.1 - rect.y) as usize;
+    let column = (point.0 - rect.x) as usize + editor.hscroll;
+    editor.goto_visual(
+        &layout,
+        row,
+        u16::try_from(column).unwrap_or(u16::MAX),
+        extend,
+    );
+    true
+}
+
 /// Scrolls whichever pane is under the pointer, not whichever has focus.
 fn handle_scroll(app: &mut App, point: (u16, u16), delta: isize) -> bool {
     if let Some((rect, _)) = app.regions.explorer
@@ -572,6 +610,15 @@ fn handle_scroll(app: &mut App, point: (u16, u16), delta: isize) -> bool {
     {
         app.chat.follow = delta > 0;
         app.chat.scroll = (app.chat.scroll as isize + delta).max(0) as usize;
+        return true;
+    }
+    // While editing, the note's scroll offset lives on the editor — it counts
+    // wrapped rows, not lines — so the wheel has to move that one instead.
+    let editing = app
+        .active()
+        .is_some_and(|tab| tab.mode == app::Mode::Editing);
+    if editing && let Some(editor) = app.editor_mut() {
+        editor.scroll = (editor.scroll as isize + delta).max(0) as usize;
         return true;
     }
     match app.active_mut() {
@@ -636,6 +683,84 @@ mod tests {
                 modifiers: crossterm::event::KeyModifiers::empty(),
             },
         )
+    }
+
+    fn drag(app: &mut App, x: u16, y: u16) -> bool {
+        handle_mouse(
+            app,
+            MouseEvent {
+                kind: MouseEventKind::Drag(MouseButton::Left),
+                column: x,
+                row: y,
+                modifiers: crossterm::event::KeyModifiers::empty(),
+            },
+        )
+    }
+
+    /// A note long enough to scroll, opened in the editor and laid out once.
+    fn editing(app: &mut App) {
+        actions::dispatch(app, app::Action::ToggleMode);
+        lay_out(app);
+    }
+
+    #[test]
+    fn the_wheel_scrolls_the_editor_rather_than_the_reading_view() {
+        // The two keep separate offsets — the editor counts wrapped rows — and
+        // the wheel used to move the one the editor never reads, so it silently
+        // did nothing while editing.
+        let vault = TempVault::new("wheel");
+        let body: String = (0..200).map(|i| format!("line {i}\n")).collect();
+        vault.write("Long.md", &body);
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        let long = app.index.id_of_rel("Long.md").expect("indexed");
+        app.open_note(long);
+        editing(&mut app);
+
+        assert!(scroll(&mut app, 80, 20, false), "the wheel is handled");
+        assert_eq!(
+            app.editor_mut().expect("editor").scroll,
+            3,
+            "the editor scrolled"
+        );
+
+        scroll(&mut app, 80, 20, true);
+        assert_eq!(app.editor_mut().expect("editor").scroll, 0);
+        scroll(&mut app, 80, 20, true);
+        assert_eq!(
+            app.editor_mut().expect("editor").scroll,
+            0,
+            "and stops at the top"
+        );
+    }
+
+    #[test]
+    fn clicking_the_editor_puts_the_cursor_where_the_character_is() {
+        let (_v, mut app) = demo();
+        editing(&mut app);
+
+        let (text, _) = app.regions.editor.expect("the editor was drawn");
+        // Row 2 is `[[Beta]]`; column 4 is its third character.
+        click(&mut app, text.x + 4, text.y + 2);
+
+        let cursor = app.editor_mut().expect("editor").cursor();
+        assert_eq!(cursor.line, 2);
+        assert_eq!(cursor.col, 4);
+        assert_eq!(app.focus, app::Focus::Note);
+    }
+
+    #[test]
+    fn dragging_across_the_editor_selects_what_it_crosses() {
+        let (_v, mut app) = demo();
+        editing(&mut app);
+
+        let (text, _) = app.regions.editor.expect("the editor was drawn");
+        click(&mut app, text.x, text.y);
+        drag(&mut app, text.x + 5, text.y);
+
+        assert_eq!(
+            app.editor_mut().expect("editor").selected_text().as_deref(),
+            Some("# Alp")
+        );
     }
 
     /// The colour of the test picture. Half-blocks paint it into cell colours

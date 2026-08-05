@@ -250,6 +250,27 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
         ],
     ),
     (
+        "Editing a note",
+        &[
+            ("↑ / ↓", "Up and down a line as it's wrapped on screen"),
+            ("Home / End", "Start and end of the line on screen"),
+            (
+                "Enter",
+                "New line, carrying a list marker; twice ends the list",
+            ),
+            (
+                "Tab / Shift+Tab",
+                "Nest or unnest a list item; a tab in prose",
+            ),
+            ("click / drag", "Place the cursor / select text"),
+            ("Ctrl+Space", "Start a selection without holding Shift"),
+            ("Ctrl+A", "Select the whole note"),
+            ("Ctrl+Shift+K", "Delete the line"),
+            ("Ctrl+←/→", "By word"),
+            ("Ctrl+Home / End", "Start and end of the note"),
+        ],
+    ),
+    (
         "File explorer",
         &[
             ("Enter / l", "Open the note, or fold the folder"),

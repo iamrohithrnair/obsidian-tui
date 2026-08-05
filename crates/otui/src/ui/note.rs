@@ -20,11 +20,21 @@ use otui_core::markdown::{self, Align, Block, BlockKind, Marker, SpanKind, Table
 use otui_theme::Palette;
 
 use crate::app::{App, Mode, Regions};
+use crate::editor::{Cursor, Row};
 use crate::images::{self, Images};
 use crate::ui::{drawing, icons, scrollbar, truncate};
 
 /// Left padding inside the note pane, matching Obsidian's generous margins.
 const PADDING: u16 = 2;
+
+/// Columns reserved for the line-number gutter when it is switched on.
+///
+/// Fixed rather than sized to the note, and reserved while *reading* too, where
+/// it is left blank. Both modes then wrap the same prose to the same width in
+/// the same column, which is what makes `Ctrl+E` restyle the page instead of
+/// reflowing it. A note past 999 lines spends the separating space on a fourth
+/// digit rather than moving the text.
+const GUTTER: u16 = 4;
 
 /// Widest a single table column may be drawn, in characters.
 ///
@@ -50,6 +60,13 @@ pub struct Ctx<'a> {
     pub images: Option<&'a mut Images>,
     /// Where each picture ended up, filled in as blocks are laid out.
     pub pictures: Vec<Picture>,
+    /// Which rendered row each block's source line ended up on, filled in as
+    /// blocks are laid out.
+    ///
+    /// A source line and a rendered row are not the same number — prose wraps,
+    /// headings gain a rule, a picture takes a dozen rows — so scrolling to a
+    /// heading the outline points at needs the translation written down.
+    pub anchors: Vec<(usize, usize)>,
 }
 
 impl<'a> Ctx<'a> {
@@ -63,6 +80,7 @@ impl<'a> Ctx<'a> {
             note_dir: None,
             images: None,
             pictures: Vec::new(),
+            anchors: Vec::new(),
         }
     }
 }
@@ -108,11 +126,40 @@ pub fn draw(
         return;
     }
 
+    // Reserved in both modes so the prose column never moves between them.
+    let gutter = if app.config.ui.line_numbers {
+        GUTTER.min(body.width)
+    } else {
+        0
+    };
+
     match app.active().map(|t| t.mode) {
-        Some(Mode::Reading) => draw_reading(frame, app, palette, body),
-        Some(Mode::Editing) => draw_editing(frame, app, palette, body),
+        Some(Mode::Reading) => draw_reading(frame, app, palette, body, gutter, regions),
+        Some(Mode::Editing) => draw_editing(frame, app, palette, body, gutter, regions),
         None => {}
     }
+}
+
+/// The prose column inside the note pane: the gutter and the scrollbar's column
+/// taken off.
+fn prose_area(area: Rect, gutter: u16) -> Rect {
+    Rect {
+        x: area.x + gutter,
+        y: area.y,
+        width: area.width.saturating_sub(gutter),
+        height: area.height,
+    }
+}
+
+/// Width and height the editor's text was last drawn at.
+///
+/// Key handling needs it to move between wrapped rows, and reads it from the
+/// last frame rather than recomputing the layout arithmetic a second time.
+#[must_use]
+pub fn edit_viewport(app: &App) -> (usize, usize) {
+    app.regions.editor.map_or((0, 0), |(rect, _)| {
+        (rect.width as usize, rect.height as usize)
+    })
 }
 
 fn draw_tab_bar(
@@ -217,12 +264,22 @@ fn draw_empty_state(frame: &mut Frame, palette: &Palette, area: Rect) {
 // Reading mode
 // ---------------------------------------------------------------------------
 
-fn draw_reading(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect) {
+fn draw_reading(
+    frame: &mut Frame,
+    app: &mut App,
+    palette: &Palette,
+    area: Rect,
+    gutter: u16,
+    regions: &mut Regions,
+) {
     let Some(id) = app.active_note() else { return };
     let Ok(content) = app.index.read(id) else {
         Paragraph::new("could not read this note").render(area, frame.buffer_mut());
         return;
     };
+    // The scrollbar stays on the pane's edge; the prose sits inside the gutter.
+    let full = area;
+    let area = prose_area(area, gutter);
 
     // An Excalidraw note is a wrapper around a scene: its Markdown is a warning
     // banner and a wall of compressed base64, and the drawing is the content.
@@ -261,9 +318,11 @@ fn draw_reading(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect)
         note_dir,
         images: Some(&mut app.images),
         pictures: Vec::new(),
+        anchors: Vec::new(),
     };
     let lines = render_document(&document, &mut ctx, width);
     let pictures = std::mem::take(&mut ctx.pictures);
+    regions.anchors = std::mem::take(&mut ctx.anchors);
 
     let height = area.height as usize;
     let max_scroll = lines.len().saturating_sub(height);
@@ -290,7 +349,7 @@ fn draw_reading(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect)
         scroll,
         hscroll,
     );
-    scrollbar(frame, palette, area, scroll, lines.len());
+    scrollbar(frame, palette, full, scroll, lines.len());
 }
 
 /// Draws the pictures whose rows are on screen, over the blanks left for them.
@@ -369,9 +428,23 @@ pub fn render_document(
 ) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
     for block in &document.blocks {
+        ctx.anchors.push((block.line, lines.len()));
         render_block(block, ctx, width, 0, &mut lines);
     }
     lines
+}
+
+/// The rendered row a source line was drawn on.
+///
+/// Only block starts are recorded, so a line inside a block resolves to the row
+/// its block began on — which is what scrolling to a heading wants anyway.
+#[must_use]
+pub fn anchor_row(anchors: &[(usize, usize)], line: usize) -> usize {
+    anchors
+        .iter()
+        .take_while(|(source, _)| *source <= line)
+        .last()
+        .map_or(line, |(_, row)| *row)
 }
 
 fn render_block(
@@ -714,27 +787,7 @@ fn style_spans(
                 SpanKind::Text => {}
             }
 
-            if span.style.code {
-                style = style.fg(palette.code_fg).bg(palette.code_bg);
-            }
-            if span.style.bold {
-                style = style.fg(palette.bold).add_modifier(Modifier::BOLD);
-            }
-            if span.style.italic {
-                style = style.add_modifier(Modifier::ITALIC);
-            }
-            if span.style.strikethrough {
-                style = style
-                    .fg(palette.strikethrough)
-                    .add_modifier(Modifier::CROSSED_OUT);
-            }
-            if span.style.highlight {
-                style = style
-                    .bg(palette.text_highlight_bg)
-                    .fg(palette.text_highlight_fg);
-            }
-
-            (span.text.clone(), style)
+            (span.text.clone(), emphasis(style, span.style, palette))
         })
         .collect()
 }
@@ -1050,102 +1103,430 @@ fn capitalize(text: &str) -> String {
 // Editing mode
 // ---------------------------------------------------------------------------
 
-fn draw_editing(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect) {
-    let show_numbers = app.config.ui.line_numbers;
+fn draw_editing(
+    frame: &mut Frame,
+    app: &mut App,
+    palette: &Palette,
+    area: Rect,
+    gutter: u16,
+    regions: &mut Regions,
+) {
+    let wrap = app.config.editor.wrap;
+    // A caret in an unfocused pane claims input that would go somewhere else.
+    let focused = app.focus == crate::app::Focus::Note;
+    let prose = prose_area(area, gutter);
+    // One column is left for the scrollbar, which also gives the caret a place
+    // to sit at the end of a full row.
+    let text = Rect {
+        width: prose.width.saturating_sub(1),
+        ..prose
+    };
+    let height = text.height as usize;
+
     let Some(editor) = app.editor_mut() else {
         return;
     };
+    let layout = editor.layout(text.width as usize, wrap);
+    editor.scroll_into_view(&layout, height);
 
-    let height = area.height as usize;
-    editor.scroll_into_view(height);
     let scroll = editor.scroll;
-    let cursor = editor.cursor();
-    let total = editor.line_count();
-
-    let gutter = if show_numbers {
-        (total.to_string().len() + 2) as u16
-    } else {
-        0
-    };
-    let text_width = area.width.saturating_sub(gutter + 1) as usize;
-
+    let hscroll = editor.hscroll;
+    let (caret_row, caret_column) = editor.caret(&layout);
     let selection = editor.selection();
-    let mut lines: Vec<Line> = Vec::new();
+    let cursor_line = editor.cursor().line;
+    let fenced = fenced_lines(editor.lines());
 
-    for (offset, text) in editor.lines().iter().enumerate().skip(scroll).take(height) {
-        let is_cursor_line = offset == cursor.line;
-        let mut spans = Vec::new();
+    // Painting a whole source line at once and slicing it per row keeps one
+    // decision — what each character is — in one place, however it wrapped.
+    let mut painted: Option<(usize, Vec<(char, Style)>)> = None;
+    let mut numbers: Vec<Line> = Vec::new();
+    let mut body: Vec<Line> = Vec::new();
 
-        if show_numbers {
-            spans.push(Span::styled(
-                format!("{:>width$}  ", offset + 1, width = gutter as usize - 2),
-                Style::default().fg(if is_cursor_line {
-                    palette.line_number_active
-                } else {
-                    palette.line_number
-                }),
+    for row in layout.rows().iter().skip(scroll).take(height) {
+        let on_cursor_line = row.line == cursor_line;
+        numbers.push(gutter_line(row, on_cursor_line, gutter, palette));
+
+        if painted.as_ref().is_none_or(|(line, _)| *line != row.line) {
+            let source = &editor.lines()[row.line];
+            painted = Some((
+                row.line,
+                paint_line(source, on_cursor_line, fenced[row.line], palette),
             ));
         }
+        let Some((_, chars)) = &painted else { continue };
 
-        let base = Style::default()
-            .fg(palette.text_normal)
-            .bg(if is_cursor_line {
-                palette.cursor_line_bg
-            } else {
-                palette.bg_primary
-            });
-
-        // Selection is painted per character so it survives wrapping and
-        // multi-byte text without a second layout pass.
-        let chars: Vec<char> = text.chars().collect();
-        let mut run = String::new();
-        let mut run_selected = false;
-
-        for (col, ch) in chars.iter().enumerate() {
-            let selected = selection.is_some_and(|(start, end)| {
-                let position = (offset, col);
-                position >= (start.line, start.col) && position < (end.line, end.col)
-            });
-            if selected != run_selected && !run.is_empty() {
-                spans.push(Span::styled(
-                    std::mem::take(&mut run),
-                    if run_selected {
-                        base.bg(palette.bg_selection)
-                    } else {
-                        base
-                    },
-                ));
-            }
-            run_selected = selected;
-            run.push(*ch);
-        }
-        if !run.is_empty() {
-            spans.push(Span::styled(
-                run,
-                if run_selected {
-                    base.bg(palette.bg_selection)
+        body.push(row_line(
+            row,
+            &chars[row.start.min(chars.len())..row.end.min(chars.len())],
+            RowStyle {
+                background: if fenced[row.line] {
+                    palette.code_bg
+                } else if on_cursor_line {
+                    palette.cursor_line_bg
                 } else {
-                    base
+                    palette.bg_primary
                 },
-            ));
-        }
-
-        if spans.len() <= usize::from(show_numbers) {
-            spans.push(Span::styled(String::new(), base));
-        }
-
-        lines.push(Line::from(spans));
+                selection: palette.bg_selection,
+            },
+            selection,
+            text.width as usize + hscroll,
+        ));
     }
 
-    Paragraph::new(lines).render(area, frame.buffer_mut());
-    scrollbar(frame, palette, area, scroll, total);
+    if gutter > 0 {
+        Paragraph::new(numbers).render(
+            Rect {
+                width: gutter,
+                ..area
+            },
+            frame.buffer_mut(),
+        );
+    }
+    Paragraph::new(body)
+        .scroll((0, u16::try_from(hscroll).unwrap_or(u16::MAX)))
+        .render(text, frame.buffer_mut());
+    scrollbar(frame, palette, area, scroll, layout.rows().len());
+
+    regions.editor = Some((text, scroll));
 
     // Place the terminal cursor so the user sees a real caret.
-    let cursor_row = cursor.line.saturating_sub(scroll);
-    if cursor_row < height {
-        let x = area.x + gutter + cursor.col.min(text_width) as u16;
-        frame.set_cursor_position((x, area.y + cursor_row as u16));
+    let column = usize::from(caret_column);
+    if focused && caret_row >= scroll && caret_row - scroll < height && column >= hscroll {
+        let x = text.x + u16::try_from(column - hscroll).unwrap_or(u16::MAX);
+        if x < prose.x + prose.width {
+            frame.set_cursor_position((x, text.y + (caret_row - scroll) as u16));
+        }
     }
+}
+
+/// Colours for the row a line is drawn on, behind whatever it says.
+struct RowStyle {
+    background: ratatui::style::Color,
+    selection: ratatui::style::Color,
+}
+
+/// The gutter cell for one row: a line number, or the wrap marker on a row that
+/// is the continuation of the one above.
+///
+/// The marker lives here rather than in the text so that distinguishing a soft
+/// wrap from a real line break costs no reading width at all.
+fn gutter_line(row: &Row, on_cursor_line: bool, gutter: u16, palette: &Palette) -> Line<'static> {
+    if gutter == 0 {
+        return Line::from("");
+    }
+    let width = usize::from(gutter) - 1;
+    let (text, color) = if row.first {
+        (
+            format!("{:>width$} ", row.line + 1),
+            if on_cursor_line {
+                palette.line_number_active
+            } else {
+                palette.line_number
+            },
+        )
+    } else {
+        (format!("{:>width$} ", icons::WRAP), palette.text_faint)
+    };
+    Line::from(Span::styled(text, Style::default().fg(color)))
+}
+
+/// Builds one terminal row from the painted characters it shows.
+///
+/// The row is padded to the full width so a code block's background and the
+/// cursor line's highlight reach the edge of the pane rather than stopping at
+/// the end of the text.
+fn row_line(
+    row: &Row,
+    chars: &[(char, Style)],
+    colors: RowStyle,
+    selection: Option<(Cursor, Cursor)>,
+    width: usize,
+) -> Line<'static> {
+    let selected = |col: usize| {
+        selection.is_some_and(|(start, end)| {
+            let at = (row.line, col);
+            at >= (start.line, start.col) && at < (end.line, end.col)
+        })
+    };
+    // A background already on the character — inline code — outranks the row's,
+    // and a selection outranks both.
+    let resolve = |style: Style, col: usize| {
+        if selected(col) {
+            return style.bg(colors.selection);
+        }
+        match style.bg {
+            Some(_) => style,
+            None => style.bg(colors.background),
+        }
+    };
+
+    let mut spans = vec![Span::styled(
+        " ".repeat(usize::from(row.indent)),
+        Style::default().bg(colors.background),
+    )];
+    let mut run = String::new();
+    let mut current: Option<Style> = None;
+
+    for (offset, (ch, style)) in chars.iter().enumerate() {
+        let style = resolve(*style, row.start + offset);
+        if current.is_some_and(|open| open != style) {
+            spans.push(Span::styled(std::mem::take(&mut run), current.unwrap()));
+        }
+        current = Some(style);
+        run.push(*ch);
+    }
+    if let Some(style) = current {
+        spans.push(Span::styled(run, style));
+    }
+
+    // Trailing fill, including the selected newline at the end of a line the
+    // selection runs through.
+    let used: usize = spans.iter().map(Span::width).sum();
+    let end = selected(row.end).then_some(colors.selection);
+    if let Some(color) = end {
+        spans.push(Span::styled(" ", Style::default().bg(color)));
+    }
+    let pad = width.saturating_sub(used + usize::from(end.is_some()));
+    spans.push(Span::styled(
+        " ".repeat(pad),
+        Style::default().bg(colors.background),
+    ));
+    Line::from(spans)
+}
+
+/// Which lines sit inside a fenced code block, so their content is never read
+/// as Markdown while it is being edited.
+fn fenced_lines(lines: &[String]) -> Vec<bool> {
+    let mut inside = false;
+    lines
+        .iter()
+        .map(|line| {
+            let trimmed = line.trim_start();
+            let fence = trimmed.starts_with("```") || trimmed.starts_with("~~~");
+            // The fence lines belong to the block they open and close.
+            let fenced = inside || fence;
+            inside ^= fence;
+            fenced
+        })
+        .collect()
+}
+
+/// Styles one source line character by character, ready to be sliced across
+/// however many rows it wrapped onto.
+///
+/// Markers are dimmed and given the glyph the reading pane would use, but only
+/// where that glyph is exactly as wide as what it replaces — a `-` becomes a
+/// `•`, an `x` inside `[x]` becomes a `☑`. Nothing is hidden and nothing moves,
+/// so the caret is always where the character is, and `on_cursor_line` can show
+/// the line exactly as typed without the text shifting underneath.
+fn paint_line(
+    text: &str,
+    on_cursor_line: bool,
+    fenced: bool,
+    palette: &Palette,
+) -> Vec<(char, Style)> {
+    let chars: Vec<char> = text.chars().collect();
+    if fenced {
+        let style = Style::default().fg(palette.code_fg).bg(palette.code_bg);
+        return chars.into_iter().map(|ch| (ch, style)).collect();
+    }
+
+    let mut out: Vec<(char, Style)> = markdown::scan_inline(text)
+        .into_iter()
+        .zip(&chars)
+        .map(|(paint, ch)| (*ch, paint_style(paint, on_cursor_line, palette)))
+        .collect();
+
+    decorate_markers(&chars, on_cursor_line, palette, &mut out);
+    out
+}
+
+/// Theme colors for one inline character of source.
+fn paint_style(paint: markdown::Paint, on_cursor_line: bool, palette: &Palette) -> Style {
+    use markdown::Ink;
+
+    let mut style = Style::default().fg(match paint.ink {
+        // On the cursor's own line the syntax is what you are editing, so it is
+        // shown at full contrast rather than pushed into the background.
+        Ink::Marker if on_cursor_line => palette.text_muted,
+        Ink::Marker => palette.text_faint,
+        // Whether a link resolves is the reading pane's business: it has the
+        // link target, and this only has the characters.
+        Ink::WikiLink => palette.link,
+        Ink::Link => palette.link_external,
+        Ink::Tag => palette.tag_fg,
+        Ink::Math => palette.text_accent,
+        Ink::Text => palette.text_normal,
+    });
+    if paint.ink == Ink::Tag {
+        style = style.bg(palette.tag_bg);
+    }
+    emphasis(style, paint.style, palette)
+}
+
+/// Applies bold, italic, strikethrough, inline code and highlight colors.
+///
+/// Shared with the reading pane so a bold word can't end up a different color
+/// depending on which mode you are looking at it in.
+fn emphasis(mut style: Style, md: markdown::Style, palette: &Palette) -> Style {
+    if md.code {
+        style = style.fg(palette.code_fg).bg(palette.code_bg);
+    }
+    if md.bold {
+        style = style.fg(palette.bold).add_modifier(Modifier::BOLD);
+    }
+    if md.italic {
+        style = style.add_modifier(Modifier::ITALIC);
+    }
+    if md.strikethrough {
+        style = style
+            .fg(palette.strikethrough)
+            .add_modifier(Modifier::CROSSED_OUT);
+    }
+    if md.highlight {
+        style = style
+            .bg(palette.text_highlight_bg)
+            .fg(palette.text_highlight_fg);
+    }
+    style
+}
+
+/// Restyles a line's leading Markdown marker, and swaps in the glyph the
+/// reading pane uses wherever it is exactly as wide.
+fn decorate_markers(
+    chars: &[char],
+    on_cursor_line: bool,
+    palette: &Palette,
+    out: &mut [(char, Style)],
+) {
+    let indent = chars
+        .iter()
+        .take_while(|ch| **ch == ' ' || **ch == '\t')
+        .count();
+    let rest: String = chars[indent..].iter().collect();
+    let at = |offset: usize| indent + offset;
+
+    // A heading keeps its hashes, dimmed, and colors its title.
+    let hashes = rest.chars().take_while(|ch| *ch == '#').count();
+    if (1..=6).contains(&hashes) && rest.chars().nth(hashes) == Some(' ') {
+        let level = u8::try_from(hashes).unwrap_or(6);
+        let title = Style::default()
+            .fg(palette.heading(level))
+            .add_modifier(Modifier::BOLD);
+        for entry in out.iter_mut().skip(at(hashes + 1)) {
+            entry.1 = title;
+        }
+        return;
+    }
+
+    // `- [x] `: color the box, tick it, and strike the item through.
+    if let Some(checked) = task(&rest) {
+        let color = if checked {
+            palette.checkbox_done
+        } else {
+            palette.checkbox_todo
+        };
+        substitute(out, at(0), bullet_glyph(on_cursor_line), color);
+        for offset in [2, 4] {
+            if let Some(entry) = out.get_mut(at(offset)) {
+                entry.1 = Style::default().fg(palette.text_faint);
+            }
+        }
+        let tick = if checked { icons::TASK_DONE } else { ' ' };
+        substitute(out, at(3), (!on_cursor_line).then_some(tick), color);
+        if checked {
+            for entry in out.iter_mut().skip(at(6)) {
+                entry.1 = entry
+                    .1
+                    .fg(palette.text_faint)
+                    .add_modifier(Modifier::CROSSED_OUT);
+            }
+        }
+        return;
+    }
+
+    if matches!(rest.as_bytes().first(), Some(b'-' | b'*' | b'+'))
+        && rest.as_bytes().get(1) == Some(&b' ')
+    {
+        substitute(
+            out,
+            at(0),
+            bullet_glyph(on_cursor_line),
+            palette.list_marker,
+        );
+        return;
+    }
+
+    // `1. ` keeps its number; only the color says it is a marker.
+    let digits = rest.chars().take_while(char::is_ascii_digit).count();
+    if digits > 0
+        && matches!(rest.as_bytes().get(digits), Some(b'.' | b')'))
+        && rest.as_bytes().get(digits + 1) == Some(&b' ')
+    {
+        for entry in out.iter_mut().skip(indent).take(digits + 1) {
+            entry.1 = Style::default().fg(palette.list_marker);
+        }
+        return;
+    }
+
+    // Every `>` of a quote, at every level, becomes the bar the reading pane
+    // draws — and the body it introduces is tinted to match.
+    if rest.starts_with('>') {
+        let prefix = rest
+            .bytes()
+            .take_while(|b| matches!(b, b'>' | b' '))
+            .count();
+        for offset in 0..prefix {
+            if chars.get(at(offset)) == Some(&'>') {
+                substitute(
+                    out,
+                    at(offset),
+                    (!on_cursor_line).then_some(icons::QUOTE_BAR),
+                    palette.quote_bar,
+                );
+            }
+        }
+        for entry in out.iter_mut().skip(at(prefix)) {
+            if entry.1.fg == Some(palette.text_normal) {
+                entry.1 = entry.1.fg(palette.quote_fg);
+            }
+        }
+    }
+}
+
+/// The glyph a list bullet is drawn as, or nothing on the cursor's own line
+/// where the character as typed is what matters.
+fn bullet_glyph(on_cursor_line: bool) -> Option<char> {
+    (!on_cursor_line).then_some(icons::BULLET)
+}
+
+/// Recolors one character, optionally drawing a different glyph in its place.
+///
+/// Only ever called with a replacement the same width as the original, so the
+/// column a character occupies never depends on how it is styled.
+fn substitute(
+    out: &mut [(char, Style)],
+    at: usize,
+    glyph: Option<char>,
+    color: ratatui::style::Color,
+) {
+    if let Some(entry) = out.get_mut(at) {
+        if let Some(glyph) = glyph {
+            entry.0 = glyph;
+        }
+        entry.1 = Style::default().fg(color);
+    }
+}
+
+/// Whether a line is a task, and whether it is done.
+fn task(rest: &str) -> Option<bool> {
+    let bytes = rest.as_bytes();
+    let valid = matches!(bytes.first(), Some(b'-' | b'*' | b'+'))
+        && bytes.get(1) == Some(&b' ')
+        && bytes.get(2) == Some(&b'[')
+        && bytes.get(4) == Some(&b']')
+        && bytes.get(5) == Some(&b' ');
+    valid.then(|| matches!(bytes.get(3), Some(b'x' | b'X')))
 }
 
 #[cfg(test)]
@@ -1227,6 +1608,7 @@ mod tests {
             note_dir: None,
             images: Some(images),
             pictures: Vec::new(),
+            anchors: Vec::new(),
         }
     }
 

@@ -404,6 +404,18 @@ fn handle_editing(app: &mut App, key: KeyEvent) {
         }
     }
 
+    // Moving between rows has to follow the text as it was wrapped, so it needs
+    // the geometry the last frame recorded — the same source of truth clicks
+    // are resolved against.
+    if matches!(
+        key.code,
+        KeyCode::Up | KeyCode::Down | KeyCode::PageUp | KeyCode::PageDown
+    ) || (!ctrl && matches!(key.code, KeyCode::Home | KeyCode::End))
+    {
+        move_in_editor(app, key.code, shift);
+        return;
+    }
+
     let Some(editor) = app.editor_mut() else {
         return;
     };
@@ -411,25 +423,42 @@ fn handle_editing(app: &mut App, key: KeyEvent) {
     match key.code {
         KeyCode::Char(ch) if !ctrl => editor.insert_char(ch),
         KeyCode::Enter => editor.newline(),
-        KeyCode::Tab => editor.insert_char('\t'),
+        KeyCode::Tab => editor.tab(true),
+        KeyCode::BackTab => editor.tab(false),
         KeyCode::Backspace => editor.backspace(),
         KeyCode::Delete => editor.delete_forward(),
         KeyCode::Left if ctrl => editor.move_word_left(shift),
         KeyCode::Right if ctrl => editor.move_word_right(shift),
         KeyCode::Left => editor.move_left(shift),
         KeyCode::Right => editor.move_right(shift),
-        KeyCode::Up => editor.move_up(shift),
-        KeyCode::Down => editor.move_down(shift),
         KeyCode::Home if ctrl => editor.move_document_start(shift),
         KeyCode::End if ctrl => editor.move_document_end(shift),
-        KeyCode::Home => editor.move_line_start(shift),
-        KeyCode::End => editor.move_line_end(shift),
-        KeyCode::PageUp => editor.move_page(-15, shift),
-        KeyCode::PageDown => editor.move_page(15, shift),
         KeyCode::Esc => {
             editor.commit();
             dispatch(app, Action::ToggleMode);
         }
+        _ => {}
+    }
+}
+
+/// Moves the cursor by what is on screen rather than by source line.
+fn move_in_editor(app: &mut App, code: KeyCode, extend: bool) {
+    let (width, height) = crate::ui::note::edit_viewport(app);
+    let wrap = app.config.editor.wrap;
+    let Some(editor) = app.editor_mut() else {
+        return;
+    };
+
+    let layout = editor.layout(width, wrap);
+    // A page is the viewport, less a row of overlap so the eye keeps its place.
+    let page = height.saturating_sub(1).max(1) as isize;
+    match code {
+        KeyCode::Up => editor.move_row(&layout, -1, extend),
+        KeyCode::Down => editor.move_row(&layout, 1, extend),
+        KeyCode::PageUp => editor.move_row(&layout, -page, extend),
+        KeyCode::PageDown => editor.move_row(&layout, page, extend),
+        KeyCode::Home => editor.move_row_start(&layout, extend),
+        KeyCode::End => editor.move_row_end(&layout, extend),
         _ => {}
     }
 }
@@ -453,8 +482,14 @@ fn handle_sidebar(app: &mut App, key: KeyEvent) {
             Some(SidebarTarget::Heading(line)) => {
                 // Jumping to a heading scrolls the reading view and moves the
                 // editor's cursor, whichever mode is active.
+                //
+                // The outline names a line in the file, but the reading view
+                // scrolls by rendered rows — prose wraps, headings gain a rule,
+                // a picture takes a dozen rows — so the two have to be
+                // translated through what the last frame actually drew.
+                let row = crate::ui::note::anchor_row(&app.regions.anchors, line);
                 if let Some(tab) = app.active_mut() {
-                    tab.scroll = line;
+                    tab.scroll = row;
                 }
                 if let Some(editor) = app.editor_mut() {
                     editor.goto(line, 0);
@@ -975,6 +1010,55 @@ mod tests {
 
         assert_eq!(app.explorer.filter, "B");
         assert_eq!(app.explorer.len(), 1);
+    }
+
+    #[test]
+    fn the_outline_scrolls_to_the_row_a_heading_was_drawn_on() {
+        // A source line and a rendered row are different numbers: the paragraph
+        // below wraps to several rows and the H1 gains a rule under it, so the
+        // second heading is drawn far below the line it lives on.
+        let vault = TempVault::new("outline-jump");
+        let prose = "a ".repeat(120);
+        vault.write("Deep.md", &format!("# One\n\n{prose}\n\n## Two\n\nend\n"));
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        let deep = app.index.id_of_rel("Deep.md").expect("indexed");
+        app.open_note(deep);
+
+        // Draw once, so the outline has a rendered layout to translate through.
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(80, 30)).expect("terminal");
+        terminal
+            .draw(|frame| crate::ui::draw(frame, &mut app))
+            .expect("frame");
+
+        app.side_panel = crate::app::SidePanel::Outline;
+        app.focus = Focus::Sidebar;
+        app.side_selected = 1;
+        let line = match &sidebar_targets(&app)[1] {
+            SidebarTarget::Heading(line) => *line,
+            other => panic!("expected a heading, got {other:?}"),
+        };
+        handle(&mut app, key(KeyCode::Enter));
+
+        let scroll = app.active().expect("tab").scroll;
+        assert!(
+            scroll > line,
+            "`## Two` is on source line {line} but was drawn further down; \
+             scrolled to {scroll}"
+        );
+    }
+
+    #[test]
+    fn the_outline_falls_back_to_the_line_before_anything_is_drawn() {
+        let (_v, mut app) = app();
+        let a = app.index.id_of_rel("A.md").expect("indexed");
+        app.open_note(a);
+
+        app.side_panel = crate::app::SidePanel::Outline;
+        app.focus = Focus::Sidebar;
+        handle(&mut app, key(KeyCode::Enter));
+
+        assert_eq!(app.active().expect("tab").scroll, 0, "no frame, no crash");
     }
 }
 
