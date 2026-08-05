@@ -487,66 +487,66 @@ fn handle_click(app: &mut App, point: (u16, u16)) -> bool {
         return true;
     }
 
-    if let Some((rect, scroll)) = app.regions.explorer {
-        if hit(rect, point) {
-            app.focus = app::Focus::Explorer;
-            let row = scroll + (point.1 - rect.y) as usize;
-            if row < app.explorer.len() {
-                // One click acts, as it does in any file tree: a note opens, a
-                // folder folds. Requiring a second click on folders only would
-                // be an inconsistency the user has to learn.
-                app.explorer.selected = row;
-                match app.explorer.selected_note() {
-                    Some(id) => app.open_note(id),
-                    None => {
-                        app.explorer.toggle(&app.index);
-                    }
+    if let Some((rect, scroll)) = app.regions.explorer
+        && hit(rect, point)
+    {
+        app.focus = app::Focus::Explorer;
+        let row = scroll + (point.1 - rect.y) as usize;
+        if row < app.explorer.len() {
+            // One click acts, as it does in any file tree: a note opens, a
+            // folder folds. Requiring a second click on folders only would
+            // be an inconsistency the user has to learn.
+            app.explorer.selected = row;
+            match app.explorer.selected_note() {
+                Some(id) => app.open_note(id),
+                None => {
+                    app.explorer.toggle(&app.index);
                 }
             }
-            return true;
         }
+        return true;
     }
 
-    if let Some((rect, first)) = app.regions.sidebar {
-        if hit(rect, point) {
-            app.focus = app::Focus::Sidebar;
-            app.side_selected = first + (point.1 - rect.y) as usize;
-            return true;
-        }
+    if let Some((rect, first)) = app.regions.sidebar
+        && hit(rect, point)
+    {
+        app.focus = app::Focus::Sidebar;
+        app.side_selected = first + (point.1 - rect.y) as usize;
+        return true;
     }
 
-    if let Some(rect) = app.regions.chat {
-        if hit(rect, point) {
-            app.focus = app::Focus::Chat;
-            return true;
-        }
+    if let Some(rect) = app.regions.chat
+        && hit(rect, point)
+    {
+        app.focus = app::Focus::Chat;
+        return true;
     }
 
     // In the graph, a click selects the node nearest the pointer.
-    if let Some((rect, x_bounds, y_bounds)) = app.regions.graph {
-        if hit(rect, point) {
-            app.focus = app::Focus::Graph;
-            if let Some(graph) = app.graph.as_mut() {
-                // Generous radius: a node is a few characters wide on screen.
-                let radius = ((x_bounds[1] - x_bounds[0]) / 20.0) as f32;
-                let target = graph_point(rect, x_bounds, y_bounds, point);
-                if let Some(node) = graph.simulation.nearest(target, radius) {
-                    graph.selected = Some(node);
-                }
+    if let Some((rect, x_bounds, y_bounds)) = app.regions.graph
+        && hit(rect, point)
+    {
+        app.focus = app::Focus::Graph;
+        if let Some(graph) = app.graph.as_mut() {
+            // Generous radius: a node is a few characters wide on screen.
+            let radius = ((x_bounds[1] - x_bounds[0]) / 20.0) as f32;
+            let target = graph_point(rect, x_bounds, y_bounds, point);
+            if let Some(node) = graph.simulation.nearest(target, radius) {
+                graph.selected = Some(node);
             }
-            return true;
         }
+        return true;
     }
 
-    if let Some(rect) = app.regions.main {
-        if hit(rect, point) {
-            app.focus = if app.view == View::Graph {
-                app::Focus::Graph
-            } else {
-                app::Focus::Note
-            };
-            return true;
-        }
+    if let Some(rect) = app.regions.main
+        && hit(rect, point)
+    {
+        app.focus = if app.view == View::Graph {
+            app::Focus::Graph
+        } else {
+            app::Focus::Note
+        };
+        return true;
     }
 
     false
@@ -554,19 +554,19 @@ fn handle_click(app: &mut App, point: (u16, u16)) -> bool {
 
 /// Scrolls whichever pane is under the pointer, not whichever has focus.
 fn handle_scroll(app: &mut App, point: (u16, u16), delta: isize) -> bool {
-    if let Some((rect, _)) = app.regions.explorer {
-        if hit(rect, point) {
-            app.explorer.page(delta);
-            app.explorer.scroll_into_view(rect.height as usize);
-            return true;
-        }
+    if let Some((rect, _)) = app.regions.explorer
+        && hit(rect, point)
+    {
+        app.explorer.page(delta);
+        app.explorer.scroll_into_view(rect.height as usize);
+        return true;
     }
-    if let Some(rect) = app.regions.chat {
-        if hit(rect, point) {
-            app.chat.follow = delta > 0;
-            app.chat.scroll = (app.chat.scroll as isize + delta).max(0) as usize;
-            return true;
-        }
+    if let Some(rect) = app.regions.chat
+        && hit(rect, point)
+    {
+        app.chat.follow = delta > 0;
+        app.chat.scroll = (app.chat.scroll as isize + delta).max(0) as usize;
+        return true;
     }
     match app.active_mut() {
         Some(tab) => {

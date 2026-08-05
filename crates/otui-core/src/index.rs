@@ -88,10 +88,10 @@ impl IndexedNote {
     pub fn outgoing(&self) -> Vec<NoteId> {
         let mut seen = Vec::new();
         for link in &self.links {
-            if let LinkTarget::Note(id) = link.target {
-                if !seen.contains(&id) {
-                    seen.push(id);
-                }
+            if let LinkTarget::Note(id) = link.target
+                && !seen.contains(&id)
+            {
+                seen.push(id);
             }
         }
         seen

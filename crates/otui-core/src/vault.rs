@@ -277,10 +277,10 @@ pub fn config_locations() -> Vec<PathBuf> {
 #[must_use]
 pub fn discover() -> Vec<Vault> {
     for dir in config_locations() {
-        if let Some(vaults) = load_from(&dir) {
-            if !vaults.is_empty() {
-                return vaults;
-            }
+        if let Some(vaults) = load_from(&dir)
+            && !vaults.is_empty()
+        {
+            return vaults;
         }
     }
     Vec::new()

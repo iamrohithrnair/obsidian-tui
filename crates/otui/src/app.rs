@@ -522,13 +522,13 @@ impl App {
             return;
         }
 
-        if let Some(current) = self.active_note() {
-            if current != id {
-                self.history.push(current);
-                // A long session shouldn't accumulate unbounded history.
-                if self.history.len() > 100 {
-                    self.history.remove(0);
-                }
+        if let Some(current) = self.active_note()
+            && current != id
+        {
+            self.history.push(current);
+            // A long session shouldn't accumulate unbounded history.
+            if self.history.len() > 100 {
+                self.history.remove(0);
             }
         }
 

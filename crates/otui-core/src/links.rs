@@ -197,27 +197,27 @@ fn scan_markdown_links(line: &str, line_no: usize, out: &mut Vec<LinkRef>) {
             break;
         };
         let text_end = i + 1 + text_end;
-        if line[text_end + 1..].starts_with('(') {
-            if let Some(url_end) = line[text_end + 2..].find(')') {
-                let text = &line[i + 1..text_end];
-                let url = line[text_end + 2..text_end + 2 + url_end].trim();
-                if !url.is_empty() {
-                    let (target, anchor) = match url.split_once('#') {
-                        Some((t, a)) if !t.is_empty() => (t, Some(a.to_string())),
-                        _ => (url, None),
-                    };
-                    out.push(LinkRef {
-                        target: target.to_string(),
-                        anchor,
-                        alias: (!text.is_empty()).then(|| text.to_string()),
-                        embed: i > 0 && bytes[i - 1] == b'!',
-                        markdown: true,
-                        line: line_no,
-                    });
-                }
-                i = text_end + 2 + url_end + 1;
-                continue;
+        if line[text_end + 1..].starts_with('(')
+            && let Some(url_end) = line[text_end + 2..].find(')')
+        {
+            let text = &line[i + 1..text_end];
+            let url = line[text_end + 2..text_end + 2 + url_end].trim();
+            if !url.is_empty() {
+                let (target, anchor) = match url.split_once('#') {
+                    Some((t, a)) if !t.is_empty() => (t, Some(a.to_string())),
+                    _ => (url, None),
+                };
+                out.push(LinkRef {
+                    target: target.to_string(),
+                    anchor,
+                    alias: (!text.is_empty()).then(|| text.to_string()),
+                    embed: i > 0 && bytes[i - 1] == b'!',
+                    markdown: true,
+                    line: line_no,
+                });
             }
+            i = text_end + 2 + url_end + 1;
+            continue;
         }
         i = text_end + 1;
     }

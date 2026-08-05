@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Moved to the 2024 edition**, stable since Rust 1.85 and comfortably under
+  the 1.90 floor the dependencies already set. Mostly invisible: `cargo fix`
+  found three real changes and rustfmt's 2024 style edition reordered imports.
+  The substantive one is that `env::set_var` is unsafe in 2024, which correctly
+  flagged a bug — a test set an environment variable while other modules read
+  the environment from parallel test threads. The state module now takes a path
+  (`load_from` / `save_to`) so nothing has to mutate a global to be testable.
+- Nested `if let` blocks collapsed into let-chains where 2024 allows it.
+
 ## [0.2.0] — 2026-08-05
 
 The release that puts the parts of a vault a text reader could never show —

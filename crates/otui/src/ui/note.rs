@@ -870,10 +870,10 @@ fn highlight(line: &str, lang: &str, palette: &Palette, base: Style) -> Vec<Span
     let keywords = keywords_for(lang);
     let comment = comment_prefix(lang);
 
-    if let Some(prefix) = comment {
-        if line.trim_start().starts_with(prefix) {
-            return vec![Span::styled(line.to_string(), base.fg(palette.syn_comment))];
-        }
+    if let Some(prefix) = comment
+        && line.trim_start().starts_with(prefix)
+    {
+        return vec![Span::styled(line.to_string(), base.fg(palette.syn_comment))];
     }
 
     let mut spans = Vec::new();

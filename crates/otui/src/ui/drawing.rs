@@ -165,17 +165,17 @@ fn stroke(ctx: &mut Context, element: &Element, color: Color, scale: f64) {
         }
     }
 
-    if element.shape == Shape::Arrow {
-        if let [.., from, to] = path.as_slice() {
-            for barb in arrowhead(*from, *to, scale) {
-                ctx.draw(&CanvasLine {
-                    x1: to.0,
-                    y1: -to.1,
-                    x2: barb.0,
-                    y2: -barb.1,
-                    color,
-                });
-            }
+    if element.shape == Shape::Arrow
+        && let [.., from, to] = path.as_slice()
+    {
+        for barb in arrowhead(*from, *to, scale) {
+            ctx.draw(&CanvasLine {
+                x1: to.0,
+                y1: -to.1,
+                x2: barb.0,
+                y2: -barb.1,
+                color,
+            });
         }
     }
 }

@@ -539,12 +539,12 @@ fn logout(app: &mut App) {
     }
     // Worth pointing out, because the process cannot unset a variable for the
     // shell that started it, so "logged out" would otherwise be a lie.
-    if let Some(env_var) = otui_agent::catalog::env_var(&provider) {
-        if std::env::var(env_var).is_ok() {
-            message.push_str(&format!(
-                "\n${env_var} is still set; unset it in your shell"
-            ));
-        }
+    if let Some(env_var) = otui_agent::catalog::env_var(&provider)
+        && std::env::var(env_var).is_ok()
+    {
+        message.push_str(&format!(
+            "\n${env_var} is still set; unset it in your shell"
+        ));
     }
     say(app, &message);
 }

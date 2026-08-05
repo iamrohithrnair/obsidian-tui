@@ -120,10 +120,10 @@ fn load_one(path: &Path) -> Result<Theme, String> {
     let mut theme: Theme = toml::from_str(&text).map_err(|e| e.to_string())?;
 
     // Fall back to the filename so an unnamed theme is still selectable.
-    if theme.name.is_empty() {
-        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-            theme.name = stem.to_string();
-        }
+    if theme.name.is_empty()
+        && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+    {
+        theme.name = stem.to_string();
     }
 
     Ok(theme.layered_over(&base))
