@@ -13,6 +13,9 @@ use crate::app::{Action, App, Focus, Mode, View};
 use crate::modal::{Modal, PickerKind, Prompt, PromptIntent};
 use crate::ui::panes::{sidebar_targets, SidebarTarget};
 
+/// Columns moved per keypress when panning a wide table sideways.
+const PAN_STEP: isize = 4;
+
 /// Handles one key event.
 pub fn handle(app: &mut App, key: KeyEvent) {
     // Terminals that report key releases would otherwise run every binding
@@ -275,15 +278,25 @@ fn handle_reading(app: &mut App, key: KeyEvent) {
             tab.scroll = (tab.scroll as isize + delta).max(0) as usize;
         }
     };
+    // Panning across a wide table. The draw pass clamps this to the content's
+    // width, which is the only place the width is known.
+    let pan = |app: &mut App, delta: isize| {
+        if let Some(tab) = app.active_mut() {
+            tab.hscroll = (tab.hscroll as isize + delta).max(0) as usize;
+        }
+    };
 
     match key.code {
         KeyCode::Char('j') | KeyCode::Down => step(app, 1),
         KeyCode::Char('k') | KeyCode::Up => step(app, -1),
+        KeyCode::Char('l') | KeyCode::Right => pan(app, PAN_STEP),
+        KeyCode::Char('h') | KeyCode::Left => pan(app, -PAN_STEP),
         KeyCode::PageDown | KeyCode::Char(' ') => step(app, 15),
         KeyCode::PageUp => step(app, -15),
         KeyCode::Char('g') | KeyCode::Home => {
             if let Some(tab) = app.active_mut() {
                 tab.scroll = 0;
+                tab.hscroll = 0;
             }
         }
         KeyCode::Char('G') | KeyCode::End => step(app, 100_000),
@@ -737,6 +750,30 @@ mod tests {
         handle(&mut app, key(KeyCode::Char('k')));
         handle(&mut app, key(KeyCode::Char('k')));
         assert_eq!(app.active().unwrap().scroll, 0, "must not go negative");
+    }
+
+    #[test]
+    fn reading_mode_pans_sideways_and_clamps_at_the_left() {
+        let (_v, mut app) = app();
+        let a = app.index.id_of_rel("A.md").unwrap();
+        app.open_note(a);
+
+        handle(&mut app, key(KeyCode::Right));
+        assert_eq!(app.active().unwrap().hscroll, PAN_STEP as usize);
+
+        handle(&mut app, key(KeyCode::Char('l')));
+        assert_eq!(app.active().unwrap().hscroll, PAN_STEP as usize * 2);
+
+        for _ in 0..5 {
+            handle(&mut app, key(KeyCode::Left));
+        }
+        assert_eq!(app.active().unwrap().hscroll, 0, "must not go negative");
+
+        // Jumping to the top comes back to the left edge too; leaving a note
+        // scrolled sideways when you asked for the start of it is disorienting.
+        handle(&mut app, key(KeyCode::Right));
+        handle(&mut app, key(KeyCode::Char('g')));
+        assert_eq!(app.active().unwrap().hscroll, 0);
     }
 
     #[test]

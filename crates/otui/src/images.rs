@@ -21,13 +21,22 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 
 use ratatui::layout::Size;
-use ratatui_image::picker::Picker;
+use ratatui_image::picker::{Picker, ProtocolType};
 use ratatui_image::sliced::SlicedProtocol;
-use ratatui_image::{FontSize, Resize};
+use ratatui_image::{FilterType, FontSize, Resize};
 
 /// Extensions worth opening. Anything else — a PDF, an embedded note — is left
 /// to the text fallback rather than handed to a decoder that will refuse it.
 const EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp"];
+
+/// How pixels are thrown away when a picture is shrunk to fit.
+///
+/// [`ratatui_image`] defaults to nearest-neighbour, which simply drops the
+/// pixels that don't land on a sample — fine for a solid-colour icon, ruinous
+/// for a screenshot, where it deletes most of the strokes that make text
+/// legible. Lanczos averages the neighbourhood instead, and the cost is paid
+/// once on a worker thread rather than per frame.
+const FILTER: Option<FilterType> = Some(FilterType::Lanczos3);
 
 /// How many encoded images to hold on to.
 ///
@@ -48,8 +57,13 @@ pub fn is_image(path: &Path) -> bool {
 pub struct Images {
     /// `None` when images are switched off, or the terminal was never asked.
     picker: Option<Picker>,
-    /// Ceiling on how tall one picture may be drawn, in terminal rows.
-    max_rows: u16,
+    /// Ceiling on how tall one picture may be drawn, as a percentage of the
+    /// reading pane. A share rather than a row count, so a picture is as big as
+    /// the window allows: a fixed cap that leaves a diagram readable on a
+    /// 24-row terminal wastes most of a full-screen one.
+    max_height_percent: u16,
+    /// Height of the pane pictures are being drawn into, set each frame.
+    pane_rows: u16,
     /// Pixel dimensions by path. `None` records a file that could not be read,
     /// so a missing image is not re-opened on every frame.
     dims: HashMap<PathBuf, Option<(u32, u32)>>,
@@ -89,14 +103,14 @@ impl Images {
     /// while the terminal is still in its normal mode.
     ///
     /// A terminal that doesn't answer gets half-blocks, which need no support
-    /// at all. `max_rows` of 0, or a terminal that can't even do that, switches
-    /// images off and leaves the alt text in their place.
+    /// at all. A `max_height_percent` of 0, or a terminal that can't even do
+    /// half-blocks, switches images off and leaves the alt text in their place.
     #[must_use]
-    pub fn probe(enabled: bool, max_rows: u16) -> Self {
-        let picker = (enabled && max_rows > 0)
+    pub fn probe(enabled: bool, max_height_percent: u16) -> Self {
+        let picker = (enabled && max_height_percent > 0)
             .then(Picker::from_query_stdio)
             .and_then(Result::ok);
-        Self::with_picker(picker, max_rows)
+        Self::with_picker(picker, max_height_percent)
     }
 
     /// An `Images` that draws nothing, for tests and headless runs.
@@ -111,14 +125,15 @@ impl Images {
     /// against.
     #[cfg(test)]
     #[must_use]
-    pub fn halfblocks(max_rows: u16) -> Self {
-        Self::with_picker(Some(Picker::halfblocks()), max_rows)
+    pub fn halfblocks(max_height_percent: u16) -> Self {
+        Self::with_picker(Some(Picker::halfblocks()), max_height_percent)
     }
 
-    fn with_picker(picker: Option<Picker>, max_rows: u16) -> Self {
+    fn with_picker(picker: Option<Picker>, max_height_percent: u16) -> Self {
         Self {
             picker,
-            max_rows,
+            max_height_percent,
+            pane_rows: 0,
             dims: HashMap::new(),
             cache: HashMap::new(),
             clock: 0,
@@ -126,10 +141,51 @@ impl Images {
         }
     }
 
-    /// Whether anything can be drawn at all.
+    /// How the terminal draws pictures, and how big one cell is.
+    ///
+    /// `None` when nothing can be drawn at all. Reported at startup, because
+    /// half-blocks look mushy next to a real graphics protocol and there is
+    /// otherwise no way to tell a terminal that quietly fell back to them from
+    /// one that drew the picture badly.
     #[must_use]
-    pub fn enabled(&self) -> bool {
-        self.picker.is_some()
+    pub fn describe(&self) -> Option<String> {
+        let picker = self.picker.as_ref()?;
+        let protocol = match picker.protocol_type() {
+            ProtocolType::Kitty => "kitty",
+            ProtocolType::Iterm2 => "iTerm2",
+            ProtocolType::Sixel => "sixel",
+            ProtocolType::Halfblocks => "half-blocks",
+        };
+        let font = picker.font_size();
+        Some(format!("{protocol}, {}x{} cells", font.width, font.height))
+    }
+
+    /// Whether pictures are being drawn as text mosaics rather than as pixels.
+    ///
+    /// Half-blocks are the fallback for a terminal with no graphics protocol at
+    /// all — Apple's Terminal.app is the common one. Each cell becomes two
+    /// coloured blocks, so a picture is drawn at roughly its width in *cells*:
+    /// a screenshot ends up around eighty pixels across, which no amount of
+    /// resampling can make readable. Worth saying plainly, because the result
+    /// looks like a bug in the app rather than a limit of the terminal.
+    #[must_use]
+    pub fn is_coarse(&self) -> bool {
+        self.picker
+            .as_ref()
+            .is_some_and(|picker| picker.protocol_type() == ProtocolType::Halfblocks)
+    }
+
+    /// Records the pane pictures are drawn into, which sets their height cap.
+    pub fn set_pane_height(&mut self, rows: u16) {
+        self.pane_rows = rows;
+    }
+
+    /// Tallest a single picture may be drawn, in rows.
+    fn max_rows(&self) -> u16 {
+        (u32::from(self.pane_rows) * u32::from(self.max_height_percent) / 100)
+            .try_into()
+            .unwrap_or(u16::MAX)
+            .max(1)
     }
 
     /// How much room a picture will take, in terminal cells.
@@ -139,6 +195,7 @@ impl Images {
     /// the picture arrives. `None` means there is nothing to draw and the
     /// caller should fall back to text.
     pub fn measure(&mut self, path: &Path, available: Size) -> Option<Size> {
+        let max_rows = self.max_rows();
         let picker = self.picker.as_ref()?;
         if available.width == 0 || !is_image(path) {
             return None;
@@ -150,7 +207,7 @@ impl Images {
             .or_insert_with(|| read_dimensions(path));
         let pixels = pixels?;
 
-        let room = Size::new(available.width, available.height.min(self.max_rows));
+        let room = Size::new(available.width, available.height.min(max_rows));
         Some(fit(pixels, picker.font_size(), room))
     }
 
@@ -273,6 +330,25 @@ fn fit(pixels: (u32, u32), font: FontSize, available: Size) -> Size {
     )
 }
 
+/// Shrinks a decoded image to the pixels `size` cells hold.
+///
+/// Done here rather than left to [`ratatui_image`] because that crate's
+/// iTerm2 path resizes with nearest-neighbour regardless of the [`Resize`] it
+/// is handed, and nearest-neighbour downscaling of a screenshot or a diagram
+/// drops whole rows of pixels — which is what made text in a picture
+/// unreadable. Handing it an image already at the target size leaves that
+/// resize with nothing to do, so every protocol gets the good filter.
+fn downscale(image: image::DynamicImage, size: Size, font: FontSize) -> image::DynamicImage {
+    let width = u32::from(size.width) * u32::from(font.width.max(1));
+    let height = u32::from(size.height) * u32::from(font.height.max(1));
+    if width == 0 || height == 0 || (image.width() <= width && image.height() <= height) {
+        return image;
+    }
+    // `resize` fits inside the box and keeps the aspect ratio, which is the
+    // same rule `measure` sized the cells with.
+    image.resize(width, height, FILTER.unwrap_or(FilterType::Lanczos3))
+}
+
 /// Reads an image's pixel size without decoding it.
 fn read_dimensions(path: &Path) -> Option<(u32, u32)> {
     image::ImageReader::open(path)
@@ -297,13 +373,20 @@ fn spawn_worker() -> Worker {
             for job in rx {
                 let (path, width, height) = &job.key;
                 let size = Size::new(*width, *height);
+                let font = job.picker.font_size();
                 let protocol = image::ImageReader::open(path)
                     .ok()
                     .and_then(|reader| reader.with_guessed_format().ok())
                     .and_then(|reader| reader.decode().ok())
+                    .map(|image| downscale(image, size, font))
                     .and_then(|image| {
-                        SlicedProtocol::new_with_resize(&job.picker, image, size, Resize::Fit(None))
-                            .ok()
+                        SlicedProtocol::new_with_resize(
+                            &job.picker,
+                            image,
+                            size,
+                            Resize::Fit(FILTER),
+                        )
+                        .ok()
                     });
                 if tx.send((job.key, protocol.map(Box::new))).is_err() {
                     return;
@@ -377,9 +460,66 @@ mod tests {
     }
 
     #[test]
+    fn shrinking_a_picture_averages_pixels_instead_of_dropping_them() {
+        // Fine vertical stripes are what text in a screenshot looks like to a
+        // resampler. Nearest-neighbour keeps whichever stripe a sample lands
+        // on and throws the rest away, so the strokes that make the text
+        // readable disappear and what's left is noise. Averaging turns them
+        // into an even mid-grey, which is the honest answer at this size.
+        let mut striped = image::RgbImage::new(64, 8);
+        for (x, _, pixel) in striped.enumerate_pixels_mut() {
+            *pixel = if x % 2 == 0 {
+                image::Rgb([0, 0, 0])
+            } else {
+                image::Rgb([255, 255, 255])
+            };
+        }
+        let striped = image::DynamicImage::ImageRgb8(striped);
+
+        // Eight cells of a 4x8 font is 32 pixels: half the width, so every
+        // output pixel covers one black and one white stripe.
+        let shrunk = downscale(
+            striped,
+            Size::new(8, 1),
+            FontSize {
+                width: 4,
+                height: 8,
+            },
+        );
+        assert_eq!(shrunk.width(), 32, "shrunk to the pixels the cells hold");
+
+        let samples = shrunk.to_rgb8();
+        let extreme = samples
+            .pixels()
+            .filter(|p| p.0[0] < 40 || p.0[0] > 215)
+            .count();
+        assert!(
+            extreme * 4 < samples.pixels().count(),
+            "{extreme} of {} pixels stayed pure black or white — the stripes were \
+             dropped rather than averaged",
+            samples.pixels().count()
+        );
+    }
+
+    #[test]
+    fn a_picture_that_already_fits_is_not_resampled() {
+        let small = image::DynamicImage::ImageRgb8(image::RgbImage::new(20, 10));
+        let font = FontSize {
+            width: 10,
+            height: 20,
+        };
+        let same = downscale(small, Size::new(80, 24), font);
+        assert_eq!(
+            (same.width(), same.height()),
+            (20, 10),
+            "an icon is left exactly as it is rather than blown up"
+        );
+    }
+
+    #[test]
     fn a_disabled_terminal_measures_nothing() {
         let mut images = Images::disabled();
-        assert!(!images.enabled());
+        assert!(images.describe().is_none(), "nothing to report or to draw");
         assert_eq!(
             images.measure(Path::new("chart.png"), Size::new(80, 20)),
             None

@@ -6,8 +6,12 @@
 //!
 //! - Repulsion uses a **Barnes-Hut quadtree**, making a step O(n log n) instead
 //!   of O(n²). A five-thousand-note vault stays interactive.
-//! - The simulation **detects when it has settled** and stops. An idle graph
-//!   costs no CPU, which matters for a program that may sit open all day.
+//! - The simulation **cools down and stops**. Motion is scaled by a factor that
+//!   decays every step, so the layout's remaining travel is bounded and it
+//!   always comes to rest; an idle graph costs no CPU, which matters for a
+//!   program that may sit open all day. Detecting a settled layout by its
+//!   energy alone is not enough — a graph of a few hundred notes oscillates
+//!   below that threshold indefinitely.
 //!
 //! Layout is deterministic: nodes start on a fixed spiral rather than at random
 //! positions, so reopening the graph shows the same picture and tests can
@@ -456,14 +460,37 @@ pub struct Simulation {
     pub params: ForceParams,
     /// Total kinetic energy from the last step, used for settle detection.
     energy: f32,
+    /// How much of each step's motion is actually applied, decayed every step.
+    ///
+    /// This is what makes the layout *converge*. Force-directed graphs settle
+    /// into limit cycles — a node oscillating between two neighbours never
+    /// slows down — so an energy threshold alone is a hope, not a guarantee,
+    /// and a real vault would drift for the full step budget. Scaling motion by
+    /// a decaying factor bounds the layout's remaining travel, so it always
+    /// comes to a stop.
+    alpha: f32,
     settled: bool,
     steps: usize,
 }
 
 /// Below this average speed per node, the layout is visually static.
 const SETTLE_ENERGY: f32 = 0.06;
-/// Hard cap so a pathological graph can't spin forever.
-const MAX_STEPS: usize = 4_000;
+/// Starting temperature: a fresh layout applies its motion in full.
+const ALPHA_START: f32 = 1.0;
+/// Temperature retained per step. Reaches [`ALPHA_MIN`] in about 260 steps,
+/// which is the schedule d3-force uses and enough for a layout to spread.
+const ALPHA_DECAY: f32 = 0.985;
+/// Below this, a step moves nodes by a fraction of a cell and the layout is
+/// finished whatever its energy says.
+const ALPHA_MIN: f32 = 0.02;
+/// Temperature a nudge — a drag, a filter change — restarts from.
+///
+/// Well below [`ALPHA_START`]: moving one node should let its neighbours
+/// rearrange, not throw the whole picture back into the air.
+const ALPHA_REHEAT: f32 = 0.5;
+/// Hard cap so a pathological graph can't spin forever. With cooling this is a
+/// backstop that nothing should reach: [`ALPHA_DECAY`] ends the run first.
+const MAX_STEPS: usize = 600;
 
 impl Simulation {
     #[must_use]
@@ -472,6 +499,7 @@ impl Simulation {
             graph,
             params: ForceParams::default(),
             energy: f32::MAX,
+            alpha: ALPHA_START,
             settled: false,
             steps: 0,
         }
@@ -489,10 +517,17 @@ impl Simulation {
         self.energy
     }
 
+    /// How much motion the layout has left, from 1 when fresh to 0 when done.
+    #[must_use]
+    pub fn alpha(&self) -> f32 {
+        self.alpha
+    }
+
     /// Restarts the simulation, e.g. after a drag or a filter change.
     pub fn reheat(&mut self) {
         self.settled = false;
         self.energy = f32::MAX;
+        self.alpha = self.alpha.max(ALPHA_REHEAT);
         self.steps = 0;
     }
 
@@ -571,14 +606,18 @@ impl Simulation {
                 node.vel.y = node.vel.y / speed * MAX_SPEED;
             }
 
-            node.pos.x += node.vel.x;
-            node.pos.y += node.vel.y;
-            energy += node.vel.length();
+            // Cooling applies to the distance travelled, not to the velocity
+            // itself: damping keeps its usual meaning and the layout's shape is
+            // unchanged, it just stops sooner.
+            node.pos.x += node.vel.x * self.alpha;
+            node.pos.y += node.vel.y * self.alpha;
+            energy += node.vel.length() * self.alpha;
         }
 
         self.energy = energy / count as f32;
+        self.alpha *= ALPHA_DECAY;
         self.steps += 1;
-        if self.energy < SETTLE_ENERGY || self.steps >= MAX_STEPS {
+        if self.alpha <= ALPHA_MIN || self.energy < SETTLE_ENERGY || self.steps >= MAX_STEPS {
             self.settled = true;
         }
     }
@@ -1138,6 +1177,65 @@ mod tests {
             spread > 0.5,
             "nodes are bunched too tightly to tell apart: spread {spread}"
         );
+    }
+
+    /// How many steps a layout takes to come to rest.
+    fn steps_to_settle(sim: &mut Simulation) -> usize {
+        let mut steps = 0;
+        while !sim.is_settled() && steps < MAX_STEPS * 2 {
+            sim.step();
+            steps += 1;
+        }
+        steps
+    }
+
+    #[test]
+    fn a_vault_sized_layout_settles_instead_of_drifting_forever() {
+        // A few hundred interlinked notes is where the layout used to come
+        // apart: with no cooling this graph never reached the settle threshold
+        // at all. Left running it drifted for the whole step budget — minutes
+        // of motion at 30fps — and collapsed to a smear as it went, which is
+        // both of the symptoms this test exists to catch.
+        let vault = TempVault::new("convergence");
+        const NOTES: usize = 200;
+        for i in 0..NOTES {
+            let mut body = String::new();
+            for j in 1..=3 {
+                body.push_str(&format!("[[N{}]]\n", (i * 7 + j * 13) % NOTES));
+            }
+            vault.write(&format!("N{i}.md"), &body);
+        }
+
+        let index = vault.index();
+        let mut sim = Simulation::new(Graph::build(&index, &GraphOptions::default()));
+
+        let steps = steps_to_settle(&mut sim);
+        assert!(sim.is_settled(), "never came to rest");
+        assert!(
+            steps < 400,
+            "took {steps} steps to settle; the layout is still drifting under the user"
+        );
+        // A layout that stops but has bunched into one blob is no better than
+        // one that never stops, so quality is asserted alongside convergence.
+        let spread = spread(&sim);
+        assert!(spread > 0.4, "settled into a smear: spread {spread}");
+    }
+
+    #[test]
+    fn a_nudge_reheats_gently_and_settles_again() {
+        let vault = linked_vault();
+        let index = vault.index();
+        let mut sim = Simulation::new(Graph::build(&index, &GraphOptions::default()));
+        sim.run(MAX_STEPS);
+
+        sim.reheat();
+        assert!(
+            sim.alpha() <= 0.5,
+            "a drag should let neighbours rearrange, not relaunch the whole layout"
+        );
+        let steps = steps_to_settle(&mut sim);
+        assert!(sim.is_settled(), "a reheated layout must settle again");
+        assert!(steps < 400, "reheating took {steps} steps");
     }
 
     #[test]

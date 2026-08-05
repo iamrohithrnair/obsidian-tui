@@ -18,10 +18,23 @@ All notable changes to this project are documented here. The format follows
 - Decoding happens off the draw loop, so a large photo doesn't stall scrolling.
   The rows a picture will need are worked out from its header on the first
   frame, so text below it doesn't jump when the picture arrives.
-- `images.enabled` and `images.max_rows` in the config. `max_rows` caps how tall
-  one picture may be drawn, so a portrait photo doesn't take several screens on
-  its own. A picture is never scaled up, and one wider than the pane is scaled
-  down to fit.
+- Pictures are resampled with a Lanczos filter rather than nearest-neighbour.
+  Nearest-neighbour keeps whichever pixel a sample lands on and discards the
+  rest, which deletes most of the strokes that make text in a screenshot or a
+  diagram legible. The cost is paid once, on the worker thread.
+- `images.enabled` and `images.max_height_percent` in the config. The cap is a
+  share of the reading pane rather than a fixed number of rows, so a picture is
+  as large as the window allows: a cap small enough for an 80x24 terminal leaves
+  a diagram unreadable on a full-screen one. A picture is never scaled up, and
+  one wider than the pane is scaled down to fit.
+- Startup reports which graphics protocol the terminal is using and how big one
+  cell is. A terminal that quietly fell back to half-blocks is otherwise
+  indistinguishable from one that drew the picture badly.
+- **The reading pane pans sideways.** `←`/`→` (or `h`/`l`) move across content
+  wider than the window; `g` returns to the top-left. Tables are laid out at
+  their content's width and panned across, instead of being squeezed to fit —
+  eight columns divided between a narrow pane left three characters each, which
+  is not a narrow table but an unreadable one.
 - A picture that can't be drawn — no support in the terminal, a missing file, a
   URL on the web — leaves its alt text in place rather than a hole.
 - **Excalidraw notes open as drawings.** A `.excalidraw.md` note used to show a
@@ -73,6 +86,16 @@ All notable changes to this project are documented here. The format follows
   clump in the corner of an empty pane. The neighbourhood is now cut into a graph
   of its own before anything is positioned.
 - The graph no longer rescales on every tick while its layout settles.
+- **The graph layout comes to a stop.** It was left to an energy threshold that
+  a real vault never reached: a few hundred interlinked notes oscillate below it
+  indefinitely, so the graph drifted for its whole step budget — minutes of
+  motion — and collapsed into an illegible smear as it went. Motion now decays
+  every step, which bounds how far the layout can still travel and makes it
+  settle in about a second, spread out and static.
+- **Edges meet their nodes.** Nodes are glyphs drawn over edges the canvas
+  painted, and the two resolved a position to a cell by different arithmetic —
+  disagreeing by up to a whole cell, worse toward the right and bottom of the
+  pane — so links stopped beside a note rather than at it.
 
 ### Changed
 

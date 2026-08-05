@@ -230,9 +230,23 @@ fn run(app: &mut App) -> io::Result<()> {
     // Asking the terminal what pictures it can draw means writing to stdout and
     // reading the reply from stdin, so it has to happen while the terminal is
     // still in its normal mode — before the alternate screen below.
-    app.images = images::Images::probe(app.config.images.enabled, app.config.images.max_rows);
-    if app.config.images.enabled && !app.images.enabled() {
-        app.info("this terminal won't say what it can draw — images will show as alt text");
+    app.images = images::Images::probe(
+        app.config.images.enabled,
+        app.config.images.max_height_percent,
+    );
+    match app.images.describe() {
+        // A terminal that quietly fell back to half-blocks is otherwise
+        // indistinguishable from one that drew the picture badly, and the
+        // difference decides whether there is anything to be done about it.
+        Some(protocol) if app.images.is_coarse() => app.info(format!(
+            "images: {protocol} — this terminal has no graphics protocol, \
+             so pictures are coarse. Kitty, Ghostty, WezTerm or iTerm2 draw real pixels."
+        )),
+        Some(protocol) => app.info(format!("images: {protocol}")),
+        None if app.config.images.enabled => {
+            app.info("this terminal won't say what it can draw — images will show as alt text");
+        }
+        None => {}
     }
 
     // `init` panics when there's no terminal — in a pipe, a CI job, or a
@@ -648,6 +662,14 @@ mod tests {
             .map(usize::from)
     }
 
+    /// The leftmost column painted with the picture's colour.
+    fn picture_column(terminal: &Terminal<TestBackend>) -> Option<usize> {
+        let buffer = terminal.backend().buffer();
+        (0..buffer.area.width)
+            .find(|&x| (0..buffer.area.height).any(|y| buffer[(x, y)].bg == INK))
+            .map(usize::from)
+    }
+
     /// Draws until the picture has been encoded, or gives up.
     fn draw_until_loaded(terminal: &mut Terminal<TestBackend>, app: &mut App) {
         for _ in 0..200 {
@@ -678,15 +700,30 @@ mod tests {
             .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
             .expect("encode png");
         vault.write_bytes("chart.png", &png);
-        // Long enough to scroll: a note that fits the pane never moves.
+        // Long enough to scroll, and wide enough to pan: a note that fits the
+        // pane in either direction never moves.
         let filler = "lorem ipsum\n\n".repeat(60);
+        let wide = format!(
+            "| {} |\n|{}|\n| {} |\n",
+            (0..12)
+                .map(|i| format!("col {i}"))
+                .collect::<Vec<_>>()
+                .join(" | "),
+            "---|".repeat(12),
+            (0..12)
+                .map(|i| format!("val {i}"))
+                .collect::<Vec<_>>()
+                .join(" | "),
+        );
         vault.write(
             "Note.md",
-            &format!("# Note\n\n![a chart](chart.png)\n\nAfter\n\n{filler}"),
+            &format!("# Note\n\n![a chart](chart.png)\n\nAfter\n\n{wide}\n{filler}"),
         );
 
         let mut app = App::new(vault.vault(), Config::default()).expect("app");
-        app.images = images::Images::halfblocks(16);
+        // The argument is the share of the pane a picture may fill, as in the
+        // config; the real draw path supplies the pane height.
+        app.images = images::Images::halfblocks(66);
         let note = app.index.id_of_rel("Note.md").expect("indexed");
         app.open_note(note);
 
@@ -715,7 +752,29 @@ mod tests {
             "it scrolled up with everything else"
         );
 
+        // Panned sideways, a picture gives way rather than staying pinned to
+        // the left edge over whatever the reader is trying to reach.
+        app.active_mut().expect("tab").scroll = 0;
+        terminal
+            .draw(|frame| ui::draw(frame, &mut app))
+            .expect("draw");
+        assert!(
+            picture_column(&terminal).is_some(),
+            "on screen to begin with"
+        );
+
+        app.active_mut().expect("tab").hscroll = 3;
+        terminal
+            .draw(|frame| ui::draw(frame, &mut app))
+            .expect("draw");
+        assert_eq!(
+            picture_column(&terminal),
+            None,
+            "it moved off with the prose instead of being redrawn against the edge"
+        );
+
         // Scrolled past its last row, it leaves nothing behind.
+        app.active_mut().expect("tab").hscroll = 0;
         app.active_mut().expect("tab").scroll = 40;
         terminal
             .draw(|frame| ui::draw(frame, &mut app))

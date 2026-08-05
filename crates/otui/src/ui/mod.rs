@@ -222,6 +222,7 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
                 _ => &[
                     ("^E", "edit"),
                     ("Enter", "follow link"),
+                    ("←→", "pan wide"),
                     ("^O", "switcher"),
                     ("^G", "graph"),
                     ("?", "help"),
@@ -654,6 +655,52 @@ mod tests {
         let (explorer, _) = regions.explorer.unwrap();
         let main = regions.main.unwrap();
         assert!(explorer.x + explorer.width <= main.x);
+    }
+
+    #[test]
+    fn panning_reveals_the_far_side_of_a_wide_table() {
+        let vault = TempVault::new("pan-wide-table");
+        let header: Vec<String> = (0..10).map(|i| format!("column {i}")).collect();
+        let cells: Vec<String> = (0..10).map(|i| format!("cell {i}")).collect();
+        vault.write(
+            "Wide.md",
+            &format!(
+                "# Wide\n\n| {} |\n|{}|\n| {} |\n",
+                header.join(" | "),
+                "---|".repeat(10),
+                cells.join(" | ")
+            ),
+        );
+
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        let wide = app.index.id_of_rel("Wide.md").expect("indexed");
+        app.open_note(wide);
+
+        let before = render(&mut app, 100, 30).join("\n");
+        assert!(before.contains("column 0"), "the near side is on screen");
+        assert!(
+            !before.contains("column 9"),
+            "the far side is off the right edge, which is the whole problem"
+        );
+
+        app.active_mut().expect("tab").hscroll = 90;
+        let after = render(&mut app, 100, 30).join("\n");
+        assert!(
+            after.contains("column 9"),
+            "panning brings the far side into view: {after}"
+        );
+    }
+
+    #[test]
+    fn panning_is_clamped_to_the_widest_line() {
+        let (_vault, mut app) = demo_app();
+        // Far past the end of any line in the note.
+        app.active_mut().expect("tab").hscroll = 10_000;
+        render(&mut app, 140, 40);
+        assert!(
+            app.active().expect("tab").hscroll < 140,
+            "panning past the content would leave a blank pane with no way back"
+        );
     }
 
     #[test]

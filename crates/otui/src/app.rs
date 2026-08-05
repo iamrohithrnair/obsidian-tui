@@ -78,6 +78,13 @@ pub struct Tab {
     pub mode: Mode,
     /// Scroll offset in reading mode.
     pub scroll: usize,
+    /// Columns scrolled off the left in reading mode.
+    ///
+    /// Prose is wrapped to the pane and never needs this, but a table, a code
+    /// block or a long link can be wider than the window, and squeezing them to
+    /// fit makes them unreadable. They are laid out at their natural width and
+    /// panned across instead.
+    pub hscroll: usize,
     /// Built lazily, the first time the tab is edited.
     pub editor: Option<Editor>,
 }
@@ -481,6 +488,7 @@ impl App {
                     Mode::Editing
                 },
                 scroll: 0,
+                hscroll: 0,
                 editor: None,
             });
             self.active_tab = Some(self.tabs.len() - 1);
@@ -605,9 +613,11 @@ impl App {
         }
 
         let mut simulation = Simulation::new(graph);
-        // Settle before the first frame so the graph opens readable rather
-        // than as an exploding cloud.
-        simulation.run(600);
+        // Most of the layout runs before the first frame, so the graph opens
+        // readable rather than as an exploding cloud. What's deliberately left
+        // is a short tail — about a second of visibly decaying motion — which
+        // reads as the graph arranging itself rather than as a jump cut.
+        simulation.run(200);
 
         let selected = local_root.and_then(|id| simulation.graph.node_of_note(id));
         // Centre on the focused note if there is one, else on the middle of the

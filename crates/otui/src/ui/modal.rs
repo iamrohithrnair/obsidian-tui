@@ -231,6 +231,9 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
         "Notes",
         &[
             ("Ctrl+E", "Toggle reading and editing"),
+            ("j / k", "Scroll while reading"),
+            ("h / l", "Pan across a wide table while reading"),
+            ("g / G", "Top / bottom of the note"),
             ("Ctrl+N", "New note"),
             ("Ctrl+S", "Save"),
             ("Ctrl+D", "Today's daily note"),

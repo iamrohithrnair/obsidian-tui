@@ -358,7 +358,7 @@ Pictures can be turned off, and capped, under `[images]`:
 ```toml
 [images]
 enabled = true
-max_rows = 16    # tallest one picture may be drawn, in terminal rows
+max_height_percent = 66   # tallest one picture may be drawn, as a share of the pane
 ```
 
 ## Layout

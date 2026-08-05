@@ -34,6 +34,12 @@ const MAX_LABELS: usize = 60;
 /// Braille dots per cell, horizontally and vertically.
 const DOTS_X: f64 = 2.0;
 const DOTS_Y: f64 = 4.0;
+/// Simulation steps run per drawn frame while the layout is still settling.
+///
+/// More than one, because most of the layout has already run by the time the
+/// first frame is drawn and the remainder should finish in about a second. At
+/// one step per 33ms frame that tail stretches into minutes of drift.
+const STEPS_PER_FRAME: usize = 2;
 
 /// The mark that stands for a node.
 ///
@@ -71,7 +77,15 @@ pub fn draw(
     };
 
     // Keep stepping until settled; an idle graph costs nothing.
-    if !graph.simulation.is_settled() {
+    //
+    // Several steps a frame rather than one: the layout is mostly done before
+    // the first frame, so what's left is a short tail that should finish in a
+    // second or two. Stretching it over one step per 33ms frame turns the
+    // remainder into a minute of drift.
+    for _ in 0..STEPS_PER_FRAME {
+        if graph.simulation.is_settled() {
+            break;
+        }
         graph.simulation.step();
         // The layout spreads as it settles, so the extent measured when it
         // opened is too small by the time it stops. Refitting once here — and
@@ -311,6 +325,14 @@ fn draw_labels(
 }
 
 /// Maps a graph position to a terminal cell, or `None` if off-screen.
+///
+/// This has to agree with the canvas *exactly*, because edges are painted by
+/// the canvas and nodes are drawn by hand on top of them. The canvas resolves a
+/// point to a braille dot by rounding into a grid one dot short of the full
+/// resolution, then divides that dot index down to a cell. Scaling straight to
+/// cells instead disagrees by up to a whole cell — increasingly so toward the
+/// right and bottom edges — which is what left edges ending beside their nodes
+/// rather than on them.
 fn project(pos: Vec2, area: Rect, x_bounds: [f64; 2], y_bounds: [f64; 2]) -> Option<(u16, u16)> {
     let x_span = x_bounds[1] - x_bounds[0];
     let y_span = y_bounds[1] - y_bounds[0];
@@ -325,9 +347,17 @@ fn project(pos: Vec2, area: Rect, x_bounds: [f64; 2], y_bounds: [f64; 2]) -> Opt
         return None;
     }
 
+    // Mirrors `ratatui`'s `Painter::get_point`: dots across the area, less one,
+    // rounded — then `Grid::paint` divides the dot index by the dots per cell.
+    let cell = |fraction: f64, cells: u16, dots_per_cell: f64| -> u16 {
+        let dots = f64::from(cells) * dots_per_cell;
+        let dot = (fraction * (dots - 1.0)).round().max(0.0);
+        (dot / dots_per_cell) as u16
+    };
+
     Some((
-        area.x + (fx * f64::from(area.width.saturating_sub(1))) as u16,
-        area.y + (fy * f64::from(area.height.saturating_sub(1))) as u16,
+        area.x + cell(fx, area.width, DOTS_X).min(area.width.saturating_sub(1)),
+        area.y + cell(fy, area.height, DOTS_Y).min(area.height.saturating_sub(1)),
     ))
 }
 
@@ -386,6 +416,72 @@ mod tests {
 
         let bottom_right = project(Vec2::new(10.0, -5.0), area, x, y).expect("in bounds");
         assert_eq!(bottom_right, (99, 49));
+    }
+
+    /// The cell the canvas actually paints a point into.
+    ///
+    /// Rendered rather than recomputed: the whole bug this guards against was
+    /// a second copy of the canvas's arithmetic drifting from the original, so
+    /// the test asks the canvas instead of trusting a formula.
+    fn painted_cell(pos: Vec2, area: Rect, x_bounds: [f64; 2], y_bounds: [f64; 2]) -> (u16, u16) {
+        use ratatui::backend::TestBackend;
+        use ratatui::widgets::canvas::Points;
+        use ratatui::Terminal;
+
+        let mut terminal =
+            Terminal::new(TestBackend::new(area.width, area.height)).expect("test terminal");
+        terminal
+            .draw(|frame| {
+                let canvas = Canvas::default()
+                    .marker(Marker::Braille)
+                    .x_bounds(x_bounds)
+                    .y_bounds(y_bounds)
+                    .paint(|ctx| {
+                        ctx.draw(&Points {
+                            coords: &[(f64::from(pos.x), f64::from(pos.y))],
+                            color: ratatui::style::Color::White,
+                        });
+                    });
+                frame.render_widget(canvas, area);
+            })
+            .expect("draw a frame");
+
+        let buffer = terminal.backend().buffer().clone();
+        for y in 0..area.height {
+            for x in 0..area.width {
+                if buffer[(x, y)].symbol() != " " {
+                    return (x, y);
+                }
+            }
+        }
+        panic!("the canvas painted nothing for {pos:?}");
+    }
+
+    #[test]
+    fn nodes_land_on_the_cell_the_canvas_paints_their_edges_into() {
+        // Nodes are glyphs drawn over edges the canvas painted, so the two have
+        // to resolve a world position to the same cell. They used to disagree
+        // by up to a cell, worse toward the right and bottom, which left edges
+        // stopping beside their node instead of at it.
+        let area = Rect::new(0, 0, 80, 24);
+        let x_bounds = [-100.0, 100.0];
+        let y_bounds = [-100.0, 100.0];
+
+        for (x, y) in [
+            (-100.0, 100.0),
+            (0.0, 0.0),
+            (100.0, -100.0),
+            (49.5, -73.25),
+            (-31.0, 12.5),
+            (99.0, 99.0),
+        ] {
+            let pos = Vec2::new(x, y);
+            assert_eq!(
+                project(pos, area, x_bounds, y_bounds).expect("in bounds"),
+                painted_cell(pos, area, x_bounds, y_bounds),
+                "node glyph and edge endpoint disagree at {pos:?}"
+            );
+        }
     }
 
     #[test]

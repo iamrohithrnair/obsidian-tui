@@ -137,21 +137,25 @@ pub struct ImageConfig {
     /// Draw pictures in the reading pane. Turn this off to get alt text back,
     /// which is what a terminal that cannot draw them shows anyway.
     pub enabled: bool,
-    /// Tallest a single picture may be drawn, in terminal rows.
+    /// Tallest a single picture may be drawn, as a percentage of the reading
+    /// pane's height.
     ///
     /// A cap rather than a size: a picture is never scaled up, and a wide one
     /// is bounded by the pane instead. It stops a portrait photo from taking
-    /// several screens on its own.
-    pub max_rows: u16,
+    /// several screens on its own. Expressed as a share of the pane so that a
+    /// full-screen window gets a picture worth looking at — a fixed row count
+    /// small enough for a short terminal leaves a diagram unreadable on a big
+    /// one. 0 turns pictures off, the same as `enabled = false`.
+    pub max_height_percent: u16,
 }
 
 impl Default for ImageConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            // Two thirds of an 80x24 terminal: big enough to read a diagram,
-            // small enough to leave the prose around it visible.
-            max_rows: 16,
+            // Two thirds of the pane: big enough to read a diagram, small
+            // enough to leave the prose around it visible.
+            max_height_percent: 66,
         }
     }
 }
@@ -421,7 +425,7 @@ mod tests {
         // before the section existed is exactly that case.
         let config: Config = toml::from_str("theme = \"gruvbox-dark\"\n").expect("parse");
         assert!(config.images.enabled);
-        assert!(config.images.max_rows > 0);
+        assert!(config.images.max_height_percent > 0);
     }
 
     #[test]

@@ -26,6 +26,13 @@ use crate::ui::{drawing, icons, scrollbar, truncate};
 /// Left padding inside the note pane, matching Obsidian's generous margins.
 const PADDING: u16 = 2;
 
+/// Widest a single table column may be drawn, in characters.
+///
+/// Tables are laid out at their content's width and panned across, so this is
+/// only here to stop one cell of prose from pushing every column after it out
+/// of reach.
+const MAX_COLUMN: usize = 40;
+
 /// Everything the markdown renderer needs beyond the blocks themselves.
 ///
 /// Bundled because pictures made the parameter list unwieldy: laying one out
@@ -245,6 +252,9 @@ fn draw_reading(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect)
         .note(id)
         .map(|note| app.index.vault.path.join(&note.meta.rel))
         .and_then(|path| path.parent().map(Path::to_path_buf));
+    // Pictures are capped at a share of the pane, so the layout pass has to
+    // know how tall it is before it measures the first one.
+    app.images.set_pane_height(area.height);
     let mut ctx = Ctx {
         palette,
         index: &app.index,
@@ -257,14 +267,29 @@ fn draw_reading(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect)
 
     let height = area.height as usize;
     let max_scroll = lines.len().saturating_sub(height);
+    // Content can be wider than the pane — a table laid out at its natural
+    // width, a long code line — and panning is the only way to reach the rest.
+    let widest = lines.iter().map(Line::width).max().unwrap_or(0);
+    let max_hscroll = widest.saturating_sub(area.width as usize);
     if let Some(tab) = app.active_mut() {
         tab.scroll = tab.scroll.min(max_scroll);
+        tab.hscroll = tab.hscroll.min(max_hscroll);
     }
-    let scroll = app.active().map_or(0, |t| t.scroll);
+    let (scroll, hscroll) = app.active().map_or((0, 0), |t| (t.scroll, t.hscroll));
 
     let visible: Vec<Line> = lines.iter().skip(scroll).take(height).cloned().collect();
-    Paragraph::new(visible).render(area, frame.buffer_mut());
-    draw_pictures(frame, &mut app.images, palette, area, &pictures, scroll);
+    Paragraph::new(visible)
+        .scroll((0, u16::try_from(hscroll).unwrap_or(u16::MAX)))
+        .render(area, frame.buffer_mut());
+    draw_pictures(
+        frame,
+        &mut app.images,
+        palette,
+        area,
+        &pictures,
+        scroll,
+        hscroll,
+    );
     scrollbar(frame, palette, area, scroll, lines.len());
 }
 
@@ -276,6 +301,7 @@ fn draw_pictures(
     area: Rect,
     pictures: &[Picture],
     scroll: usize,
+    hscroll: usize,
 ) {
     for picture in pictures {
         // Where the top of the picture sits relative to the pane, which is
@@ -289,19 +315,33 @@ fn draw_pictures(
         let Ok(top) = i16::try_from(top) else {
             continue;
         };
+        // Pictures pan with the text around them, but only while they stay
+        // fully inside the pane: the graphics protocols slice by row, not by
+        // column, so a picture that has run off the left edge would be redrawn
+        // squashed against it rather than clipped. Dropping it is the honest
+        // answer, and panning is for reaching a wide table anyway — a picture
+        // pinned over that table is exactly what's in the way.
+        let left = i32::from(picture.indent) - hscroll as i32;
+        if left < 0 || left >= i32::from(area.width) {
+            continue;
+        }
+        let Ok(left) = i16::try_from(left) else {
+            continue;
+        };
 
         match images.get(&picture.path, picture.size) {
             Some(protocol) => {
-                let position = SignedPosition::from((picture.indent as i16, top));
+                let position = SignedPosition::from((left, top));
                 frame.render_widget(SlicedImage::new(protocol, position), area);
             }
             // Still encoding. The rows are already the right size, so the
             // picture appears without moving anything around it.
             None => {
                 let row = area.y as i32 + i32::from(top).max(0);
-                if let Ok(y) = u16::try_from(row) {
+                let column = area.x as i32 + i32::from(left).max(0);
+                if let (Ok(y), Ok(x)) = (u16::try_from(row), u16::try_from(column)) {
                     let placeholder = Rect {
-                        x: area.x + picture.indent.min(area.width),
+                        x: x.min(area.x + area.width),
                         y,
                         width: picture.size.width.min(area.width),
                         height: 1,
@@ -535,7 +575,7 @@ fn render_block(
             }
         }
 
-        BlockKind::Table(table) => render_table(table, palette, ctx.index, width, &pad, out),
+        BlockKind::Table(table) => render_table(table, palette, &pad, out),
 
         BlockKind::Rule => out.push(Line::from(Span::styled(
             format!("{pad}{}", "─".repeat(inner_width)),
@@ -745,14 +785,7 @@ pub fn wrap_spans(
     lines
 }
 
-fn render_table(
-    table: &Table,
-    palette: &Palette,
-    index: &otui_core::index::VaultIndex,
-    width: usize,
-    pad: &str,
-    out: &mut Vec<Line<'static>>,
-) {
+fn render_table(table: &Table, palette: &Palette, pad: &str, out: &mut Vec<Line<'static>>) {
     let columns = table
         .header
         .len()
@@ -761,8 +794,13 @@ fn render_table(
         return;
     }
 
-    // Size columns to their content, then shrink proportionally if the table
-    // is wider than the pane.
+    // Size columns to their content.
+    //
+    // A table wider than the pane is left wide and scrolled across
+    // horizontally, rather than squeezed to fit: dividing the pane between
+    // eight columns leaves three characters each, which is not a narrow table
+    // but an unreadable one. The only limit is a ceiling on a single runaway
+    // column, so one essay-length cell can't push the rest off the far side.
     let mut widths = vec![0usize; columns];
     let cell_text = |cells: &Vec<Vec<markdown::Span>>, i: usize| -> String {
         cells
@@ -776,15 +814,7 @@ fn render_table(
         for row in &table.rows {
             *width = (*width).max(cell_text(row, i).chars().count());
         }
-    }
-
-    let overhead = columns * 3 + 1;
-    let available = width.saturating_sub(pad.chars().count() + overhead);
-    let total: usize = widths.iter().sum();
-    if total > available && total > 0 {
-        for w in &mut widths {
-            *w = (*w * available / total).max(3);
-        }
+        *width = (*width).clamp(1, MAX_COLUMN);
     }
 
     let border = Style::default().fg(palette.table_border);
@@ -819,7 +849,6 @@ fn render_table(
             spans.push(Span::raw(format!("{} ", " ".repeat(after))));
             spans.push(Span::styled("│", border));
         }
-        let _ = index;
         Line::from(spans)
     };
 
@@ -1182,8 +1211,13 @@ mod tests {
     }
 
     /// One cell is 10x20 pixels, so a 400x200 picture is 40x10 cells.
+    ///
+    /// The cap is a share of the pane, so a pane of `max_rows` rows with the
+    /// share set to all of it caps pictures at exactly that many rows.
     fn images(max_rows: u16) -> Images {
-        Images::halfblocks(max_rows)
+        let mut images = Images::halfblocks(100);
+        images.set_pane_height(max_rows);
+        images
     }
 
     fn drawing<'a>(palette: &'a Palette, index: &'a VaultIndex, images: &'a mut Images) -> Ctx<'a> {
@@ -1266,6 +1300,28 @@ mod tests {
             ctx.pictures[0].size.height, 8,
             "a portrait photo shouldn't take several screens on its own"
         );
+    }
+
+    #[test]
+    fn a_picture_grows_with_the_pane_rather_than_stopping_at_a_fixed_height() {
+        // A cap in rows that suits an 80x24 terminal leaves a diagram
+        // unreadable on a full-screen one, which is what made pictures look
+        // like mush regardless of how well they were resampled.
+        let vault = TempVault::new("render-image-share");
+        vault.write_bytes("tall.png", &png(400, 4000));
+        let index = vault.index();
+        let palette = palette();
+
+        let height_in = |rows: u16| {
+            let mut images = Images::halfblocks(50);
+            images.set_pane_height(rows);
+            let mut ctx = drawing(&palette, &index, &mut images);
+            render_document(&markdown::parse("![](tall.png)\n"), &mut ctx, 60);
+            ctx.pictures[0].size.height
+        };
+
+        assert_eq!(height_in(24), 12, "half of a short pane");
+        assert_eq!(height_in(60), 30, "and half of a tall one");
     }
 
     #[test]
@@ -1492,6 +1548,66 @@ mod tests {
         for line in &rendered {
             assert!(line.chars().count() <= 44, "{line:?} overflows");
         }
+    }
+
+    #[test]
+    fn a_wide_table_keeps_its_columns_rather_than_being_crushed() {
+        // Eight columns divided between a pane this narrow used to leave three
+        // characters each — a table that fits and says nothing. It is laid out
+        // at its own width now and panned across instead.
+        let vault = TempVault::new("render-wide-table");
+        let index = vault.index();
+
+        let header: Vec<String> = (0..8).map(|i| format!("column {i}")).collect();
+        let cells: Vec<String> = (0..8).map(|i| format!("value number {i}")).collect();
+        let source = format!(
+            "| {} |\n|{}|\n| {} |\n",
+            header.join(" | "),
+            "---|".repeat(8),
+            cells.join(" | ")
+        );
+
+        let document = markdown::parse(&source);
+        let lines = render_document(&document, &mut Ctx::text(&palette(), &index), 40);
+        let rendered = text_of(&lines);
+
+        let row = rendered
+            .iter()
+            .find(|line| line.contains("value number 0"))
+            .expect("the body row");
+        for cell in &cells {
+            assert!(
+                row.contains(cell.as_str()),
+                "{cell:?} was truncated: {row:?}"
+            );
+        }
+        assert!(
+            row.chars().count() > 40,
+            "the table is wider than the pane, which is what makes panning necessary"
+        );
+    }
+
+    #[test]
+    fn a_runaway_column_cannot_push_the_others_out_of_reach() {
+        let vault = TempVault::new("render-essay-table");
+        let index = vault.index();
+        let essay = "e".repeat(300);
+        let source = format!("| A | B |\n|---|---|\n| {essay} | end |\n");
+
+        let lines = render_document(
+            &markdown::parse(&source),
+            &mut Ctx::text(&palette(), &index),
+            40,
+        );
+        let row = text_of(&lines)
+            .into_iter()
+            .find(|line| line.contains('e'))
+            .expect("the body row");
+        assert!(
+            row.contains("end"),
+            "the last column is still reachable: {row:?}"
+        );
+        assert!(row.chars().count() < 300, "the essay cell was capped");
     }
 
     #[test]
