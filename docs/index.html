@@ -29,7 +29,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -83,8 +83,8 @@
 
     <p class="lede">
       Same folder. Same notes. Same <code>[[links]]</code>. Read, write and wander
-      through them without ever reaching for the mouse, and keep Obsidian open on
-      the other screen while you do.
+      through them without leaving the terminal, and keep Obsidian open on the
+      other screen while you do.
     </p>
 
     <div class="cta-row">
@@ -253,7 +253,7 @@
           appears; one that can't be drawn leaves its alt text where it was.
           An <code>.excalidraw.md</code> note opens as the drawing rather than the wall of
           compressed base64 it is stored as, with shapes, arrows, freehand strokes and
-          labels drawn as vectors on a braille canvas — so a diagram reads the same in
+          labels drawn as vectors on a braille canvas, so a diagram reads the same in
           every terminal, whether or not it can show pictures at all.
           <span class="muted">Pictures can be turned off, capped to a share of the pane, or pinned to one protocol when a terminal misreports what it can draw, under <code>[images]</code>.</span>
         </p>
@@ -319,44 +319,13 @@
       </article>
     </div>
   </div>
-</section>
 
-<!-- ─────────────────────────── graph ─────────────────────────── -->
-<section class="graph-sec" aria-labelledby="graph-h">
-  <div class="wrap graph-grid">
-    <div class="graph-copy">
-      <p class="kicker">Ctrl+G</p>
-      <h2 id="graph-h">The notes you meant to write, made visible.</h2>
-      <p>
-        Every vault accumulates them: a link you typed in a hurry to a note you never got
-        around to. In the graph they're the hollow circles, pulled into place by
-        everything that points at them, waiting for you.
-      </p>
-      <p>
-        <strong>Ctrl+Shift+G</strong> narrows it down to just the neighbourhood of the note
-        you have open, which is usually the question you were actually asking.
-      </p>
-    </div>
-    <div class="graph-frame">
-      <canvas id="graph" width="720" height="460" role="img" aria-label="An animated force-directed graph of notes. Filled circles are notes that exist; hollow circles are notes that are linked to but not yet written."></canvas>
-      <div class="graph-legend">
-        <span><i class="node-solid" aria-hidden="true"></i> written</span>
-        <span><i class="node-hollow" aria-hidden="true"></i> linked, not written yet</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ────────────────────── real screenshots ────────────────────── -->
-<section id="shots" class="shots-sec" aria-labelledby="shots-h">
-  <div class="wrap">
-    <p class="kicker">Feature by feature</p>
-    <h2 id="shots-h">What each part actually does.</h2>
+  <div class="wrap shots-sec" id="shots">
+    <h3 id="shots-h" class="vh">Each of those, on screen</h3>
     <p class="section-lede">
-      The six things you'll spend your time in — the three-pane layout, backlinks,
-      the graph, Excalidraw drawings, pictures inside a note, and themes — each one
-      caught mid-use in the recording above. Nothing here is a mockup or a redraw;
-      open any of them for the full-size capture.
+      And here is each of those doing its job: the layout, backlinks, the graph,
+      a drawing, a picture, a theme. Every frame comes straight out of the
+      recording above, so open any of them for the full-size capture.
     </p>
 
     <div class="shots">
@@ -375,7 +344,7 @@
                  alt="The three-pane layout in the obsidian-dark theme: an icon ribbon and file explorer on the left, a note called Welcome in the middle showing tags, a task list, a callout with a coloured bar and a bordered table, and an outline panel on the right.">
           </div>
         </a>
-        <figcaption><b>The layout you already know.</b> Files on the left, the note in the middle, its outline on the right. Markdown is rendered where it sits — tags, tasks, callouts and tables — so you read a note instead of reading its syntax.</figcaption>
+        <figcaption><b>The layout you already know.</b> Files on the left, the note in the middle, its outline on the right. Markdown is rendered where it sits: tags, tasks, callouts and tables. You read a note instead of reading its syntax.</figcaption>
       </figure>
 
       <figure class="shot">
@@ -392,7 +361,7 @@
                  alt="The Roadmap note open, with the right-hand panel switched to Backlinks, listing six notes that link to it along with the line of context each link sits in.">
           </div>
         </a>
-        <figcaption><b>Backlinks, with the line they sit on.</b> Every note pointing here, each showing the sentence the link appears in — enough to tell a passing mention from the note that actually matters. <code>Ctrl+K</code> cycles the panel through outline, backlinks and tags.</figcaption>
+        <figcaption><b>Backlinks, with the line they sit on.</b> Every note pointing here, each showing the sentence the link appears in, which is enough to tell a passing mention from the note that actually matters. <code>Ctrl+K</code> cycles the panel through outline, backlinks and tags.</figcaption>
       </figure>
 
       <figure class="shot">
@@ -426,7 +395,7 @@
                  alt="An Excalidraw note open as a drawing rather than as its Markdown: labelled boxes reading Episode, Objective and three steps, joined by dotted arrows drawn with braille characters, in white, blue and green.">
           </div>
         </a>
-        <figcaption><b>Excalidraw opens as the drawing.</b> On disk that note is a wall of compressed base64; every other terminal reader shows you exactly that. Here you get the scene — boxes, arrows, freehand strokes and labels drawn as vectors, scaled to the pane, and legible even in a terminal that can't show a single pixel.</figcaption>
+        <figcaption><b>Excalidraw opens as the drawing.</b> On disk that note is a wall of compressed base64; every other terminal reader shows you exactly that. Here you get the scene: boxes, arrows, freehand strokes and labels drawn as vectors, scaled to the pane, and legible even in a terminal that can't show a single pixel.</figcaption>
       </figure>
 
       <figure class="shot">
@@ -443,7 +412,7 @@
                  alt="A note called Reddit post open in the obsidian-dark theme, with a screenshot of obsidian-tui itself embedded partway down the note and drawn as actual pixels in the reading pane, sharp enough to read the note text inside it.">
           </div>
         </a>
-        <figcaption><b>Pictures, drawn in place.</b> <code>![[chart.png]]</code> appears where you put it, at the width the pane allows — real pixels in Kitty, Ghostty, WezTerm, iTerm2 or anything speaking sixel, and a half-block mosaic where none of those exist. The screenshot embedded above is sharp enough to read the note inside it.</figcaption>
+        <figcaption><b>Pictures, drawn in place.</b> <code>![[chart.png]]</code> appears where you put it, at the width the pane allows. Real pixels in Kitty, Ghostty, WezTerm, iTerm2 or anything speaking sixel, and a half-block mosaic where none of those exist. The screenshot embedded above is sharp enough to read the note inside it.</figcaption>
       </figure>
 
       <figure class="shot">
@@ -460,12 +429,40 @@
                  alt="The Reddit post note and its embedded screenshot rendered in the light Catppuccin Latte theme, with a cream background and violet accents.">
           </div>
         </a>
-        <figcaption><b>Eighteen themes, light ones included.</b> <code>catppuccin-latte</code> here, picked from <code>Ctrl+T</code> by typing a few letters of its name. Everything recolours at once — panes, syntax, the graph, even the picture's surroundings.</figcaption>
+        <figcaption><b>Eighteen themes, light ones included.</b> <code>catppuccin-latte</code> here, picked from <code>Ctrl+T</code> by typing a few letters of its name. Everything recolours at once: panes, syntax, the graph, even the picture's surroundings.</figcaption>
       </figure>
 
     </div>
+  
   </div>
 </section>
+
+<!-- ─────────────────────────── graph ─────────────────────────── -->
+<section class="graph-sec" aria-labelledby="graph-h">
+  <div class="wrap graph-grid">
+    <div class="graph-copy">
+      <p class="kicker">Ctrl+G</p>
+      <h2 id="graph-h">The notes you meant to write, made visible.</h2>
+      <p>
+        Every vault accumulates them: a link you typed in a hurry to a note you never got
+        around to. In the graph they're the hollow circles, pulled into place by
+        everything that points at them, waiting for you.
+      </p>
+      <p>
+        <strong>Ctrl+Shift+G</strong> narrows it down to just the neighbourhood of the note
+        you have open, which is usually the question you were actually asking.
+      </p>
+    </div>
+    <div class="graph-frame">
+      <canvas id="graph" width="720" height="460" role="img" aria-label="An animated force-directed graph of notes. Filled circles are notes that exist; hollow circles are notes that are linked to but not yet written."></canvas>
+      <div class="graph-legend">
+        <span><i class="node-solid" aria-hidden="true"></i> written</span>
+        <span><i class="node-hollow" aria-hidden="true"></i> linked, not written yet</span>
+      </div>
+    </div>
+  </div>
+</section>
+
 
 <!-- ─────────────────────────── privacy ─────────────────────────── -->
 <section id="privacy" class="privacy" aria-labelledby="privacy-h">
