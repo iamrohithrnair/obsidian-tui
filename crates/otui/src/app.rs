@@ -197,6 +197,17 @@ pub enum Action {
     OpenLocalGraph,
     OpenNotesView,
 
+    // Tasks
+    /// Advance the current task (or every task in the selection) to the next
+    /// status in `config.editor.task_cycle`.
+    CycleTask,
+    /// Same, but backwards.
+    CycleTaskReverse,
+    /// Open the "Mark task as…" picker.
+    MarkTask,
+    /// Set the task status character directly.
+    MarkTaskAs(char),
+
     // Modals
     OpenPalette,
     OpenSwitcher,

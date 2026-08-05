@@ -317,6 +317,7 @@ fn follow_first_link(app: &mut App) {
 fn handle_editing(app: &mut App, key: KeyEvent) {
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
     let shift = key.modifiers.contains(KeyModifiers::SHIFT);
+    let alt = key.modifiers.contains(KeyModifiers::ALT);
 
     // Formatting shortcuts are checked before the editor sees the key.
     if ctrl {
@@ -362,6 +363,20 @@ fn handle_editing(app: &mut App, key: KeyEvent) {
                 if let Some(editor) = app.editor_mut() {
                     editor.delete_line();
                 }
+                return;
+            }
+            _ => {}
+        }
+    }
+
+    if alt {
+        match key.code {
+            KeyCode::Enter if !shift => {
+                dispatch(app, Action::CycleTask);
+                return;
+            }
+            KeyCode::Enter if shift => {
+                dispatch(app, Action::CycleTaskReverse);
                 return;
             }
             _ => {}
@@ -713,6 +728,35 @@ mod tests {
 
         handle(&mut app, key(KeyCode::Esc));
         assert_eq!(app.active().unwrap().mode, Mode::Reading);
+    }
+
+    #[test]
+    fn alt_enter_cycles_a_task() {
+        let (_v, mut app) = app();
+        let id = app.index.create_note("Tasks", "- [ ] todo\n").unwrap();
+        app.open_note(id);
+        app.active_mut().unwrap().mode = Mode::Editing;
+
+        handle(&mut app, KeyEvent::new(KeyCode::Enter, KeyModifiers::ALT));
+        assert_eq!(app.editor_mut().unwrap().text(), "- [/] todo\n");
+    }
+
+    #[test]
+    fn alt_shift_enter_cycles_reverse() {
+        let (_v, mut app) = app();
+        let id = app.index.create_note("Tasks", "- [x] done\n").unwrap();
+        app.open_note(id);
+        app.active_mut().unwrap().mode = Mode::Editing;
+
+        handle(
+            &mut app,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::ALT | KeyModifiers::SHIFT),
+        );
+        assert_eq!(
+            app.editor_mut().unwrap().text(),
+            "- [/] done\n",
+            "reverse goes x → / through the cycle"
+        );
     }
 
     #[test]

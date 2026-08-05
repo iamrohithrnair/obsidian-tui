@@ -268,19 +268,19 @@ fn render_block(
                     Style::default().fg(palette.list_marker),
                 ),
                 Marker::Ordered(n) => (format!("{n}."), Style::default().fg(palette.list_marker)),
-                Marker::Task(true) => (
-                    icons::TASK_DONE.to_string(),
-                    Style::default().fg(palette.checkbox_done),
-                ),
-                Marker::Task(false) => (
+                Marker::Task(ch) if *ch == ' ' => (
                     icons::TASK_TODO.to_string(),
                     Style::default().fg(palette.checkbox_todo),
+                ),
+                Marker::Task(ch) => (
+                    format!("[{}]", ch),
+                    Style::default().fg(palette.checkbox_done),
                 ),
             };
 
             let mut styled = style_spans(spans, palette, index);
             // Completed tasks are struck through, as in Obsidian.
-            if matches!(marker, Marker::Task(true)) {
+            if matches!(marker, Marker::Task('x')) {
                 for (_, style) in &mut styled {
                     *style = style
                         .add_modifier(Modifier::CROSSED_OUT)
@@ -989,18 +989,34 @@ mod tests {
         let index = vault.index();
         let palette = palette();
 
-        let document = markdown::parse("- [ ] todo\n- [x] done\n");
+        let document = markdown::parse("- [ ] todo\n- [x] done\n- [/] in progress\n");
         let lines = render_document(&document, &palette, &index, 40);
         let rendered = text_of(&lines);
 
         assert!(rendered.iter().any(|l| l.contains(icons::TASK_TODO)));
-        assert!(rendered.iter().any(|l| l.contains(icons::TASK_DONE)));
+        assert!(rendered.iter().any(|l| l.contains("[x]")));
+        assert!(rendered.iter().any(|l| l.contains("[/]")));
 
         let done_line = lines
             .iter()
             .find(|l| l.spans.iter().any(|s| s.content.contains("done")))
             .expect("done line");
         assert!(done_line
+            .spans
+            .iter()
+            .any(|s| s.style.add_modifier.contains(Modifier::CROSSED_OUT)));
+
+        let progress_line = lines
+            .iter()
+            .find(|l| {
+                l.spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<String>()
+                    .contains("in progress")
+            })
+            .expect("in progress line");
+        assert!(!progress_line
             .spans
             .iter()
             .any(|s| s.style.add_modifier.contains(Modifier::CROSSED_OUT)));

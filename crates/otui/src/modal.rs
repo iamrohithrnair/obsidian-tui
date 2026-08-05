@@ -17,6 +17,7 @@ pub enum PickerKind {
     Themes,
     Vaults,
     Search,
+    TaskStatus,
 }
 
 impl PickerKind {
@@ -28,6 +29,7 @@ impl PickerKind {
             Self::Themes => "Themes",
             Self::Vaults => "Open vault",
             Self::Search => "Search",
+            Self::TaskStatus => "Mark task as…",
         }
     }
 
@@ -39,6 +41,7 @@ impl PickerKind {
             Self::Themes => "Filter themes…",
             Self::Vaults => "Filter vaults…",
             Self::Search => "Search all notes…",
+            Self::TaskStatus => "Filter statuses…",
         }
     }
 }

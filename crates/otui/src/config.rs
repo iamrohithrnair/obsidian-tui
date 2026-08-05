@@ -113,6 +113,9 @@ pub struct EditorConfig {
     pub daily_folder: String,
     /// `chrono`-free date format for daily notes: `%Y`, `%m`, `%d` only.
     pub daily_format: String,
+    /// Ordered task statuses for Alt+Enter cycling (first char = unchecked).
+    /// E.g. " /x" cycles `[ ]` → `[/]` → `[x]` → `[ ]`.
+    pub task_cycle: String,
 }
 
 impl Default for EditorConfig {
@@ -125,6 +128,7 @@ impl Default for EditorConfig {
             new_note_folder: String::new(),
             daily_folder: "Daily".into(),
             daily_format: "%Y-%m-%d".into(),
+            task_cycle: " /x".into(),
         }
     }
 }
@@ -386,6 +390,21 @@ mod tests {
         let parsed: Config = toml::from_str(&text).expect("parse");
         assert_eq!(parsed.theme, "gruvbox-dark");
         assert_eq!(parsed.ui.chat_width, config.ui.chat_width);
+    }
+
+    #[test]
+    fn task_cycle_round_trips_through_toml() {
+        let config = Config {
+            editor: EditorConfig {
+                task_cycle: " /x-".into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let text = toml::to_string_pretty(&config).expect("serialize");
+        let parsed: Config = toml::from_str(&text).expect("parse");
+        assert_eq!(parsed.editor.task_cycle, " /x-");
+        assert_eq!(parsed.editor.task_cycle, config.editor.task_cycle);
     }
 
     #[test]
