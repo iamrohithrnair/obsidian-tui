@@ -147,6 +147,19 @@ pub struct ImageConfig {
     /// small enough for a short terminal leaves a diagram unreadable on a big
     /// one. 0 turns pictures off, the same as `enabled = false`.
     pub max_height_percent: u16,
+    /// How pictures are drawn, when the terminal's own answer is wrong.
+    ///
+    /// `auto` asks the terminal, which is right almost everywhere. The
+    /// exceptions are terminals that claim a protocol they don't actually
+    /// paint — a recorder such as VHS, or a multiplexer that swallows the
+    /// escapes — where the picture silently leaves a blank hole. `halfblocks`
+    /// is the useful override there: coarse, but drawn out of ordinary text
+    /// cells, so it survives anything that can show text at all.
+    ///
+    /// One of `auto`, `kitty`, `iterm2`, `sixel` or `halfblocks`. Held as a
+    /// string so an unrecognised value falls back to `auto` with a warning
+    /// rather than refusing to start.
+    pub protocol: String,
 }
 
 impl Default for ImageConfig {
@@ -156,6 +169,7 @@ impl Default for ImageConfig {
             // Two thirds of the pane: big enough to read a diagram, small
             // enough to leave the prose around it visible.
             max_height_percent: 66,
+            protocol: "auto".into(),
         }
     }
 }
@@ -426,6 +440,10 @@ mod tests {
         let config: Config = toml::from_str("theme = \"gruvbox-dark\"\n").expect("parse");
         assert!(config.images.enabled);
         assert!(config.images.max_height_percent > 0);
+        assert_eq!(
+            config.images.protocol, "auto",
+            "and the terminal is still the one asked"
+        );
     }
 
     #[test]

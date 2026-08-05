@@ -16,7 +16,7 @@ It also comes with an AI assistant that works on your notes through the very
 same commands you do, so you can watch what it did instead of taking its word
 for it.
 
-![obsidian-tui: walking the file tree, backlinks, the graph, and a theme switch](https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/docs/demo.gif)
+![obsidian-tui: walking the file tree, backlinks, the graph, an Excalidraw drawing, a picture in the reading pane, and a theme switch](https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/docs/demo.gif)
 
 ## Install
 
@@ -381,7 +381,14 @@ Pictures can be turned off, and capped, under `[images]`:
 [images]
 enabled = true
 max_height_percent = 66   # tallest one picture may be drawn, as a share of the pane
+protocol = "auto"         # auto, kitty, iterm2, sixel or halfblocks
 ```
+
+`auto` asks the terminal, which is right almost everywhere. Name a protocol
+when the terminal's answer is wrong — a recorder or a multiplexer that claims
+one it doesn't actually paint, which leaves a blank hole rather than a bad
+picture. `halfblocks` is the useful answer there: coarse, but drawn out of
+ordinary text cells, so it survives anything that can show text at all.
 
 ## Layout
 

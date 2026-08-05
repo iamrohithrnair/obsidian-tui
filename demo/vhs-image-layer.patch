@@ -1,0 +1,79 @@
+diff --git a/vhs.go b/vhs.go
+index 235e7b4..3a67477 100644
+--- a/vhs.go
++++ b/vhs.go
+@@ -2,6 +2,7 @@ package main
+ 
+ import (
+ 	"context"
++	"encoding/base64"
+ 	"errors"
+ 	"fmt"
+ 	"log"
+@@ -319,6 +320,57 @@ func (vhs *VHS) ApplyLoopOffset() error {
+ 
+ const quality = 1.0
+ 
++// compositeTextLayerJS flattens every non-cursor xterm.js canvas into one PNG.
++//
++// Terminal graphics — sixel, kitty, iTerm2 — are painted by the image addon
++// onto a canvas of its own rather than into the text layer, so capturing the
++// text layer alone drops the picture and leaves the space it reserved empty.
++// Those canvases cannot be looked up once and held either: the addon creates
++// and destroys them as images come and go, and no image layer exists at all
++// when the page is first set up. So the layers are found and flattened in the
++// page, per frame, which is stale-handle-proof.
++//
++// Returns null when there is nothing but the text layer, which is every
++// recording that has no pictures in it; the caller then takes the cheaper path.
++const compositeTextLayerJS = `() => {
++	const term = document.querySelector('.xterm');
++	if (!term) return null;
++	const canvases = Array.from(term.querySelectorAll('canvas'));
++	const text = canvases.find((c) => c.classList.contains('xterm-text-layer'));
++	if (!text) return null;
++	const images = canvases.filter((c) => c !== text &&
++		!c.classList.contains('xterm-cursor-layer') &&
++		!c.classList.contains('xterm-selection-layer') &&
++		!c.classList.contains('xterm-link-layer'));
++	if (images.length === 0) return null;
++	const out = document.createElement('canvas');
++	out.width = text.width;
++	out.height = text.height;
++	const ctx = out.getContext('2d');
++	// Text first, pictures over it — the order the page itself stacks them in,
++	// since the addon appends its canvas after the text layer. It matters:
++	// the text layer paints the terminal background opaquely, so a picture
++	// drawn underneath it is a picture you never see.
++	ctx.drawImage(text, 0, 0, out.width, out.height);
++	for (const image of images) ctx.drawImage(image, 0, 0, out.width, out.height);
++	return out.toDataURL('image/png');
++}`
++
++// textFrame captures the text layer, with any terminal graphics underneath it.
++func (vhs *VHS) textFrame() ([]byte, error) {
++	obj, err := vhs.Page.Eval(compositeTextLayerJS)
++	if err == nil && obj != nil {
++		if data := obj.Value.Str(); data != "" {
++			if _, encoded, found := strings.Cut(data, ","); found {
++				//nolint:wrapcheck
++				return base64.StdEncoding.DecodeString(encoded)
++			}
++		}
++	}
++	//nolint:wrapcheck
++	return vhs.TextCanvas.CanvasToImage("image/png", quality)
++}
++
+ // Record begins the goroutine which captures images from the xterm.js canvases.
+ func (vhs *VHS) Record(ctx context.Context) <-chan error {
+ 	ch := make(chan error)
+@@ -352,7 +404,7 @@ func (vhs *VHS) Record(ctx context.Context) <-chan error {
+ 				}
+ 
+ 				cursor, cursorErr := vhs.CursorCanvas.CanvasToImage("image/png", quality)
+-				text, textErr := vhs.TextCanvas.CanvasToImage("image/png", quality)
++				text, textErr := vhs.textFrame()
+ 				if textErr != nil || cursorErr != nil {
+ 					ch <- fmt.Errorf("error: %v, %v", textErr, cursorErr)
+ 					continue
