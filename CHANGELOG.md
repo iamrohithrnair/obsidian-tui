@@ -130,6 +130,10 @@ without leaving the app.
 
 ### Changed
 
+- `toml` moves from 0.9 to 1.1. The parts used here — `from_str` and
+  `to_string_pretty` — kept their signatures, and an existing `config.toml`
+  still loads. Every other dependency was already at its latest release; the
+  lock file is refreshed to the newest compatible versions throughout.
 - **The minimum supported Rust version is now 1.90**, up from 1.88. Drawing
   pictures means depending on `ratatui-image`, which reaches `quantette` for
   sixel quantization, and that requires 1.90 — the floor is set by the
