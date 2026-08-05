@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — 2026-08-06
+
+### Added
+
+- **`images.protocol` overrules the terminal's own answer.** Terminals are asked
+  what they can draw and are believed, which is right almost everywhere; the
+  exception is one that claims a protocol it doesn't paint, where the picture
+  goes missing entirely and leaves a hole in the page. That is not a failure the
+  terminal can be asked about, so it can now be told instead: `auto`, `kitty`,
+  `iterm2`, `sixel` or `halfblocks`. Half-blocks are drawn out of ordinary
+  coloured cells, so they work anywhere text does. The cell size still comes
+  from the terminal, which answers that part correctly either way.
+
 ## [0.3.0] — 2026-08-05
 
 The release that makes the editor usable for actually writing in: text wraps,
@@ -360,6 +373,7 @@ First release.
 - Unreadable vaults are reported clearly, including the macOS privacy
   permission that usually causes it.
 
+[0.3.1]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.3.1
 [0.3.0]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.3.0
 [0.2.0]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.2.0
 [0.1.2]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.2

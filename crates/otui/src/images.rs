@@ -45,6 +45,30 @@ const FILTER: Option<FilterType> = Some(FilterType::Lanczos3);
 /// copies of the picture sitting in memory.
 const MAX_CACHED: usize = 24;
 
+/// What the config asked for, when it asked for anything.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Choice {
+    /// Believe the terminal's own answer.
+    Auto,
+    /// Draw this way whatever the terminal claims.
+    Use(ProtocolType),
+    /// A name nobody recognises; the caller should say so and carry on.
+    Unknown,
+}
+
+/// Reads a protocol name out of the config.
+#[must_use]
+pub fn choice(name: &str) -> Choice {
+    match name.trim().to_ascii_lowercase().as_str() {
+        "auto" | "" => Choice::Auto,
+        "kitty" => Choice::Use(ProtocolType::Kitty),
+        "iterm2" => Choice::Use(ProtocolType::Iterm2),
+        "sixel" => Choice::Use(ProtocolType::Sixel),
+        "halfblocks" | "half-blocks" => Choice::Use(ProtocolType::Halfblocks),
+        _ => Choice::Unknown,
+    }
+}
+
 /// Whether a path is worth trying to draw.
 #[must_use]
 pub fn is_image(path: &Path) -> bool {
@@ -105,11 +129,33 @@ impl Images {
     /// A terminal that doesn't answer gets half-blocks, which need no support
     /// at all. A `max_height_percent` of 0, or a terminal that can't even do
     /// half-blocks, switches images off and leaves the alt text in their place.
+    ///
+    /// `wanted` overrules the answer. Some terminals claim a protocol they
+    /// don't paint — a recorder, or a multiplexer eating the escapes — and the
+    /// picture then goes missing rather than looking wrong, which is the one
+    /// failure the terminal cannot be asked about. The cell size still comes
+    /// from the query, because that part of the answer is right even when the
+    /// protocol isn't.
     #[must_use]
-    pub fn probe(enabled: bool, max_height_percent: u16) -> Self {
-        let picker = (enabled && max_height_percent > 0)
-            .then(Picker::from_query_stdio)
-            .and_then(Result::ok);
+    pub fn probe(enabled: bool, max_height_percent: u16, wanted: Choice) -> Self {
+        if !enabled || max_height_percent == 0 {
+            return Self::with_picker(None, max_height_percent);
+        }
+        let queried = Picker::from_query_stdio().ok();
+        let picker = match (queried, wanted) {
+            (Some(mut picker), Choice::Use(protocol)) => {
+                picker.set_protocol_type(protocol);
+                Some(picker)
+            }
+            // A silent terminal can still be told what to draw; half-blocks
+            // carry the cell size the library assumes when nobody says.
+            (None, Choice::Use(protocol)) => {
+                let mut picker = Picker::halfblocks();
+                picker.set_protocol_type(protocol);
+                Some(picker)
+            }
+            (queried, _) => queried,
+        };
         Self::with_picker(picker, max_height_percent)
     }
 
@@ -514,6 +560,45 @@ mod tests {
             (20, 10),
             "an icon is left exactly as it is rather than blown up"
         );
+    }
+
+    #[test]
+    fn a_protocol_can_be_named_instead_of_detected() {
+        assert_eq!(choice("auto"), Choice::Auto);
+        assert_eq!(choice(""), Choice::Auto, "an empty setting is no setting");
+        assert_eq!(
+            choice(" Halfblocks "),
+            Choice::Use(ProtocolType::Halfblocks),
+            "written by hand, so spacing and capitals are not the user's problem"
+        );
+        assert_eq!(
+            choice("half-blocks"),
+            Choice::Use(ProtocolType::Halfblocks),
+            "the startup banner spells it with a hyphen"
+        );
+        assert_eq!(choice("kitty"), Choice::Use(ProtocolType::Kitty));
+        assert_eq!(choice("iterm2"), Choice::Use(ProtocolType::Iterm2));
+        assert_eq!(choice("sixel"), Choice::Use(ProtocolType::Sixel));
+    }
+
+    #[test]
+    fn an_unrecognised_protocol_is_reported_rather_than_obeyed() {
+        // Distinct from `Auto` so the caller can say so: silently ignoring a
+        // misspelling leaves someone staring at a blank hole where the picture
+        // should be, which is the exact problem the setting exists to fix.
+        assert_eq!(choice("iterm"), Choice::Unknown);
+        assert_eq!(choice("kitty2"), Choice::Unknown);
+    }
+
+    #[test]
+    fn naming_a_protocol_does_not_switch_pictures_back_on() {
+        let images = Images::probe(false, 66, Choice::Use(ProtocolType::Halfblocks));
+        assert!(
+            images.describe().is_none(),
+            "images = false still means no pictures at all"
+        );
+        let images = Images::probe(true, 0, Choice::Use(ProtocolType::Halfblocks));
+        assert!(images.describe().is_none(), "and so does no room for them");
     }
 
     #[test]

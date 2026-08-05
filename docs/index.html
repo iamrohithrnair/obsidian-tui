@@ -126,15 +126,16 @@
                width="1280" height="720"
                autoplay loop muted playsinline controls
                poster="shot-three-pane.webp"
-               aria-label="A recording of obsidian-tui: walking down the file explorer, opening a note, cycling the right pane to backlinks, opening the force-directed graph and fitting it to the pane, then switching the theme to Tokyo Night and to Catppuccin Latte.">
+               aria-label="A recording of obsidian-tui: walking down the file explorer and unfolding a folder, opening a note, cycling the right pane to backlinks, opening the force-directed graph and fitting it to the pane, opening an Excalidraw drawing as a diagram, opening a note with a screenshot embedded in it, then switching the theme to Tokyo Night and to Catppuccin Latte.">
           <source src="demo.mp4" type="video/mp4">
           <img class="term-media" src="demo.gif" width="1280" height="720"
-               alt="A recording of obsidian-tui: walking down the file explorer, opening a note, cycling the right pane to backlinks, opening the force-directed graph, then switching themes.">
+               alt="A recording of obsidian-tui: walking down the file explorer, opening a note, cycling the right pane to backlinks, opening the force-directed graph, opening an Excalidraw drawing and a note with a picture in it, then switching themes.">
         </video>
       </div>
       <figcaption class="demo-foot">
         The file tree, a note in live preview, <code>Ctrl+K</code> for backlinks,
-        the graph settling under <code>Ctrl+G</code>, and two of the eighteen themes.
+        the graph settling under <code>Ctrl+G</code>, an Excalidraw drawing, a
+        picture in the reading pane, and two of the eighteen themes.
       </figcaption>
     </figure>
   </div>
@@ -254,7 +255,7 @@
           compressed base64 it is stored as, with shapes, arrows, freehand strokes and
           labels drawn as vectors on a braille canvas — so a diagram reads the same in
           every terminal, whether or not it can show pictures at all.
-          <span class="muted">Pictures can be turned off, or capped to a share of the pane, under <code>[images]</code>.</span>
+          <span class="muted">Pictures can be turned off, capped to a share of the pane, or pinned to one protocol when a terminal misreports what it can draw, under <code>[images]</code>.</span>
         </p>
       </article>
 
@@ -349,12 +350,13 @@
 <!-- ────────────────────── real screenshots ────────────────────── -->
 <section id="shots" class="shots-sec" aria-labelledby="shots-h">
   <div class="wrap">
-    <p class="kicker">Straight off the terminal</p>
-    <h2 id="shots-h">Real pixels, not mockups.</h2>
+    <p class="kicker">Feature by feature</p>
+    <h2 id="shots-h">What each part actually does.</h2>
     <p class="section-lede">
-      Every frame here was captured from the recording above, in a stock terminal
-      against a small demo vault. None of it was redrawn by hand — open any one of
-      them for the full-size capture.
+      The six things you'll spend your time in — the three-pane layout, backlinks,
+      the graph, Excalidraw drawings, pictures inside a note, and themes — each one
+      caught mid-use in the recording above. Nothing here is a mockup or a redraw;
+      open any of them for the full-size capture.
     </p>
 
     <div class="shots">
@@ -373,7 +375,7 @@
                  alt="The three-pane layout in the obsidian-dark theme: an icon ribbon and file explorer on the left, a note called Welcome in the middle showing tags, a task list, a callout with a coloured bar and a bordered table, and an outline panel on the right.">
           </div>
         </a>
-        <figcaption><b>The three panes.</b> Markdown rendered in place — tags, tasks, callouts and tables, not raw syntax.</figcaption>
+        <figcaption><b>The layout you already know.</b> Files on the left, the note in the middle, its outline on the right. Markdown is rendered where it sits — tags, tasks, callouts and tables — so you read a note instead of reading its syntax.</figcaption>
       </figure>
 
       <figure class="shot">
@@ -390,7 +392,7 @@
                  alt="The Roadmap note open, with the right-hand panel switched to Backlinks, listing six notes that link to it along with the line of context each link sits in.">
           </div>
         </a>
-        <figcaption><b>Backlinks.</b> <code>Ctrl+K</code> cycles the right panel through outline, backlinks and tags, each with its line of context.</figcaption>
+        <figcaption><b>Backlinks, with the line they sit on.</b> Every note pointing here, each showing the sentence the link appears in — enough to tell a passing mention from the note that actually matters. <code>Ctrl+K</code> cycles the panel through outline, backlinks and tags.</figcaption>
       </figure>
 
       <figure class="shot">
@@ -404,10 +406,27 @@
             </div>
             <img class="term-media" src="shot-graph.webp" width="1280" height="720"
                  loading="lazy" decoding="async"
-                 alt="The force-directed graph view filling the centre pane, with labelled note clusters, a lone unconnected note called Orphan off to one side, and a status line reading sixteen nodes and twenty-eight links.">
+                 alt="The force-directed graph view filling the centre pane, with labelled note clusters, a lone unconnected note called Orphan off to one side, and a status line reading eighteen nodes and twenty-eight links.">
           </div>
         </a>
-        <figcaption><b>The graph.</b> <code>Ctrl+G</code> for the whole vault, <code>Ctrl+Shift+G</code> for the neighbourhood around one note, <code>f</code> to fit it. Orphans sit on their own, where you can see them.</figcaption>
+        <figcaption><b>The whole vault, as a shape.</b> A force-directed graph that settles as you watch, drawn in text. <code>Ctrl+G</code> for everything, <code>Ctrl+Shift+G</code> for the neighbourhood around one note, <code>f</code> to fit it on screen. Notes nothing links to sit off on their own, where you'll finally notice them.</figcaption>
+      </figure>
+
+      <figure class="shot">
+        <a class="shot-link" href="shot-drawing.webp" aria-label="Open the full-size screenshot of an Excalidraw drawing rendered as a diagram">
+          <div class="term-shell is-fixed">
+            <div class="term-chrome">
+              <span class="tl red" aria-hidden="true"></span>
+              <span class="tl amber" aria-hidden="true"></span>
+              <span class="tl green" aria-hidden="true"></span>
+              <span class="term-title">Excalidraw/Drawing 2026-07-17.excalidraw.md</span>
+            </div>
+            <img class="term-media" src="shot-drawing.webp" width="1280" height="720"
+                 loading="lazy" decoding="async"
+                 alt="An Excalidraw note open as a drawing rather than as its Markdown: labelled boxes reading Episode, Objective and three steps, joined by dotted arrows drawn with braille characters, in white, blue and green.">
+          </div>
+        </a>
+        <figcaption><b>Excalidraw opens as the drawing.</b> On disk that note is a wall of compressed base64; every other terminal reader shows you exactly that. Here you get the scene — boxes, arrows, freehand strokes and labels drawn as vectors, scaled to the pane, and legible even in a terminal that can't show a single pixel.</figcaption>
       </figure>
 
       <figure class="shot">
@@ -419,12 +438,12 @@
               <span class="tl green" aria-hidden="true"></span>
               <span class="term-title">Reddit post.md</span>
             </div>
-            <img class="term-media" src="shot-images.webp" width="1280" height="695"
+            <img class="term-media" src="shot-images.webp" width="1280" height="720"
                  loading="lazy" decoding="async"
-                 alt="A note called Reddit post open in the obsidian-dark theme, with a screenshot of obsidian-tui itself embedded partway down the note and drawn as actual pixels in the reading pane, and the outline panel open on the right.">
+                 alt="A note called Reddit post open in the obsidian-dark theme, with a screenshot of obsidian-tui itself embedded partway down the note and drawn as actual pixels in the reading pane, sharp enough to read the note text inside it.">
           </div>
         </a>
-        <figcaption><b>Pictures in the note.</b> Embeds are drawn where they sit, at the width the pane allows. Excalidraw drawings get a braille canvas instead, so they read the same in a terminal that can't show pixels at all.</figcaption>
+        <figcaption><b>Pictures, drawn in place.</b> <code>![[chart.png]]</code> appears where you put it, at the width the pane allows — real pixels in Kitty, Ghostty, WezTerm, iTerm2 or anything speaking sixel, and a half-block mosaic where none of those exist. The screenshot embedded above is sharp enough to read the note inside it.</figcaption>
       </figure>
 
       <figure class="shot">
@@ -434,14 +453,14 @@
               <span class="tl red" aria-hidden="true"></span>
               <span class="tl amber" aria-hidden="true"></span>
               <span class="tl green" aria-hidden="true"></span>
-              <span class="term-title">Projects/Roadmap.md</span>
+              <span class="term-title">Reddit post.md</span>
             </div>
             <img class="term-media" src="shot-light.webp" width="1280" height="720"
                  loading="lazy" decoding="async"
-                 alt="The same Roadmap note and layout rendered in the light Catppuccin Latte theme, with a cream background and violet accents.">
+                 alt="The Reddit post note and its embedded screenshot rendered in the light Catppuccin Latte theme, with a cream background and violet accents.">
           </div>
         </a>
-        <figcaption><b>Light, too.</b> <code>catppuccin-latte</code> here — one of eighteen, Obsidian's own light and dark among them.</figcaption>
+        <figcaption><b>Eighteen themes, light ones included.</b> <code>catppuccin-latte</code> here, picked from <code>Ctrl+T</code> by typing a few letters of its name. Everything recolours at once — panes, syntax, the graph, even the picture's surroundings.</figcaption>
       </figure>
 
     </div>

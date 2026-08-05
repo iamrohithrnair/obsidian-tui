@@ -238,11 +238,18 @@ fn run(app: &mut App) -> io::Result<()> {
     // Asking the terminal what pictures it can draw means writing to stdout and
     // reading the reply from stdin, so it has to happen while the terminal is
     // still in its normal mode — before the alternate screen below.
+    let wanted = images::choice(&app.config.images.protocol);
     app.images = images::Images::probe(
         app.config.images.enabled,
         app.config.images.max_height_percent,
+        wanted,
     );
     match app.images.describe() {
+        // Nothing to diagnose when the protocol was chosen rather than
+        // detected: whatever it looks like, it is what was asked for.
+        Some(protocol) if matches!(wanted, images::Choice::Use(_)) => {
+            app.info(format!("images: {protocol}, set by config"));
+        }
         // A terminal that quietly fell back to half-blocks is otherwise
         // indistinguishable from one that drew the picture badly, and the
         // difference decides whether there is anything to be done about it.
@@ -255,6 +262,16 @@ fn run(app: &mut App) -> io::Result<()> {
             app.info("this terminal won't say what it can draw — images will show as alt text");
         }
         None => {}
+    }
+    // Said after the line above so it is the one left on screen: a
+    // misspelled protocol is silently the same as `auto`, which is exactly
+    // the sort of thing to spend an afternoon on.
+    if wanted == images::Choice::Unknown {
+        app.error(format!(
+            "images.protocol = \"{}\" is not a protocol — asking the terminal instead. \
+             Try auto, kitty, iterm2, sixel or halfblocks.",
+            app.config.images.protocol
+        ));
     }
 
     // `init` panics when there's no terminal — in a pipe, a CI job, or a
