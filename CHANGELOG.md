@@ -130,6 +130,10 @@ without leaving the app.
 
 ### Changed
 
+- **The minimum supported Rust version is now 1.90**, up from 1.88. Drawing
+  pictures means depending on `ratatui-image`, which reaches `quantette` for
+  sixel quantization, and that requires 1.90 — the floor is set by the
+  dependency chain rather than by anything in this code.
 - **Arrow keys walk the graph.** They moved the camera, which left Tab as the
   only way through the picture, and Tab steps by link count so it can jump across
   the vault. Arrows now select the nearest node in the direction pressed; `hjkl`

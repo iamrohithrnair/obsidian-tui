@@ -47,7 +47,7 @@ npx obsidian-tui ~/Notes     # run it once, install nothing
 npm install -g obsidian-tui  # keep it
 ```
 
-**Cargo** (needs Rust 1.88 or newer):
+**Cargo** (needs Rust 1.90 or newer):
 
 ```sh
 cargo install --git https://github.com/iamrohithrnair/obsidian-tui obsidian-tui
