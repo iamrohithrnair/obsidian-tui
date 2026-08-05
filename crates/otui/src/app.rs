@@ -319,6 +319,15 @@ pub struct Regions {
     pub side_tabs: Vec<(Rect, SidePanel)>,
     /// The sidebar's list area and the row index its first line shows.
     pub sidebar: Option<(Rect, usize)>,
+    /// The editor's text column — gutter and scrollbar excluded — and the row
+    /// its first line shows.
+    ///
+    /// Wrapping means the cursor's position depends on how wide the text was
+    /// drawn, so keys that move between rows read this too, not just the mouse.
+    pub editor: Option<(Rect, usize)>,
+    /// Which rendered row each block of the reading pane started on, as
+    /// `(source line, row)`, so the outline can scroll to a heading.
+    pub anchors: Vec<(usize, usize)>,
     pub main: Option<Rect>,
     pub chat: Option<Rect>,
     /// The graph canvas with its coordinate bounds, for hit-testing nodes.

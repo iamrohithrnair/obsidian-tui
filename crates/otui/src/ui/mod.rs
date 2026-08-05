@@ -38,10 +38,15 @@ pub mod icons {
     pub const OUTLINE: &str = "▤";
     pub const CHAT: &str = "✦";
     pub const SETTINGS: &str = "⚙";
-    pub const BULLET: &str = "•";
-    pub const QUOTE_BAR: &str = "▎";
-    pub const TASK_DONE: &str = "☑";
-    pub const TASK_TODO: &str = "☐";
+    // Characters rather than strings: the editor swaps these in for the markers
+    // they stand for, one glyph for one character, so a styled line stays
+    // exactly as wide as the source it came from.
+    pub const BULLET: char = '•';
+    pub const QUOTE_BAR: char = '▎';
+    pub const TASK_DONE: char = '☑';
+    pub const TASK_TODO: char = '☐';
+    /// Marks a row that continues the one above it, drawn in the gutter.
+    pub const WRAP: char = '⤷';
     pub const SCROLL_THUMB: &str = "│";
     pub const IMAGE: &str = "▨";
 }
@@ -234,7 +239,9 @@ fn hints_for(app: &App) -> &'static [(&'static str, &'static str)] {
                     ("^S", "save"),
                     ("Esc", "read"),
                     ("^B/^I", "bold/italic"),
+                    ("Tab", "indent list"),
                     ("^Z", "undo"),
+                    ("click", "place cursor"),
                     ("^W", "close tab"),
                     ("^\\", "files"),
                     ("^]", "outline"),
@@ -463,7 +470,7 @@ fn draw_status_bar(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) 
         Some(id) => {
             let words = app.index.note(id).map_or(0, |n| n.words);
             let backlinks = app.index.backlinks(id).len();
-            format!("{words} words  {backlinks} backlinks  ")
+            format!("{}{words} words  {backlinks} backlinks  ", position(app))
         }
         None => {
             let stats = app.index.stats();
@@ -482,6 +489,30 @@ fn draw_status_bar(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) 
     Paragraph::new(Line::from(left))
         .style(Style::default().bg(palette.statusbar_bg))
         .render(area, frame.buffer_mut());
+}
+
+/// Where the cursor is, while editing. Empty the rest of the time.
+///
+/// A writer wants to know how far down a note they are, and it's the one number
+/// that tells you the caret you can see is the caret the buffer thinks it has.
+fn position(app: &App) -> String {
+    let Some(editor) = app.active().and_then(|tab| {
+        (tab.mode == crate::app::Mode::Editing)
+            .then_some(tab.editor.as_ref())
+            .flatten()
+    }) else {
+        return String::new();
+    };
+    let cursor = editor.cursor();
+    let selected = editor.selected_text().map_or(String::new(), |text| {
+        format!("{} selected  ", text.chars().count())
+    });
+    format!(
+        "{selected}Ln {}/{}, Col {}  ",
+        cursor.line + 1,
+        editor.line_count(),
+        cursor.col + 1
+    )
 }
 
 fn mode_label(app: &App) -> String {
@@ -1116,6 +1147,178 @@ mod tests {
         let screen = render(&mut app, 120, 30).join("\n");
         assert!(screen.contains("# Welcome"), "editing shows the source");
         assert!(screen.contains(" 1 "), "line numbers");
+    }
+
+    /// The note pane, without the chrome around it, as the user sees it.
+    fn note_pane(app: &mut App, width: u16, height: u16) -> Vec<String> {
+        let rows = render(app, width, height);
+        let left = app.regions.main.map_or(0, |rect| rect.x) as usize;
+        rows.iter()
+            .map(|row| row.chars().skip(left).collect::<String>())
+            .collect()
+    }
+
+    #[test]
+    fn a_long_line_wraps_instead_of_being_cut_off() {
+        // The bug this fixes: a line wider than the pane was clipped at the edge
+        // and, with no way to scroll sideways either, simply unreachable.
+        let vault = TempVault::new("render-wrap");
+        let sentence = "alpha bravo charlie delta echo foxtrot golf hotel india juliet";
+        vault.write("Long.md", &format!("{sentence}\n"));
+
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        let long = app.index.id_of_rel("Long.md").expect("indexed");
+        app.open_note(long);
+        crate::actions::dispatch(&mut app, crate::app::Action::ToggleMode);
+
+        let rows = note_pane(&mut app, 60, 20);
+        let shown: String = rows.join(" ");
+        for word in sentence.split(' ') {
+            assert!(shown.contains(word), "{word:?} was cut off: {rows:?}");
+        }
+        assert!(
+            rows.iter().filter(|row| row.contains("alpha")).count() == 1,
+            "and it is drawn once, not repeated"
+        );
+    }
+
+    #[test]
+    fn switching_modes_does_not_reflow_the_prose() {
+        // The prose column has to sit in the same place with the same width in
+        // both modes, or Ctrl+E rewraps the paragraph under the reader's eyes.
+        let vault = TempVault::new("render-reflow");
+        let sentence = "one two three four five six seven eight nine ten eleven twelve";
+        vault.write("Prose.md", &format!("{sentence}\n"));
+
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        let prose = app.index.id_of_rel("Prose.md").expect("indexed");
+        app.open_note(prose);
+
+        let reading = note_pane(&mut app, 46, 12);
+        crate::actions::dispatch(&mut app, crate::app::Action::ToggleMode);
+        let editing = note_pane(&mut app, 46, 12);
+
+        // Keep only the prose: the gutter carries a line number or a wrap marker
+        // while editing, and the hint and status bars legitimately differ.
+        let broke_as = |rows: &[String]| -> Vec<String> {
+            rows.iter()
+                .map(|row| {
+                    row.split_whitespace()
+                        .filter(|word| sentence.split(' ').any(|prose| prose == *word))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                })
+                .filter(|row| !row.is_empty())
+                .collect()
+        };
+        let reading = broke_as(&reading);
+        assert!(reading.len() > 1, "the sentence should wrap at this width");
+        assert_eq!(
+            reading,
+            broke_as(&editing),
+            "the same words broke in different places"
+        );
+    }
+
+    /// Draws a frame and reports where the terminal caret ended up.
+    ///
+    /// A frame that asks for no caret leaves the backend's position alone, so
+    /// comparing across two draws says whether one was drawn at all.
+    fn caret_after(terminal: &mut Terminal<TestBackend>, app: &mut App) -> (u16, u16) {
+        use ratatui::backend::Backend;
+
+        terminal.draw(|frame| draw(frame, app)).expect("draw");
+        let position = terminal
+            .backend_mut()
+            .get_cursor_position()
+            .expect("cursor position");
+        (position.x, position.y)
+    }
+
+    #[test]
+    fn the_caret_follows_the_cursor_onto_a_wrapped_row() {
+        // Counting characters put the caret past the pane on a long line; it has
+        // to follow the row the character was actually drawn on.
+        let vault = TempVault::new("caret-wrap");
+        vault.write("Long.md", &format!("{}\n", "word ".repeat(40)));
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        let long = app.index.id_of_rel("Long.md").expect("indexed");
+        app.open_note(long);
+        crate::actions::dispatch(&mut app, crate::app::Action::ToggleMode);
+
+        let mut terminal = Terminal::new(TestBackend::new(90, 24)).expect("terminal");
+        terminal.draw(|frame| draw(frame, &mut app)).expect("draw");
+        let (text, _) = app.regions.editor.expect("the editor was drawn");
+
+        // Character 150 of one long line is well past the pane's width.
+        app.editor_mut().expect("editor").goto(0, 150);
+        let (x, y) = caret_after(&mut terminal, &mut app);
+
+        assert!(
+            x < text.x + text.width,
+            "the caret sat at column {x}, outside a pane {} wide",
+            text.width
+        );
+        assert!(y > text.y, "and on a later row, since the line wrapped");
+    }
+
+    #[test]
+    fn no_caret_is_drawn_when_the_note_pane_is_not_focused() {
+        // Otherwise the note claims a caret that belongs to whatever pane is
+        // actually taking the keys.
+        let (_vault, mut app) = demo_app();
+        app.config.ui.show_chat = false;
+        crate::actions::dispatch(&mut app, crate::app::Action::ToggleMode);
+
+        let mut terminal = Terminal::new(TestBackend::new(120, 30)).expect("terminal");
+        let focused = caret_after(&mut terminal, &mut app);
+
+        // Move the cursor somewhere else, then hand the keys to another pane. A
+        // note pane still drawing a caret would move it; one that isn't cannot.
+        app.editor_mut().expect("editor").goto(4, 3);
+        app.focus = Focus::Explorer;
+        assert_eq!(
+            caret_after(&mut terminal, &mut app),
+            focused,
+            "the note pane drew a caret while the explorer had the keys"
+        );
+
+        app.focus = Focus::Note;
+        assert_ne!(
+            caret_after(&mut terminal, &mut app),
+            focused,
+            "and draws one again when it gets them back"
+        );
+    }
+
+    #[test]
+    fn editing_shows_markdown_styled_without_moving_it() {
+        // Live preview in a character grid: the bullet is drawn as one, but it
+        // still occupies the single column the `-` did, so the caret can't drift.
+        let (_vault, mut app) = demo_app();
+        crate::actions::dispatch(&mut app, crate::app::Action::ToggleMode);
+        let rows = note_pane(&mut app, 120, 30);
+
+        let task = rows
+            .iter()
+            .find(|row| row.contains("a task"))
+            .expect("the task line");
+        assert!(
+            task.contains(&format!("{} [ ] a task", icons::BULLET)),
+            "the marker is styled in place: {task:?}"
+        );
+        assert!(
+            rows.iter().any(|row| row.contains(&format!(
+                "{} [{}] a done task",
+                icons::BULLET,
+                icons::TASK_DONE
+            ))),
+            "a done task shows a ticked box: {rows:?}"
+        );
+        assert!(
+            rows.iter().any(|row| row.contains("```rust")),
+            "and a code fence is still literally what it says"
+        );
     }
 
     #[test]
