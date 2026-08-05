@@ -1,4 +1,5 @@
 //! Core engine for obsidian-tui.
+#![forbid(unsafe_code)]
 pub mod error;
 pub mod excalidraw;
 pub mod graph;

@@ -220,8 +220,18 @@ pub(crate) fn get_json(url: &str, headers: &[(&str, &str)], bearer: Option<&str>
 /// An exported-but-empty key is a common shell accident, and failing with
 /// "missing key" is far clearer than the 401 it would otherwise cause.
 pub(crate) fn env_key(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
+    non_blank(std::env::var(name).ok())
+}
+
+/// The "blank means absent" rule on its own, away from the environment.
+///
+/// Split out so it can be tested without `set_var`. Writing to the environment
+/// from a test is undefined behaviour, not merely untidy: the test harness runs
+/// on several threads, other tests in this binary read the environment while
+/// they build an HTTP client, and `setenv` may reallocate the block `getenv` is
+/// walking.
+fn non_blank(value: Option<String>) -> Option<String> {
+    value
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
 }
@@ -257,17 +267,16 @@ mod tests {
 
     #[test]
     fn blank_env_keys_count_as_missing() {
-        // SAFETY: single-threaded test process, restored immediately.
-        unsafe {
-            std::env::set_var("OTUI_TEST_KEY", "   ");
-        }
-        assert_eq!(env_key("OTUI_TEST_KEY"), None);
-        unsafe {
-            std::env::set_var("OTUI_TEST_KEY", "real");
-        }
-        assert_eq!(env_key("OTUI_TEST_KEY").as_deref(), Some("real"));
-        unsafe {
-            std::env::remove_var("OTUI_TEST_KEY");
-        }
+        // An exported-but-empty key is a common shell accident; treating it as
+        // present turns a clear "no key" into a puzzling 401.
+        assert_eq!(non_blank(Some("   ".into())), None, "whitespace is empty");
+        assert_eq!(non_blank(Some(String::new())), None);
+        assert_eq!(non_blank(None), None, "unset stays unset");
+        assert_eq!(non_blank(Some("real".into())).as_deref(), Some("real"));
+        assert_eq!(
+            non_blank(Some("  padded  ".into())).as_deref(),
+            Some("padded"),
+            "a key pasted with a stray newline still works"
+        );
     }
 }

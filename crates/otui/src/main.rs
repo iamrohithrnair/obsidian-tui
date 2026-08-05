@@ -1,5 +1,11 @@
 //! obsidian-tui — an Obsidian-like terminal UI for your vault.
 
+// Nothing here needs `unsafe`, and the one thing that reached for it —
+// writing to the environment from a test — was undefined behaviour rather
+// than a shortcut. `forbid` rather than `deny` so it cannot be waved through
+// locally: re-introducing it should be a deliberate change to this line.
+#![forbid(unsafe_code)]
+
 mod actions;
 mod agent;
 mod app;
