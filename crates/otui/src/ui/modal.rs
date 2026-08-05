@@ -80,7 +80,12 @@ fn draw_picker(frame: &mut Frame, picker: &mut Picker, palette: &Palette, area: 
 
     let selected = picker.selected;
     let scroll = picker.scroll;
-    let width = list.width as usize;
+    // One column short of the list, because the scrollbar is painted down the
+    // last one. Shortcuts are right-aligned, so without this the end of every
+    // one of them is covered — `Ctrl+Shift+F` reads as `Ctrl+Shift+`. Reserved
+    // whether or not the bar is showing, so entries don't shift sideways by a
+    // column as the list is filtered.
+    let width = list.width.saturating_sub(1) as usize;
 
     let lines: Vec<Line> = picker
         .visible()
@@ -157,12 +162,17 @@ fn draw_prompt(frame: &mut Frame, prompt: &Prompt, palette: &Palette, area: Rect
     let inner = block.inner(rect);
     frame.render_widget(block, rect);
 
+    // A secret is masked, but its length shows, so a paste that arrived short or
+    // doubled is visible.
+    let shown = if prompt.intent.secret() {
+        "•".repeat(prompt.value.chars().count())
+    } else {
+        prompt.value.clone()
+    };
+
     Paragraph::new(Line::from(vec![
         Span::styled("› ", Style::default().fg(palette.text_accent)),
-        Span::styled(
-            prompt.value.clone(),
-            Style::default().fg(palette.text_normal),
-        ),
+        Span::styled(shown, Style::default().fg(palette.text_normal)),
     ]))
     .render(inner, frame.buffer_mut());
 
@@ -226,6 +236,9 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
         "Notes",
         &[
             ("Ctrl+E", "Toggle reading and editing"),
+            ("j / k", "Scroll while reading"),
+            ("h / l", "Pan across a wide table while reading"),
+            ("g / G", "Top / bottom of the note"),
             ("Ctrl+N", "New note"),
             ("Ctrl+S", "Save"),
             ("Ctrl+D", "Today's daily note"),
@@ -261,16 +274,19 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
         &[
             ("Ctrl+G", "Whole-vault graph"),
             ("Ctrl+Shift+G", "Local graph for the open note"),
+            ("arrows", "Walk to the nearest node that way"),
             ("hjkl", "Pan"),
             ("+ / -", "Zoom"),
             ("f / 0", "Fit the whole graph on screen"),
-            ("Tab / n", "Next node"),
+            ("Tab / n", "Next node, by link count"),
             ("Shift+Tab / N", "Previous node"),
             ("c", "Centre on the selected node"),
             ("Enter", "Open the selected node"),
+            ("drag", "Move a node, then let the layout resettle"),
             ("L", "Toggle labels"),
             ("u", "Toggle unresolved links"),
             ("t", "Toggle tag nodes"),
+            ("a", "Toggle attachments"),
             ("r", "Rebuild the layout"),
         ],
     ),
@@ -279,7 +295,10 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
         &[
             ("Ctrl+L", "Toggle the chat panel / focus it"),
             ("Enter", "Send"),
-            ("/", "Slash command (type / for the list)"),
+            ("/", "Slash command — ↑↓ to browse, Tab or Enter to pick"),
+            ("/provider", "Choose a backend: Anthropic, OpenAI, Ollama…"),
+            ("/model", "Choose a model, from what the provider offers"),
+            ("/key", "Store an API key for this provider"),
             ("Ctrl+C", "Stop the current turn"),
             ("Ctrl+R", "Clear the conversation"),
         ],
@@ -325,7 +344,12 @@ fn draw_help(frame: &mut Frame, scroll: &mut usize, palette: &Palette, area: Rec
     *scroll = (*scroll).min(lines.len().saturating_sub(height));
 
     let visible: Vec<Line> = lines.iter().skip(*scroll).take(height).cloned().collect();
-    Paragraph::new(visible).render(inner, frame.buffer_mut());
+    // The scrollbar owns the last column, so the text stops one short of it.
+    let text = Rect {
+        width: inner.width.saturating_sub(1),
+        ..inner
+    };
+    Paragraph::new(visible).render(text, frame.buffer_mut());
     scrollbar(frame, palette, inner, *scroll, lines.len());
 }
 
@@ -343,6 +367,44 @@ mod tests {
                 assert!(!key.is_empty() && !description.is_empty());
             }
         }
+    }
+
+    #[test]
+    fn a_long_shortcut_is_not_clipped_by_the_scrollbar() {
+        use crate::app::App;
+        use crate::config::Config;
+        use otui_core::test_support::TempVault;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // Shortcuts are right-aligned against the list, and the scrollbar is
+        // painted down its last column — so every shortcut used to lose its
+        // final character once the palette had enough entries to scroll.
+        let vault = TempVault::new("palette-clip");
+        vault.write("A.md", "a\n");
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        crate::actions::dispatch(&mut app, crate::app::Action::OpenPalette);
+
+        let mut terminal = Terminal::new(TestBackend::new(120, 40)).expect("terminal");
+        terminal
+            .draw(|frame| crate::ui::draw(frame, &mut app))
+            .expect("draw");
+
+        let buffer = terminal.backend().buffer();
+        let screen: String = (0..buffer.area.height)
+            .map(|y| {
+                (0..buffer.area.width)
+                    .map(|x| buffer[(x, y)].symbol())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(
+            screen.contains("Ctrl+Shift+Tab"),
+            "the longest shortcut lost its tail to the scrollbar:\n{screen}"
+        );
+        assert!(screen.contains("Ctrl+Shift+F"));
     }
 
     #[test]

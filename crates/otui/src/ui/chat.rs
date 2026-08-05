@@ -15,15 +15,13 @@ use crate::ui::{pane_block, scrollbar, wrap};
 /// Rows reserved for the input box.
 const INPUT_HEIGHT: u16 = 3;
 
+/// Tallest the slash-command list gets before it scrolls.
+const MAX_COMPLETION_ROWS: u16 = 10;
+
 pub fn draw(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect) {
     let focused = app.focus == Focus::Chat;
-    let title = if app.chat.busy {
-        "Assistant  ·  working…"
-    } else {
-        "Assistant"
-    };
-
-    let block = pane_block(title, focused, palette, palette.bg_secondary);
+    let title = title(app);
+    let block = pane_block(&title, focused, palette, palette.bg_secondary);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -40,6 +38,32 @@ pub fn draw(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect) {
     }
 }
 
+/// What the panel calls itself.
+///
+/// The model answering is worth the space: "why is nothing happening" is almost
+/// always a missing key or the wrong model, and neither was visible anywhere
+/// before you went looking for it.
+fn title(app: &App) -> String {
+    if app.chat.busy {
+        return "Assistant  ·  working…".to_string();
+    }
+    let provider = &app.config.agent.provider;
+    let Some(preset) = otui_agent::catalog::find(provider) else {
+        return format!("Assistant  ·  {provider}?");
+    };
+    if preset.kind == otui_agent::ProviderKind::Offline {
+        return "Assistant  ·  no model — /provider".to_string();
+    }
+    if !crate::agent::ready(app) {
+        return format!("Assistant  ·  {} — /key", preset.label);
+    }
+    format!(
+        "Assistant  ·  {} {}",
+        preset.label,
+        app.config.agent.model()
+    )
+}
+
 /// The slash-command list, shown while the user is typing one.
 ///
 /// It grows upward from the input box so the command being typed stays put —
@@ -54,7 +78,9 @@ fn draw_completions(frame: &mut Frame, app: &App, palette: &Palette, area: Rect)
         return;
     }
 
-    let rows = (matches.len() as u16).min(area.height).min(10);
+    let rows = (matches.len() as u16)
+        .min(area.height)
+        .min(MAX_COMPLETION_ROWS);
     let popup = Rect {
         x: area.x,
         y: area.y + area.height - rows,
@@ -63,16 +89,22 @@ fn draw_completions(frame: &mut Frame, app: &App, palette: &Palette, area: Rect)
     };
     frame.render_widget(Clear, popup);
 
+    // The list is longer than the popup for a bare `/`, so it scrolls to keep
+    // the highlight in view rather than letting the arrows walk off the edge.
+    let selected = app.chat.completion.min(matches.len() - 1);
+    let visible = rows as usize;
+    let first = selected
+        .saturating_sub(visible - 1)
+        .min(matches.len() - visible.min(matches.len()));
+
     let width = popup.width as usize;
-    for (row, command) in matches.iter().take(rows as usize).enumerate() {
-        // The first entry is what Tab and Enter will pick, so it's highlighted.
-        let selected = row == 0;
+    for (row, command) in matches.iter().skip(first).take(visible).enumerate() {
         let name = match command.argument_hint {
             Some(hint) => format!(" /{} {hint}", command.name),
             None => format!(" /{}", command.name),
         };
         let line = format!("{name:<24}{}", command.description);
-        let style = if selected {
+        let style = if first + row == selected {
             Style::default()
                 .fg(palette.text_accent)
                 .bg(palette.bg_active)
@@ -87,6 +119,19 @@ fn draw_completions(frame: &mut Frame, app: &App, palette: &Palette, area: Rect)
             popup.y + row as u16,
             crate::ui::truncate(&padded, width),
             style,
+        );
+    }
+
+    if matches.len() > visible {
+        let more = format!(" {}/{} ", selected + 1, matches.len());
+        let x = popup.x + popup.width.saturating_sub(more.chars().count() as u16 + 1);
+        frame.buffer_mut().set_string(
+            x,
+            popup.y,
+            &more,
+            Style::default()
+                .fg(palette.text_faint)
+                .bg(palette.bg_active),
         );
     }
 }
@@ -363,6 +408,127 @@ mod tests {
     fn an_empty_transcript_renders_nothing() {
         let (_v, app) = app();
         assert!(transcript_lines(&app, &palette(), 40).is_empty());
+    }
+
+    /// The rows of the completion popup, top to bottom, as plain text.
+    fn popup_rows(app: &App, height: u16) -> Vec<String> {
+        let area = Rect::new(0, 0, 60, height);
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(area.width, height))
+                .expect("terminal");
+        terminal
+            .draw(|frame| draw_completions(frame, app, &palette(), area))
+            .expect("drawn");
+
+        let buffer = terminal.backend().buffer().clone();
+        (0..height)
+            .map(|y| {
+                (0..area.width)
+                    .map(|x| buffer[(x, y)].symbol())
+                    .collect::<String>()
+                    .trim_end()
+                    .to_string()
+            })
+            .filter(|row| !row.is_empty())
+            .collect()
+    }
+
+    #[test]
+    fn the_panel_says_which_model_is_answering_or_what_is_missing() {
+        let (vault, mut app) = app();
+        app.auth = crate::auth::Auth::at(vault.path().join("auth.json"));
+
+        crate::actions::set_provider(&mut app, "offline").expect("a known provider");
+        assert!(
+            title(&app).contains("/provider"),
+            "with nothing set up, the title is the instructions: {}",
+            title(&app)
+        );
+
+        crate::actions::set_provider(&mut app, "anthropic").expect("a known provider");
+        if crate::auth::key_for("anthropic", &app.auth).is_none() {
+            assert!(
+                title(&app).contains("/key"),
+                "a provider with no key says so: {}",
+                title(&app)
+            );
+        }
+
+        // A local server needs no key, so it is ready as soon as it is chosen.
+        crate::actions::set_provider(&mut app, "ollama").expect("a known provider");
+        let ready = title(&app);
+        assert!(ready.contains("Ollama"), "{ready}");
+        assert!(
+            ready.contains(&app.config.agent.model()),
+            "and names the model, which is the other half of 'why did that fail': {ready}"
+        );
+
+        app.chat.busy = true;
+        assert!(
+            title(&app).contains("working"),
+            "while a turn is running, that is the more useful thing to say"
+        );
+    }
+
+    #[test]
+    fn the_command_list_scrolls_to_keep_the_highlight_in_view() {
+        let (_v, mut app) = app();
+        app.chat.input = "/".into();
+        let total = crate::slash::completions("/").len();
+        assert!(
+            total > MAX_COMPLETION_ROWS as usize,
+            "this test only means something if the list is too long to show at once"
+        );
+
+        let first_page = popup_rows(&app, 20);
+        assert_eq!(first_page.len(), MAX_COMPLETION_ROWS as usize);
+        assert!(
+            first_page[0].contains("/help"),
+            "starts at the top: {first_page:?}"
+        );
+        assert!(first_page[0].contains("1/"), "and counts: {first_page:?}");
+
+        // Down to the very last command.
+        app.chat.completion = total - 1;
+        let last_page = popup_rows(&app, 20);
+        assert!(
+            last_page.last().is_some_and(|row| row.contains("/quit")),
+            "the last command is reachable rather than off the bottom: {last_page:?}"
+        );
+        assert!(last_page[0].contains(&format!("{total}/{total}")));
+    }
+
+    #[test]
+    fn the_highlight_is_the_row_the_arrows_landed_on() {
+        let (_v, mut app) = app();
+        app.chat.input = "/".into();
+        app.chat.completion = 2;
+
+        let area = Rect::new(0, 0, 60, 20);
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(60, 20)).expect("terminal");
+        terminal
+            .draw(|frame| draw_completions(frame, &app, &palette(), area))
+            .expect("drawn");
+
+        let buffer = terminal.backend().buffer().clone();
+        let popup_top = 20 - MAX_COMPLETION_ROWS;
+        let accent = palette().text_accent;
+        let highlighted: Vec<u16> = (popup_top..20)
+            .filter(|&y| buffer[(1, y)].style().fg == Some(accent))
+            .collect();
+        assert_eq!(
+            highlighted,
+            vec![popup_top + 2],
+            "exactly the third row, and only it"
+        );
+    }
+
+    #[test]
+    fn a_pane_with_no_room_draws_no_popup_rather_than_panicking() {
+        let (_v, mut app) = app();
+        app.chat.input = "/".into();
+        assert!(popup_rows(&app, 1).is_empty());
     }
 
     #[test]

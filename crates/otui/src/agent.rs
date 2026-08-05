@@ -50,6 +50,11 @@ pub struct Chat {
     pub input: String,
     /// Cursor position within `input`, in characters.
     pub cursor: usize,
+    /// Which slash command the completion list has highlighted.
+    ///
+    /// Reset whenever the input changes, since the list it indexes into is
+    /// recomputed from what has been typed.
+    pub completion: usize,
     pub scroll: usize,
     /// True while a turn is in flight.
     pub busy: bool,
@@ -71,6 +76,7 @@ impl Chat {
             conversation: Vec::new(),
             input: String::new(),
             cursor: 0,
+            completion: 0,
             scroll: 0,
             busy: false,
             usage: Usage::default(),
@@ -96,6 +102,7 @@ impl Chat {
         let byte = char_to_byte(&self.input, self.cursor);
         self.input.insert(byte, ch);
         self.cursor += 1;
+        self.completion = 0;
     }
 
     pub fn backspace(&mut self) {
@@ -105,6 +112,33 @@ impl Chat {
         let byte = char_to_byte(&self.input, self.cursor - 1);
         self.input.remove(byte);
         self.cursor -= 1;
+        self.completion = 0;
+    }
+
+    /// Puts a slash command in the input, ready for its argument.
+    pub fn complete_with(&mut self, name: &str) {
+        self.input = format!("/{name} ");
+        self.cursor = self.input.chars().count();
+        self.completion = 0;
+    }
+
+    /// Moves the completion highlight, wrapping at both ends.
+    ///
+    /// Wrapping because the list is short and reaching the end by holding a key
+    /// is a normal way to look through it.
+    pub fn move_completion(&mut self, delta: isize, len: usize) {
+        if len == 0 {
+            return;
+        }
+        let len = len as isize;
+        self.completion = ((self.completion as isize + delta).rem_euclid(len)) as usize;
+    }
+
+    /// Empties the input, closing the completion list with it.
+    pub fn clear_input(&mut self) {
+        self.input.clear();
+        self.cursor = 0;
+        self.completion = 0;
     }
 
     pub fn move_cursor(&mut self, delta: isize) {
@@ -225,10 +259,11 @@ pub fn send(app: &mut App) {
     let specs = crate::tools::specs(app.config.agent.allow_writes);
     let host = otui_agent::ChannelToolHost::new(specs, tool_tx);
 
-    let provider = otui_agent::build_provider(
+    let provider = otui_agent::build_provider_with_key(
         &app.config.agent.provider_kind(),
         app.config.agent.base_url.as_deref(),
         Some(&app.config.agent.model()),
+        crate::auth::key_for(&app.config.agent.provider, &app.auth),
     );
 
     let runner = otui_agent::spawn(
@@ -355,6 +390,84 @@ Existing tags: {tag_list}",
             tags.join(", ")
         },
     )
+}
+
+/// Whether the assistant can actually reach a model.
+///
+/// Takes stored keys into account, not just exported ones, so a key typed in with
+/// `/key` counts as being set up.
+#[must_use]
+pub fn ready(app: &App) -> bool {
+    let provider = &app.config.agent.provider;
+    let key = crate::auth::key_for(provider, &app.auth);
+    otui_agent::has_credentials(
+        &app.config.agent.provider_kind(),
+        app.config.agent.base_url.as_deref(),
+        key.as_deref(),
+    )
+}
+
+/// A model list being fetched from a provider.
+///
+/// Asking costs a network round trip, and a local server that isn't running costs
+/// the whole timeout, so it happens on a thread and the reader stays usable while
+/// it does. One at a time: the answer feeds a menu that is about to open, and a
+/// second request would only race the first to fill it.
+#[derive(Default)]
+pub struct Lookup {
+    pending: Option<std::sync::mpsc::Receiver<Result<Vec<String>, String>>>,
+    /// Which provider was asked, so the picker can say so.
+    pub provider: String,
+}
+
+impl Lookup {
+    /// Whether an answer is still outstanding.
+    #[must_use]
+    pub fn busy(&self) -> bool {
+        self.pending.is_some()
+    }
+
+    /// Asks a provider for its models.
+    ///
+    /// Replaces any request already in flight; the old one's answer is dropped
+    /// when its channel closes.
+    pub fn start(&mut self, provider: &str, api_key: Option<String>, base_url: Option<String>) {
+        let Some(preset) = otui_agent::catalog::find(provider) else {
+            return;
+        };
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.pending = Some(rx);
+        self.provider = provider.to_string();
+
+        std::thread::Builder::new()
+            .name("otui-models".into())
+            .spawn(move || {
+                let result =
+                    otui_agent::catalog::models(preset, api_key.as_deref(), base_url.as_deref())
+                        .map_err(|err| err.to_string());
+                // Nobody left to tell means the app moved on, which is fine.
+                let _ = tx.send(result);
+            })
+            .ok();
+    }
+
+    /// The answer, once it arrives.
+    pub fn take(&mut self) -> Option<Result<Vec<String>, String>> {
+        let pending = self.pending.as_ref()?;
+        match pending.try_recv() {
+            Ok(result) => {
+                self.pending = None;
+                Some(result)
+            }
+            Err(TryRecvError::Empty) => None,
+            // The thread died without answering. Reporting that is better than
+            // waiting for a reply that will never come.
+            Err(TryRecvError::Disconnected) => {
+                self.pending = None;
+                Some(Err("the request went away".into()))
+            }
+        }
+    }
 }
 
 #[cfg(test)]

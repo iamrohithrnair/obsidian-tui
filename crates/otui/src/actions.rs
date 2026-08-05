@@ -42,6 +42,13 @@ pub fn commands() -> Vec<Entry> {
         ),
         Entry::new("Cycle sidebar panel", "Ctrl+K", Action::CycleSidePanel),
         Entry::new("Toggle assistant panel", "Ctrl+L", Action::ToggleChat),
+        Entry::new(
+            "Assistant: choose provider",
+            "/provider",
+            Action::OpenProviderPicker,
+        ),
+        Entry::new("Assistant: choose model", "/model", Action::OpenModelPicker),
+        Entry::new("Assistant: set API key", "/key", Action::PromptApiKey),
         Entry::new("Toggle ribbon", "", Action::ToggleRibbon),
         Entry::new("Toggle shortcut hints", "", Action::ToggleHints),
         Entry::new("Change sort order", "s", Action::CycleSortOrder),
@@ -55,6 +62,11 @@ pub fn commands() -> Vec<Entry> {
             Action::ToggleGraphUnresolved,
         ),
         Entry::new("Graph: toggle tags", "", Action::ToggleGraphTags),
+        Entry::new(
+            "Graph: toggle attachments",
+            "",
+            Action::ToggleGraphAttachments,
+        ),
         Entry::new("Graph: toggle orphans", "", Action::ToggleGraphOrphans),
         Entry::new("Open this note in Obsidian", "", Action::OpenInObsidian),
         Entry::new("Reload vault from disk", "", Action::Refresh),
@@ -85,6 +97,79 @@ fn cycle_sort_order(app: &mut App) {
         app.explorer.scroll_into_view(area.height as usize);
     }
     app.info(format!("sorted by {}; /config keeps it", next.label()));
+}
+
+/// Switches backend, bringing the endpoint and model with it.
+///
+/// The three settings only make sense together: an Anthropic model name sent to
+/// Ollama is a 404, and Groq's address with OpenAI's key is a 401. So picking a
+/// provider resets the other two to that provider's own, and the model is chosen
+/// afterwards from what it actually offers.
+///
+/// The outcome is returned rather than announced, because a switch made from the
+/// palette belongs in the status bar while one made with `/provider` belongs in
+/// the transcript beside the command that caused it.
+pub(crate) fn set_provider(app: &mut App, name: &str) -> Result<String, String> {
+    let Some(preset) = otui_agent::catalog::find(name) else {
+        return Err(format!(
+            "unknown provider '{name}'; /provider with no name lists them"
+        ));
+    };
+
+    app.config.agent.provider = preset.id.to_string();
+    app.config.agent.base_url = preset.base_url.map(str::to_string);
+    app.config.agent.model.clear();
+
+    let key = crate::auth::key_for(preset.id, &app.auth);
+    Ok(
+        if otui_agent::has_credentials(&preset.kind, preset.base_url, key.as_deref()) {
+            format!("{} · /model to choose one", preset.label)
+        } else if let Some(env_var) = preset.env_var {
+            format!(
+                "{}: no key yet — /key to enter one, or export {env_var}",
+                preset.label
+            )
+        } else {
+            preset.label.to_string()
+        },
+    )
+}
+
+/// Asks the current provider for its models, to fill a picker with.
+fn ask_for_models(app: &mut App) {
+    let provider = app.config.agent.provider.clone();
+    let Some(preset) = otui_agent::catalog::find(&provider) else {
+        app.error(format!("unknown provider '{provider}'"));
+        return;
+    };
+    if preset.kind == otui_agent::ProviderKind::Offline {
+        app.info("no provider is set; /provider picks one");
+        return;
+    }
+    if app.lookup.busy() {
+        app.info("still asking…");
+        return;
+    }
+
+    app.lookup.start(
+        &provider,
+        crate::auth::key_for(&provider, &app.auth),
+        app.config.agent.base_url.clone(),
+    );
+    app.info(format!("asking {} for its models…", preset.label));
+}
+
+/// Opens the model picker on a list that has arrived.
+pub(crate) fn show_models(app: &mut App, models: Vec<String>) {
+    let current = app.config.agent.model();
+    let entries = models
+        .into_iter()
+        .map(|name| {
+            let detail = if name == current { "in use" } else { "" };
+            Entry::new(name.clone(), detail, Action::SetModel(name))
+        })
+        .collect();
+    app.modal = Some(Modal::Picker(Picker::new(PickerKind::Models, entries)));
 }
 
 fn open_in_obsidian(app: &mut App) {
@@ -356,9 +441,56 @@ pub fn dispatch(app: &mut App, action: Action) {
             app.modal = Some(Modal::Picker(Picker::new(PickerKind::Vaults, entries)));
         }
         Action::OpenHelp => app.modal = Some(Modal::Help(0)),
+        Action::OpenProviderPicker => {
+            let current = app.config.agent.provider.clone();
+            let entries = otui_agent::catalog::PRESETS
+                .iter()
+                .map(|preset| {
+                    // The key's whereabouts is the thing people are actually
+                    // looking for here, so it goes in the detail line.
+                    let detail = match (preset.id == current, preset.env_var) {
+                        (true, _) => format!("in use · {}", preset.note),
+                        (false, Some(_))
+                            if crate::auth::key_for(preset.id, &app.auth).is_some() =>
+                        {
+                            format!("key ready · {}", preset.note)
+                        }
+                        (false, _) => preset.note.to_string(),
+                    };
+                    Entry::new(preset.label, detail, Action::SetProvider(preset.id.into()))
+                })
+                .collect();
+            app.modal = Some(Modal::Picker(Picker::new(PickerKind::Providers, entries)));
+        }
+        Action::OpenModelPicker => ask_for_models(app),
+        Action::PromptApiKey => {
+            let provider = app.config.agent.provider.clone();
+            match otui_agent::catalog::find(&provider) {
+                Some(preset) if preset.env_var.is_none() => app.info(format!(
+                    "{} needs no API key; /base-url points at it instead",
+                    preset.label
+                )),
+                Some(preset) => {
+                    app.modal = Some(Modal::Prompt(crate::modal::Prompt::new(
+                        format!("{} API key", preset.label),
+                        "",
+                        crate::modal::PromptIntent::ApiKey(provider),
+                    )));
+                }
+                None => app.error(format!("unknown provider '{provider}'")),
+            }
+        }
 
         // ---- settings ---------------------------------------------------
         Action::SetTheme(name) => app.set_theme(&name),
+        Action::SetProvider(name) => match set_provider(app, &name) {
+            Ok(message) => app.info(message),
+            Err(message) => app.error(message),
+        },
+        Action::SetModel(name) => {
+            app.config.agent.model = name;
+            app.info(format!("model: {}", app.config.agent.model()));
+        }
         Action::OpenVault(path) => app.open_vault(path),
         Action::ToggleLineNumbers => {
             app.config.ui.line_numbers = !app.config.ui.line_numbers;
@@ -372,6 +504,10 @@ pub fn dispatch(app: &mut App, action: Action) {
         }
         Action::ToggleGraphTags => {
             app.config.graph.show_tags = !app.config.graph.show_tags;
+            app.refresh_graph();
+        }
+        Action::ToggleGraphAttachments => {
+            app.config.graph.show_attachments = !app.config.graph.show_attachments;
             app.refresh_graph();
         }
         Action::ToggleGraphOrphans => {
@@ -491,6 +627,34 @@ pub fn submit_prompt(app: &mut App, prompt: Prompt) {
             app.explorer.filter = value;
             app.explorer.rebuild(&app.index);
         }
+        PromptIntent::ApiKey(provider) => store_key(app, &provider, &value),
+    }
+}
+
+/// Keeps a typed-in API key, or forgets it when the prompt was left empty.
+fn store_key(app: &mut App, provider: &str, key: &str) {
+    let label = otui_agent::catalog::find(provider).map_or(provider, |preset| preset.label);
+    app.auth.set(provider, key);
+
+    if let Err(err) = app.auth.save() {
+        app.error(format!("could not save the key: {err}"));
+        return;
+    }
+    if key.trim().is_empty() {
+        app.info(format!("forgot the {label} key"));
+        return;
+    }
+
+    // Worth saying, because a key in the environment silently wins over the one
+    // just typed, and the resulting "but I entered it" is hard to debug.
+    match crate::auth::source(provider, &app.auth) {
+        crate::auth::Source::Env(name) => app.info(format!(
+            "saved, but ${name} is set and takes precedence — unset it to use this key"
+        )),
+        _ if !app.auth.persists() => app.info(format!(
+            "{label} key set for this session; there is no config directory to keep it in"
+        )),
+        _ => app.info(format!("{label} key saved · /model to choose one")),
     }
 }
 

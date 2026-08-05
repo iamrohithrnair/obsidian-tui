@@ -279,6 +279,35 @@ impl Explorer {
         true
     }
 
+    /// The folders currently open, for saving between runs.
+    ///
+    /// Open rather than closed, because that is the set which survives the
+    /// vault changing underneath it — see [`crate::state`].
+    #[must_use]
+    pub fn expanded(&self, index: &VaultIndex) -> Vec<String> {
+        index
+            .folders()
+            .iter()
+            .filter(|folder| !self.collapsed.contains(*folder))
+            .cloned()
+            .collect()
+    }
+
+    /// Opens exactly these folders and closes every other one.
+    ///
+    /// A folder the saved set has never heard of stays shut, which is what
+    /// makes a folder added since the last run start collapsed.
+    pub fn set_expanded(&mut self, expanded: &[String], index: &VaultIndex) {
+        let open: std::collections::HashSet<&String> = expanded.iter().collect();
+        self.collapsed = index
+            .folders()
+            .iter()
+            .filter(|folder| !open.contains(*folder))
+            .cloned()
+            .collect();
+        self.rebuild(index);
+    }
+
     pub fn collapse_all(&mut self, index: &VaultIndex) {
         self.collapsed = index.folders().iter().cloned().collect();
         self.rebuild(index);
@@ -375,6 +404,78 @@ mod tests {
         vault.write("Projects/Beta.md", "b");
         vault.write("Projects/Deep/Gamma.md", "g");
         vault
+    }
+
+    #[test]
+    fn the_open_folders_round_trip_through_a_saved_set() {
+        let vault = vault();
+        let index = vault.index();
+        let mut explorer = explorer();
+        explorer.rebuild(&index);
+
+        explorer.set_expanded(&["Projects".to_string()], &index);
+        assert_eq!(
+            explorer.expanded(&index),
+            vec!["Projects".to_string()],
+            "what was opened is what comes back out"
+        );
+        let listed = names(&explorer);
+        assert!(
+            listed.iter().any(|n| n.trim() == "Alpha"),
+            "Projects is open"
+        );
+        assert!(
+            !listed.iter().any(|n| n.trim() == "Gamma"),
+            "but Projects/Deep stayed shut: {listed:?}"
+        );
+
+        // Nested folders are restored independently of their parents.
+        explorer.set_expanded(
+            &["Projects".to_string(), "Projects/Deep".to_string()],
+            &index,
+        );
+        assert!(names(&explorer).iter().any(|n| n.trim() == "Gamma"));
+    }
+
+    #[test]
+    fn a_folder_the_saved_set_never_heard_of_starts_closed() {
+        // The reason the *open* folders are stored rather than the closed
+        // ones: a folder added since the last run must not spring open.
+        let vault = vault();
+        let index = vault.index();
+        let mut first_run = explorer();
+        first_run.set_expanded(&["Projects".to_string()], &index);
+        // What quitting would write down, against the vault as it was then.
+        let saved = first_run.expanded(&index);
+
+        // A folder appears while the app is closed, and the next run restores.
+        vault.write("Archive/Old.md", "o");
+        let index = vault.index();
+        let mut restored = explorer();
+        restored.set_expanded(&saved, &index);
+
+        let listed = names(&restored);
+        assert!(listed.iter().any(|n| n.trim() == "Archive"), "{listed:?}");
+        assert!(
+            !listed.iter().any(|n| n.trim() == "Old"),
+            "a new folder starts collapsed: {listed:?}"
+        );
+    }
+
+    #[test]
+    fn collapse_all_leaves_nothing_expanded() {
+        let vault = vault();
+        let index = vault.index();
+        let mut explorer = explorer();
+        explorer.collapse_all(&index);
+
+        assert!(explorer.expanded(&index).is_empty());
+        let listed = names(&explorer);
+        assert!(listed.iter().any(|n| n.trim() == "Projects"), "{listed:?}");
+        assert!(
+            !listed.iter().any(|n| n.trim() == "Alpha"),
+            "nothing inside a folder shows: {listed:?}"
+        );
     }
 
     /// An explorer pinned to name order.

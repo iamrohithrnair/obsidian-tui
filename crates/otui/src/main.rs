@@ -3,15 +3,18 @@
 mod actions;
 mod agent;
 mod app;
+mod auth;
 mod cli;
 mod config;
 mod editor;
 mod explorer;
+mod images;
 mod keys;
 mod modal;
 mod obsidian;
 mod session;
 mod slash;
+mod state;
 mod tools;
 mod ui;
 
@@ -110,6 +113,7 @@ fn main() -> io::Result<()> {
         return run_prompt(&mut app, &prompt);
     }
 
+    app.restore_ui_state();
     apply_startup_args(&mut app, &args);
     run(&mut app)
 }
@@ -225,6 +229,28 @@ fn run(app: &mut App) -> io::Result<()> {
         hook(info);
     }));
 
+    // Asking the terminal what pictures it can draw means writing to stdout and
+    // reading the reply from stdin, so it has to happen while the terminal is
+    // still in its normal mode — before the alternate screen below.
+    app.images = images::Images::probe(
+        app.config.images.enabled,
+        app.config.images.max_height_percent,
+    );
+    match app.images.describe() {
+        // A terminal that quietly fell back to half-blocks is otherwise
+        // indistinguishable from one that drew the picture badly, and the
+        // difference decides whether there is anything to be done about it.
+        Some(protocol) if app.images.is_coarse() => app.info(format!(
+            "images: {protocol} — this terminal has no graphics protocol, \
+             so pictures are coarse. Kitty, Ghostty, WezTerm or iTerm2 draw real pixels."
+        )),
+        Some(protocol) => app.info(format!("images: {protocol}")),
+        None if app.config.images.enabled => {
+            app.info("this terminal won't say what it can draw — images will show as alt text");
+        }
+        None => {}
+    }
+
     // `init` panics when there's no terminal — in a pipe, a CI job, or a
     // headless shell. That's a normal way to invoke a program by mistake, so
     // it deserves an explanation rather than a backtrace.
@@ -247,6 +273,10 @@ fn run(app: &mut App) -> io::Result<()> {
     let _ = crossterm::execute!(std::io::stdout(), crossterm::event::EnableMouseCapture);
 
     let result = event_loop(&mut terminal, app);
+
+    // Written here rather than from the quit action, so that driving the app
+    // in a test never reaches into the real config directory.
+    app.save_ui_state();
 
     let _ = crossterm::execute!(std::io::stdout(), crossterm::event::DisableMouseCapture);
     ratatui::restore();
@@ -288,6 +318,26 @@ fn event_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut App) -> io::Res
             needs_redraw = true;
         }
 
+        // A picture that finished encoding has to be drawn into the space the
+        // last frame already left for it.
+        if app.images.poll() {
+            needs_redraw = true;
+        }
+
+        // A provider that has answered with its model list opens the picker it
+        // was asked for.
+        if let Some(result) = app.lookup.take() {
+            match result {
+                Ok(models) => {
+                    app.status.text.clear();
+                    actions::show_models(app, models);
+                }
+                Err(err) => app.error(format!("could not list models: {err}")),
+            }
+            needs_redraw = true;
+            last_status = Instant::now();
+        }
+
         // Status messages fade so the bar goes back to showing the mode.
         if !app.status.text.is_empty() && last_status.elapsed() > Duration::from_secs(6) {
             app.status.text.clear();
@@ -319,10 +369,79 @@ fn handle_mouse(app: &mut App, mouse: crossterm::event::MouseEvent) -> bool {
             }
             handle_click(app, point)
         }
+        // Dragging a node pins it where you put it, which is how you untangle a
+        // knot of links that the layout has folded onto itself.
+        MouseEventKind::Drag(MouseButton::Left) => drag_graph_node(app, point),
+        MouseEventKind::Up(MouseButton::Left) => release_graph_node(app),
         MouseEventKind::ScrollDown => handle_scroll(app, point, 3),
         MouseEventKind::ScrollUp => handle_scroll(app, point, -3),
         _ => false,
     }
+}
+
+/// Maps a screen point to graph space using the bounds the last frame recorded.
+fn graph_point(
+    rect: ratatui::layout::Rect,
+    x_bounds: [f64; 2],
+    y_bounds: [f64; 2],
+    (x, y): (u16, u16),
+) -> otui_core::graph::Vec2 {
+    let fx = f64::from(x.saturating_sub(rect.x)) / f64::from(rect.width.max(1));
+    let fy = f64::from(y.saturating_sub(rect.y)) / f64::from(rect.height.max(1));
+    otui_core::graph::Vec2::new(
+        (x_bounds[0] + fx * (x_bounds[1] - x_bounds[0])) as f32,
+        // Canvas y grows upward, terminal rows grow downward.
+        (y_bounds[1] - fy * (y_bounds[1] - y_bounds[0])) as f32,
+    )
+}
+
+fn drag_graph_node(app: &mut App, point: (u16, u16)) -> bool {
+    let Some((rect, x_bounds, y_bounds)) = app.regions.graph else {
+        return false;
+    };
+    let Some(graph) = app.graph.as_mut() else {
+        return false;
+    };
+
+    // The grab happens on the first drag event rather than on the click, so a
+    // plain click still just selects.
+    let held = match graph.dragging {
+        Some(node) => node,
+        None => {
+            if !hit(rect, point) {
+                return false;
+            }
+            let radius = ((x_bounds[1] - x_bounds[0]) / 20.0) as f32;
+            let Some(node) = graph
+                .simulation
+                .nearest(graph_point(rect, x_bounds, y_bounds, point), radius)
+            else {
+                return false;
+            };
+            graph.dragging = Some(node);
+            graph.selected = Some(node);
+            node
+        }
+    };
+
+    graph
+        .simulation
+        .drag(held, graph_point(rect, x_bounds, y_bounds, point));
+    true
+}
+
+fn release_graph_node(app: &mut App) -> bool {
+    let Some(graph) = app.graph.as_mut() else {
+        return false;
+    };
+    let Some(node) = graph.dragging.take() else {
+        return false;
+    };
+    // Released back into the simulation rather than left pinned: a pin the user
+    // can't see is a layout that never settles again for reasons they can't
+    // explain.
+    graph.simulation.release(node);
+    true
 }
 
 fn hit(rect: ratatui::layout::Rect, (x, y): (u16, u16)) -> bool {
@@ -408,16 +527,10 @@ fn handle_click(app: &mut App, point: (u16, u16)) -> bool {
         if hit(rect, point) {
             app.focus = app::Focus::Graph;
             if let Some(graph) = app.graph.as_mut() {
-                let fx = f64::from(point.0 - rect.x) / f64::from(rect.width.max(1));
-                let fy = f64::from(point.1 - rect.y) / f64::from(rect.height.max(1));
-                let x = x_bounds[0] + fx * (x_bounds[1] - x_bounds[0]);
-                // Canvas y grows upward, terminal rows grow downward.
-                let y = y_bounds[1] - fy * (y_bounds[1] - y_bounds[0]);
-
-                let point = otui_core::graph::Vec2::new(x as f32, y as f32);
                 // Generous radius: a node is a few characters wide on screen.
                 let radius = ((x_bounds[1] - x_bounds[0]) / 20.0) as f32;
-                if let Some(node) = graph.simulation.nearest(point, radius) {
+                let target = graph_point(rect, x_bounds, y_bounds, point);
+                if let Some(node) = graph.simulation.nearest(target, radius) {
                     graph.selected = Some(node);
                 }
             }
@@ -467,7 +580,9 @@ fn handle_scroll(app: &mut App, point: (u16, u16), delta: isize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    use crossterm::event::{
+        KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    };
     use otui_core::test_support::TempVault;
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
@@ -515,6 +630,213 @@ mod tests {
                 modifiers: crossterm::event::KeyModifiers::empty(),
             },
         )
+    }
+
+    /// The colour of the test picture. Half-blocks paint it into cell colours
+    /// rather than glyphs, so this is what proves it reached the screen.
+    const INK: ratatui::style::Color = ratatui::style::Color::Rgb(200, 30, 30);
+
+    /// Presses a key and redraws, as the event loop would.
+    fn press(terminal: &mut Terminal<TestBackend>, app: &mut App, code: KeyCode) {
+        keys::handle(app, KeyEvent::new(code, KeyModifiers::empty()));
+        terminal.draw(|frame| ui::draw(frame, app)).expect("draw");
+    }
+
+    fn type_keys(terminal: &mut Terminal<TestBackend>, app: &mut App, text: &str) {
+        for ch in text.chars() {
+            press(terminal, app, KeyCode::Char(ch));
+        }
+    }
+
+    /// Rows of the drawn frame, as plain text.
+    fn screen(terminal: &Terminal<TestBackend>) -> Vec<String> {
+        let buffer = terminal.backend().buffer();
+        (0..buffer.area.height)
+            .map(|y| {
+                (0..buffer.area.width)
+                    .map(|x| buffer[(x, y)].symbol())
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// The first row painted with the picture's colour.
+    fn picture_row(terminal: &Terminal<TestBackend>) -> Option<usize> {
+        let buffer = terminal.backend().buffer();
+        (0..buffer.area.height)
+            .find(|&y| (0..buffer.area.width).any(|x| buffer[(x, y)].bg == INK))
+            .map(usize::from)
+    }
+
+    /// The leftmost column painted with the picture's colour.
+    fn picture_column(terminal: &Terminal<TestBackend>) -> Option<usize> {
+        let buffer = terminal.backend().buffer();
+        (0..buffer.area.width)
+            .find(|&x| (0..buffer.area.height).any(|y| buffer[(x, y)].bg == INK))
+            .map(usize::from)
+    }
+
+    /// Draws until the picture has been encoded, or gives up.
+    fn draw_until_loaded(terminal: &mut Terminal<TestBackend>, app: &mut App) {
+        for _ in 0..200 {
+            terminal.draw(|frame| ui::draw(frame, app)).expect("draw");
+            if picture_row(terminal).is_some() {
+                return;
+            }
+            app.images.poll();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        panic!(
+            "the picture never arrived:\n{}",
+            screen(terminal).join("\n")
+        );
+    }
+
+    #[test]
+    fn a_picture_is_drawn_over_the_rows_reserved_for_it_and_scrolls_with_the_text() {
+        let vault = TempVault::new("draw-image");
+        let image = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(200, 100, {
+            let ratatui::style::Color::Rgb(r, g, b) = INK else {
+                unreachable!()
+            };
+            image::Rgb([r, g, b])
+        }));
+        let mut png = Vec::new();
+        image
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .expect("encode png");
+        vault.write_bytes("chart.png", &png);
+        // Long enough to scroll, and wide enough to pan: a note that fits the
+        // pane in either direction never moves.
+        let filler = "lorem ipsum\n\n".repeat(60);
+        let wide = format!(
+            "| {} |\n|{}|\n| {} |\n",
+            (0..12)
+                .map(|i| format!("col {i}"))
+                .collect::<Vec<_>>()
+                .join(" | "),
+            "---|".repeat(12),
+            (0..12)
+                .map(|i| format!("val {i}"))
+                .collect::<Vec<_>>()
+                .join(" | "),
+        );
+        vault.write(
+            "Note.md",
+            &format!("# Note\n\n![a chart](chart.png)\n\nAfter\n\n{wide}\n{filler}"),
+        );
+
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        // The argument is the share of the pane a picture may fill, as in the
+        // config; the real draw path supplies the pane height.
+        app.images = images::Images::halfblocks(66);
+        let note = app.index.id_of_rel("Note.md").expect("indexed");
+        app.open_note(note);
+
+        let mut terminal = Terminal::new(TestBackend::new(120, 40)).expect("terminal");
+        draw_until_loaded(&mut terminal, &mut app);
+
+        let top = picture_row(&terminal).expect("a row of the picture");
+        let before = screen(&terminal);
+        assert!(
+            before.iter().any(|row| row.contains("After")),
+            "the text below it is still there: {before:#?}"
+        );
+        assert!(
+            !before.iter().any(|row| row.contains("a chart")),
+            "the alt text gives way to the picture itself"
+        );
+
+        // Scrolling moves the picture with the prose rather than pinning it.
+        app.active_mut().expect("tab").scroll = 2;
+        terminal
+            .draw(|frame| ui::draw(frame, &mut app))
+            .expect("draw");
+        assert_eq!(
+            picture_row(&terminal),
+            Some(top - 2),
+            "it scrolled up with everything else"
+        );
+
+        // Panned sideways, a picture gives way rather than staying pinned to
+        // the left edge over whatever the reader is trying to reach.
+        app.active_mut().expect("tab").scroll = 0;
+        terminal
+            .draw(|frame| ui::draw(frame, &mut app))
+            .expect("draw");
+        assert!(
+            picture_column(&terminal).is_some(),
+            "on screen to begin with"
+        );
+
+        app.active_mut().expect("tab").hscroll = 3;
+        terminal
+            .draw(|frame| ui::draw(frame, &mut app))
+            .expect("draw");
+        assert_eq!(
+            picture_column(&terminal),
+            None,
+            "it moved off with the prose instead of being redrawn against the edge"
+        );
+
+        // Scrolled past its last row, it leaves nothing behind.
+        app.active_mut().expect("tab").hscroll = 0;
+        app.active_mut().expect("tab").scroll = 40;
+        terminal
+            .draw(|frame| ui::draw(frame, &mut app))
+            .expect("draw");
+        assert_eq!(
+            picture_row(&terminal),
+            None,
+            "and scrolls fully out of view"
+        );
+    }
+
+    #[test]
+    fn an_excalidraw_note_is_shown_as_a_diagram_not_as_its_markdown() {
+        let scene = r##"{"type": "excalidraw", "elements": [
+            {"type": "rectangle", "x": 0, "y": 0, "width": 400, "height": 200,
+             "strokeColor": "#e03131", "backgroundColor": "transparent",
+             "fillStyle": "solid", "strokeStyle": "solid"},
+            {"type": "text", "x": 40, "y": 80, "width": 200, "height": 25,
+             "text": "Ingest", "strokeColor": "#1971c2",
+             "backgroundColor": "transparent", "fillStyle": "hachure"},
+            {"type": "arrow", "x": 400, "y": 100, "width": 120, "height": 0,
+             "points": [[0, 0], [120, 0]], "strokeColor": "#2f9e44",
+             "backgroundColor": "transparent", "fillStyle": "solid"}
+        ]}"##;
+        // Compressed, as Obsidian's plugin writes it by default.
+        let packed = lz_str::compress_to_base64(scene);
+        let vault = TempVault::new("draw-excalidraw");
+        vault.write(
+            "Flow.excalidraw.md",
+            &format!(
+                "---\nexcalidraw-plugin: parsed\n---\n\n\
+                 # Excalidraw Data\n\n## Text Elements\nIngest ^abc\n\n\
+                 ## Drawing\n```compressed-json\n{packed}\n```\n%%\n"
+            ),
+        );
+
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        let note = app.index.id_of_rel("Flow.excalidraw.md").expect("indexed");
+        app.open_note(note);
+
+        let mut terminal = Terminal::new(TestBackend::new(120, 40)).expect("terminal");
+        terminal
+            .draw(|frame| ui::draw(frame, &mut app))
+            .expect("draw");
+        let rendered = screen(&terminal);
+        let all = rendered.join("\n");
+
+        assert!(
+            all.chars().any(|c| ('\u{2800}'..='\u{28ff}').contains(&c)),
+            "the shapes are drawn as braille: {all}"
+        );
+        assert!(all.contains("Ingest"), "and the labels are readable: {all}");
+        assert!(
+            !all.contains("compressed-json") && !all.contains(&packed[..24]),
+            "the base64 the drawing is stored as never reaches the screen"
+        );
     }
 
     #[test]
@@ -592,13 +914,14 @@ mod tests {
             .iter()
             .position(|r| r.name() == "Folder")
             .expect("Folder is listed");
+        // Folders start closed, so the first click opens this one.
         let before = app.explorer.len();
 
         click(&mut app, rect.x + 2, rect.y + folder_row as u16);
-        assert!(app.explorer.len() < before, "one click folds the folder");
+        assert!(app.explorer.len() > before, "one click unfolds the folder");
 
         click(&mut app, rect.x + 2, rect.y + folder_row as u16);
-        assert_eq!(app.explorer.len(), before, "and unfolds it again");
+        assert_eq!(app.explorer.len(), before, "and folds it again");
     }
 
     #[test]
@@ -672,6 +995,59 @@ mod tests {
         let (_v, mut app) = demo();
         lay_out(&mut app);
         assert!(!click(&mut app, 159, 39), "the status bar is not a target");
+    }
+
+    /// Setting the assistant up without leaving the keyboard or reading a manual:
+    /// open the panel, type a slash, arrow to the command, pick a provider from
+    /// the menu, type a key into the masked prompt.
+    #[test]
+    fn the_assistant_can_be_configured_from_the_panel_alone() {
+        let (vault, mut app) = demo();
+        let mut terminal = Terminal::new(TestBackend::new(120, 40)).expect("terminal");
+        app.auth = auth::Auth::at(vault.path().join("auth.json"));
+
+        keys::handle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('l'), KeyModifiers::CONTROL),
+        );
+        assert_eq!(app.focus, app::Focus::Chat);
+
+        // `/provider` reached by typing enough of it to be unambiguous.
+        type_keys(&mut terminal, &mut app, "/prov");
+        press(&mut terminal, &mut app, KeyCode::Enter);
+        assert_eq!(app.chat.input, "/provider ", "Enter fills in the command");
+        press(&mut terminal, &mut app, KeyCode::Enter);
+
+        // The provider menu, with Anthropic at the top, taken as it stands.
+        let Some(modal::Modal::Picker(picker)) = app.modal.as_ref() else {
+            panic!("expected the provider menu, got {:?}", app.modal);
+        };
+        assert_eq!(picker.kind, modal::PickerKind::Providers);
+        press(&mut terminal, &mut app, KeyCode::Enter);
+        assert_eq!(app.config.agent.provider, "anthropic");
+
+        // And a key, typed into a prompt that shows dots rather than the key.
+        type_keys(&mut terminal, &mut app, "/key");
+        press(&mut terminal, &mut app, KeyCode::Enter);
+        type_keys(&mut terminal, &mut app, "sk-ant-typed");
+
+        let rows = screen(&terminal).join("\n");
+        assert!(
+            !rows.contains("sk-ant-typed"),
+            "the key must not appear on screen"
+        );
+        assert!(rows.contains("••••"), "masked instead:\n{rows}");
+
+        press(&mut terminal, &mut app, KeyCode::Enter);
+        assert_eq!(
+            auth::key_for("anthropic", &app.auth).as_deref(),
+            Some("sk-ant-typed"),
+            "and it is what the next request will use"
+        );
+        assert!(
+            screen(&terminal).join("\n").contains("Anthropic"),
+            "the panel now says who is answering"
+        );
     }
 
     #[test]

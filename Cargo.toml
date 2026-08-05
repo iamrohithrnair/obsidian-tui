@@ -3,9 +3,11 @@ resolver = "2"
 members = ["crates/otui-core", "crates/otui-theme", "crates/otui-agent", "crates/otui"]
 
 [workspace.package]
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
-rust-version = "1.88"
+# Set by the dependency chain, not by this code: ratatui-image pulls
+# icy_sixel, which pins quantette 0.5.1, which requires 1.90.
+rust-version = "1.90"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/iamrohithrnair/obsidian-tui"
 description = "obsidian-tui — an Obsidian-like terminal UI for your vault: notes, live-preview markdown, backlinks and a force-directed graph"
@@ -13,19 +15,34 @@ keywords = ["obsidian", "tui", "notes", "markdown", "graph"]
 categories = ["command-line-utilities", "text-editors"]
 
 [workspace.dependencies]
-otui-core = { path = "crates/otui-core", version = "0.1.1" }
-otui-theme = { path = "crates/otui-theme", version = "0.1.1" }
-otui-agent = { path = "crates/otui-agent", version = "0.1.1" }
+otui-core = { path = "crates/otui-core", version = "0.2.0" }
+otui-theme = { path = "crates/otui-theme", version = "0.2.0" }
+otui-agent = { path = "crates/otui-agent", version = "0.2.0" }
 
 ratatui = "0.30"
 crossterm = "0.29"
+# Kitty, iTerm2 and sixel with a halfblocks fallback. Default features are off
+# to keep the optional C bindings (libchafa, libsixel) out of the build, so the
+# binary stays pure Rust and cross-compiles.
+ratatui-image = { version = "11", default-features = false, features = [
+    "crossterm",
+    "image-defaults",
+] }
+image = { version = "0.25", default-features = false, features = [
+    "png",
+    "jpeg",
+    "gif",
+    "webp",
+    "bmp",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-toml = "0.9"
+toml = "1"
 dirs = "6"
 anyhow = "1"
 unicode-width = "0.2"
 ureq = { version = "3", features = ["json"] }
+lz-str = "0.2"
 
 [profile.release]
 lto = true

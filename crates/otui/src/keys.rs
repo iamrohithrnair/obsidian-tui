@@ -13,6 +13,9 @@ use crate::app::{Action, App, Focus, Mode, View};
 use crate::modal::{Modal, PickerKind, Prompt, PromptIntent};
 use crate::ui::panes::{sidebar_targets, SidebarTarget};
 
+/// Columns moved per keypress when panning a wide table sideways.
+const PAN_STEP: isize = 4;
+
 /// Handles one key event.
 pub fn handle(app: &mut App, key: KeyEvent) {
     // Terminals that report key releases would otherwise run every binding
@@ -42,8 +45,31 @@ pub fn handle(app: &mut App, key: KeyEvent) {
     }
 }
 
+/// Rewrites the control bytes a legacy terminal sends into the keys they mean.
+///
+/// Without the Kitty keyboard protocol a terminal has no way to say "Ctrl and
+/// this punctuation key"; it sends a single C0 byte instead. `Ctrl+\` is `0x1C`
+/// and `Ctrl+]` is `0x1D`, and crossterm decodes that range as `Ctrl` plus the
+/// digits `4`–`7` — so a binding written as `Ctrl+]` can never match, which is
+/// exactly what left both sidebar toggles dead.
+///
+/// Nothing binds `Ctrl` with a digit, and modals are dispatched before the
+/// global map, so no typed input passes through here.
+fn normalize_legacy_ctrl(key: KeyEvent) -> KeyEvent {
+    if !key.modifiers.contains(KeyModifiers::CONTROL) {
+        return key;
+    }
+    let code = match key.code {
+        KeyCode::Char('4') => KeyCode::Char('\\'),
+        KeyCode::Char('5') => KeyCode::Char(']'),
+        other => other,
+    };
+    KeyEvent { code, ..key }
+}
+
 /// Bindings that work everywhere. Returns whether the key was consumed.
 fn handle_global(app: &mut App, key: KeyEvent) -> bool {
+    let key = normalize_legacy_ctrl(key);
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
     let shift = key.modifiers.contains(KeyModifiers::SHIFT);
     let alt = key.modifiers.contains(KeyModifiers::ALT);
@@ -275,15 +301,25 @@ fn handle_reading(app: &mut App, key: KeyEvent) {
             tab.scroll = (tab.scroll as isize + delta).max(0) as usize;
         }
     };
+    // Panning across a wide table. The draw pass clamps this to the content's
+    // width, which is the only place the width is known.
+    let pan = |app: &mut App, delta: isize| {
+        if let Some(tab) = app.active_mut() {
+            tab.hscroll = (tab.hscroll as isize + delta).max(0) as usize;
+        }
+    };
 
     match key.code {
         KeyCode::Char('j') | KeyCode::Down => step(app, 1),
         KeyCode::Char('k') | KeyCode::Up => step(app, -1),
+        KeyCode::Char('l') | KeyCode::Right => pan(app, PAN_STEP),
+        KeyCode::Char('h') | KeyCode::Left => pan(app, -PAN_STEP),
         KeyCode::PageDown | KeyCode::Char(' ') => step(app, 15),
         KeyCode::PageUp => step(app, -15),
         KeyCode::Char('g') | KeyCode::Home => {
             if let Some(tab) = app.active_mut() {
                 tab.scroll = 0;
+                tab.hscroll = 0;
             }
         }
         KeyCode::Char('G') | KeyCode::End => step(app, 100_000),
@@ -447,25 +483,24 @@ fn handle_sidebar(app: &mut App, key: KeyEvent) {
 fn handle_chat(app: &mut App, key: KeyEvent) {
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
 
+    // While a slash command is being typed, the arrow keys belong to the list of
+    // commands rather than to the transcript — a menu on screen is what the keys
+    // obviously act on, and it is the only way to read the list without knowing
+    // the names already.
+    let completions = if app.chat.busy {
+        Vec::new()
+    } else {
+        crate::slash::completions(&app.chat.input)
+    };
+    if !completions.is_empty() && handle_completions(app, key, &completions) {
+        return;
+    }
+
     match key.code {
-        // A slash command runs locally instead of being sent. `/model` should
-        // change the model, not ask the current one to change it.
         KeyCode::Enter if !app.chat.busy && crate::slash::is_command(&app.chat.input) => {
-            let input = app.chat.input.trim().to_string();
-            app.chat.input.clear();
-            app.chat.cursor = 0;
-            if let crate::slash::Outcome::Unknown(name) = crate::slash::run(app, &input) {
-                app.error(format!("unknown command '/{name}'; /help lists them"));
-            }
+            run_command(app);
         }
         KeyCode::Enter if !app.chat.busy => agent::send(app),
-        // Tab completes the command being typed, the way a shell would.
-        KeyCode::Tab if crate::slash::is_command(&app.chat.input) => {
-            if let Some(command) = crate::slash::completions(&app.chat.input).first() {
-                app.chat.input = format!("/{} ", command.name);
-                app.chat.cursor = app.chat.input.chars().count();
-            }
-        }
         KeyCode::Char('c' | 'C') if ctrl => {
             app.chat.cancel();
             app.info("stopping…");
@@ -493,6 +528,59 @@ fn handle_chat(app: &mut App, key: KeyEvent) {
     }
 }
 
+/// Keys that belong to the slash-command list. Returns whether one was used.
+fn handle_completions(
+    app: &mut App,
+    key: KeyEvent,
+    completions: &[&'static crate::slash::SlashCommand],
+) -> bool {
+    let selected = || {
+        completions
+            .get(app.chat.completion)
+            .or(completions.first())
+            .map(|command| command.name)
+    };
+
+    match key.code {
+        // Only when there is something to choose between: with the command
+        // already named, the arrows still belong to the transcript.
+        KeyCode::Up if completions.len() > 1 => app.chat.move_completion(-1, completions.len()),
+        KeyCode::Down if completions.len() > 1 => app.chat.move_completion(1, completions.len()),
+        // Tab fills in the highlighted command, the way a shell would.
+        KeyCode::Tab => {
+            if let Some(name) = selected() {
+                app.chat.complete_with(name);
+            }
+        }
+        // Enter takes the highlight when the name is still being typed, and runs
+        // the command once it is settled. So `/` then arrows then Enter fills it
+        // in, and Enter again runs it — while typing `/help` and pressing Enter
+        // runs it outright, without a detour through the menu.
+        KeyCode::Enter => match selected().filter(|name| !settled(&app.chat.input, name)) {
+            Some(name) => app.chat.complete_with(name),
+            None => run_command(app),
+        },
+        // Abandoning what you were typing is what Escape means here; the list
+        // closes with it, and a second Escape leaves the panel.
+        KeyCode::Esc => app.chat.clear_input(),
+        _ => return false,
+    }
+    true
+}
+
+/// Whether the input already names this command, rather than a prefix of it.
+fn settled(input: &str, name: &str) -> bool {
+    crate::slash::parse(input).is_some_and(|(typed, _)| typed.eq_ignore_ascii_case(name))
+}
+
+fn run_command(app: &mut App) {
+    let input = app.chat.input.trim().to_string();
+    app.chat.clear_input();
+    if let crate::slash::Outcome::Unknown(name) = crate::slash::run(app, &input) {
+        app.error(format!("unknown command '/{name}'; /help lists them"));
+    }
+}
+
 fn handle_graph(app: &mut App, key: KeyEvent) {
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
     let Some(graph) = app.graph.as_mut() else {
@@ -502,10 +590,18 @@ fn handle_graph(app: &mut App, key: KeyEvent) {
     let step = 20.0 / graph.zoom;
 
     match key.code {
-        KeyCode::Char('h') | KeyCode::Left => graph.center.x -= step,
-        KeyCode::Char('l') | KeyCode::Right => graph.center.x += step,
-        KeyCode::Char('k') | KeyCode::Up => graph.center.y += step,
-        KeyCode::Char('j') | KeyCode::Down => graph.center.y -= step,
+        KeyCode::Char('h') => graph.center.x -= step,
+        KeyCode::Char('l') => graph.center.x += step,
+        KeyCode::Char('k') => graph.center.y += step,
+        KeyCode::Char('j') => graph.center.y -= step,
+        // Arrows walk the selection from node to node, which is how you read a
+        // graph; `hjkl` pans the camera. Binding both to panning left no way to
+        // step through the picture except Tab, which jumps by link count and so
+        // teleports across the vault.
+        KeyCode::Left => graph.select_in_direction(-1.0, 0.0),
+        KeyCode::Right => graph.select_in_direction(1.0, 0.0),
+        KeyCode::Up => graph.select_in_direction(0.0, 1.0),
+        KeyCode::Down => graph.select_in_direction(0.0, -1.0),
         KeyCode::Char('+' | '=') => graph.zoom_by(1.25),
         KeyCode::Char('-' | '_') => graph.zoom_by(1.0 / 1.25),
         // `f` to fit and `0` to reset are the two conventions graph and image
@@ -543,6 +639,7 @@ fn handle_graph(app: &mut App, key: KeyEvent) {
         KeyCode::Char('L') => dispatch(app, Action::ToggleGraphLabels),
         KeyCode::Char('u') => dispatch(app, Action::ToggleGraphUnresolved),
         KeyCode::Char('t') => dispatch(app, Action::ToggleGraphTags),
+        KeyCode::Char('a') => dispatch(app, Action::ToggleGraphAttachments),
         KeyCode::Char('r') if !ctrl => {
             app.refresh_graph();
             app.info("graph rebuilt");
@@ -676,6 +773,77 @@ mod tests {
         handle(&mut app, key(KeyCode::Char('k')));
         handle(&mut app, key(KeyCode::Char('k')));
         assert_eq!(app.active().unwrap().scroll, 0, "must not go negative");
+    }
+
+    #[test]
+    fn the_pane_toggles_respond_to_the_bytes_a_terminal_actually_sends() {
+        let (_v, mut app) = app();
+
+        // A terminal without the Kitty keyboard protocol sends 0x1C for Ctrl+\
+        // and 0x1D for Ctrl+], which crossterm reports as Ctrl+4 and Ctrl+5.
+        // Binding the punctuation alone left both toggles doing nothing.
+        let right = app.config.ui.show_right_sidebar;
+        handle(&mut app, ctrl(KeyCode::Char('5')));
+        assert_ne!(
+            app.config.ui.show_right_sidebar, right,
+            "Ctrl+] must toggle the outline sidebar"
+        );
+
+        let left = app.config.ui.show_left_sidebar;
+        handle(&mut app, ctrl(KeyCode::Char('4')));
+        assert_ne!(
+            app.config.ui.show_left_sidebar, left,
+            "Ctrl+\\ must toggle the file explorer"
+        );
+
+        // The punctuation form still works, for terminals that do send it.
+        handle(&mut app, ctrl(KeyCode::Char(']')));
+        assert_eq!(app.config.ui.show_right_sidebar, right);
+        handle(&mut app, ctrl(KeyCode::Char('\\')));
+        assert_eq!(app.config.ui.show_left_sidebar, left);
+    }
+
+    #[test]
+    fn a_plain_digit_is_not_mistaken_for_a_pane_toggle() {
+        let (_v, mut app) = app();
+        let before = (
+            app.config.ui.show_left_sidebar,
+            app.config.ui.show_right_sidebar,
+        );
+        handle(&mut app, key(KeyCode::Char('4')));
+        handle(&mut app, key(KeyCode::Char('5')));
+        assert_eq!(
+            (
+                app.config.ui.show_left_sidebar,
+                app.config.ui.show_right_sidebar
+            ),
+            before,
+            "only the control form is rewritten"
+        );
+    }
+
+    #[test]
+    fn reading_mode_pans_sideways_and_clamps_at_the_left() {
+        let (_v, mut app) = app();
+        let a = app.index.id_of_rel("A.md").unwrap();
+        app.open_note(a);
+
+        handle(&mut app, key(KeyCode::Right));
+        assert_eq!(app.active().unwrap().hscroll, PAN_STEP as usize);
+
+        handle(&mut app, key(KeyCode::Char('l')));
+        assert_eq!(app.active().unwrap().hscroll, PAN_STEP as usize * 2);
+
+        for _ in 0..5 {
+            handle(&mut app, key(KeyCode::Left));
+        }
+        assert_eq!(app.active().unwrap().hscroll, 0, "must not go negative");
+
+        // Jumping to the top comes back to the left edge too; leaving a note
+        // scrolled sideways when you asked for the start of it is disorienting.
+        handle(&mut app, key(KeyCode::Right));
+        handle(&mut app, key(KeyCode::Char('g')));
+        assert_eq!(app.active().unwrap().hscroll, 0);
     }
 
     #[test]
@@ -872,6 +1040,82 @@ mod chat_command_tests {
     }
 
     #[test]
+    fn arrows_walk_the_command_list_and_enter_takes_the_highlight() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "/");
+
+        let names: Vec<&str> = crate::slash::completions("/")
+            .iter()
+            .map(|command| command.name)
+            .collect();
+        assert!(names.len() > 3, "a bare slash offers everything");
+
+        press(&mut app, KeyCode::Down);
+        press(&mut app, KeyCode::Down);
+        assert_eq!(app.chat.completion, 2, "the highlight moved");
+
+        press(&mut app, KeyCode::Enter);
+        assert_eq!(
+            app.chat.input,
+            format!("/{} ", names[2]),
+            "Enter takes the highlighted command rather than running the first"
+        );
+
+        press(&mut app, KeyCode::Enter);
+        assert!(
+            app.chat.input.is_empty(),
+            "and Enter again runs it, since the name is settled"
+        );
+    }
+
+    #[test]
+    fn the_highlight_wraps_and_resets_as_the_command_is_typed() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "/");
+
+        press(&mut app, KeyCode::Up);
+        assert_eq!(
+            app.chat.completion,
+            crate::slash::completions("/").len() - 1,
+            "up from the top wraps to the bottom"
+        );
+
+        type_str(&mut app, "s");
+        assert_eq!(
+            app.chat.completion, 0,
+            "a keystroke changes the list, so the highlight starts over"
+        );
+    }
+
+    #[test]
+    fn a_named_command_leaves_the_arrows_to_the_transcript() {
+        let (_v, mut app) = app();
+        app.chat.scroll = 9;
+        app.chat.follow = true;
+        type_str(&mut app, "/model ");
+
+        press(&mut app, KeyCode::Up);
+        assert_eq!(app.chat.completion, 0, "there is nothing left to choose");
+        assert!(
+            !app.chat.follow && app.chat.scroll < 9,
+            "so Up scrolls the conversation, as it does while writing a message"
+        );
+    }
+
+    #[test]
+    fn escape_abandons_a_half_typed_command_before_leaving_the_panel() {
+        let (_v, mut app) = app();
+        type_str(&mut app, "/sess");
+
+        press(&mut app, KeyCode::Esc);
+        assert!(app.chat.input.is_empty(), "the command is abandoned");
+        assert_eq!(app.focus, Focus::Chat, "but the panel keeps focus");
+
+        press(&mut app, KeyCode::Esc);
+        assert_eq!(app.focus, Focus::Note, "a second Escape leaves");
+    }
+
+    #[test]
     fn tab_in_a_normal_message_does_not_complete() {
         let (_v, mut app) = app();
         type_str(&mut app, "hello");
@@ -1035,6 +1279,51 @@ mod binding_tests {
         press(&mut app, 'r');
         assert_eq!(app.view, View::Graph);
         assert!(app.graph.is_some());
+    }
+
+    #[test]
+    fn arrows_move_the_selection_and_hjkl_moves_the_camera() {
+        let (_v, mut app) = graph_app();
+        {
+            // Two nodes side by side, so "right" has an unambiguous answer.
+            let graph = app.graph.as_mut().unwrap();
+            graph
+                .simulation
+                .drag(0, otui_core::graph::Vec2::new(0.0, 0.0));
+            graph
+                .simulation
+                .drag(1, otui_core::graph::Vec2::new(30.0, 0.0));
+            graph.selected = Some(0);
+        }
+        let center = app.graph.as_ref().unwrap().center;
+
+        handle(
+            &mut app,
+            KeyEvent::new(KeyCode::Right, KeyModifiers::empty()),
+        );
+        let graph = app.graph.as_ref().unwrap();
+        assert_eq!(graph.selected, Some(1), "→ walks to the next node");
+        assert_eq!(graph.center, center, "→ does not pan");
+
+        handle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('l'), KeyModifiers::empty()),
+        );
+        let graph = app.graph.as_ref().unwrap();
+        assert!(graph.center.x > center.x, "l still pans");
+        assert_eq!(
+            graph.selected,
+            Some(1),
+            "panning does not move the selection"
+        );
+    }
+
+    #[test]
+    fn a_toggles_attachments() {
+        let (_v, mut app) = graph_app();
+        let before = app.config.graph.show_attachments;
+        press(&mut app, 'a');
+        assert_ne!(app.config.graph.show_attachments, before);
     }
 
     #[test]

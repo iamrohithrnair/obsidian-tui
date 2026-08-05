@@ -59,13 +59,18 @@ pub const COMMANDS: &[SlashCommand] = &[
     },
     SlashCommand {
         name: "provider",
-        description: "Switch backend: anthropic, openai, offline",
+        description: "Choose a backend: Anthropic, OpenAI, Ollama, …",
         argument_hint: Some("[name]"),
     },
     SlashCommand {
         name: "model",
-        description: "Set the model to request",
+        description: "Choose a model, from what the provider offers",
         argument_hint: Some("[name]"),
+    },
+    SlashCommand {
+        name: "key",
+        description: "Store an API key for this provider",
+        argument_hint: Some("[clear]"),
     },
     SlashCommand {
         name: "base-url",
@@ -221,6 +226,7 @@ pub fn run(app: &mut App, input: &str) -> Outcome {
         "compact" => compact(app),
         "provider" => provider(app, args),
         "model" => model(app, args),
+        "key" | "apikey" | "api-key" => key(app, args),
         "base-url" | "baseurl" | "url" => base_url(app, args),
         "login" => {
             let text = login_text(app);
@@ -399,54 +405,76 @@ fn is_plain_user_turn(message: &otui_agent::Message) -> bool {
     })
 }
 
+/// `/provider` with no argument offers the list; with one, switches to it.
+///
+/// A menu rather than a message, because the answer to "what can I put here" is a
+/// list of eight things and nobody should have to read the source to find them.
 fn provider(app: &mut App, args: &str) {
     if args.is_empty() {
-        say(
-            app,
-            &format!(
-                "provider: {}; /provider anthropic | openai | offline",
-                app.config.agent.provider_kind().as_str()
-            ),
-        );
+        crate::actions::dispatch(app, Action::OpenProviderPicker);
         return;
     }
-    let Some(kind) = otui_agent::ProviderKind::parse(args) else {
-        say(
-            app,
-            &format!("unknown provider '{args}'; try anthropic, openai or offline"),
-        );
-        return;
+    let message = match crate::actions::set_provider(app, args) {
+        Ok(message) | Err(message) => message,
     };
-    app.config.agent.provider = kind.as_str().to_string();
-    // The model name belongs to the old provider, so clearing it falls back to
-    // the new provider's default rather than requesting something that doesn't
-    // exist there.
-    app.config.agent.model.clear();
-    let configured = otui_agent::is_configured(&kind, app.config.agent.base_url.as_deref());
-    let mut message = format!(
-        "provider: {} (model {})",
-        kind.as_str(),
-        app.config.agent.model()
-    );
-    if !configured {
-        message.push_str("\nno credentials found; /login explains what to set");
-    }
     say(app, &message);
 }
 
+/// `/model` with no argument asks the provider what it has.
+///
+/// Asking beats a built-in list: model names change monthly, a local server's
+/// depend on what has been pulled, and a stale name fails as a puzzling 404.
 fn model(app: &mut App, args: &str) {
     if args.is_empty() {
-        say(
-            app,
-            &format!(
-                "model: {}; /model <name> to change",
-                app.config.agent.model()
-            ),
-        );
+        crate::actions::dispatch(app, Action::OpenModelPicker);
         return;
     }
     app.config.agent.model = args.to_string();
     say(app, &format!("model: {}", app.config.agent.model()));
+}
+
+/// `/key` stores a key for the current provider, or forgets it.
+fn key(app: &mut App, args: &str) {
+    let provider = app.config.agent.provider.clone();
+    match args.trim() {
+        "" => crate::actions::dispatch(app, Action::PromptApiKey),
+        "clear" | "forget" | "remove" => {
+            app.auth.set(&provider, "");
+            match app.auth.save() {
+                Ok(()) => {
+                    let state = key_state(app);
+                    say(app, &format!("forgot the stored {provider} key\n{state}"));
+                }
+                Err(err) => say(app, &format!("could not save: {err}")),
+            }
+        }
+        // Typed on the line rather than into the prompt. Accepted, since refusing
+        // would be pedantic, but the prompt is the one that doesn't leave the key
+        // in the transcript.
+        given => {
+            app.auth.set(&provider, given);
+            match app.auth.save() {
+                Ok(()) => {
+                    let state = key_state(app);
+                    say(app, &format!("key stored\n{state}"));
+                }
+                Err(err) => say(app, &format!("could not save: {err}")),
+            }
+        }
+    }
+}
+
+/// Where the current provider's key is coming from.
+fn key_state(app: &App) -> String {
+    let provider = &app.config.agent.provider;
+    if !otui_agent::catalog::needs_key(provider) {
+        return format!("{provider} needs no key");
+    }
+    match crate::auth::source(provider, &app.auth) {
+        crate::auth::Source::Env(name) => format!("using ${name} from your environment"),
+        crate::auth::Source::Stored => "using the stored key".to_string(),
+        crate::auth::Source::Missing => "no key set; /key to enter one".to_string(),
+    }
 }
 
 fn base_url(app: &mut App, args: &str) {
@@ -467,51 +495,76 @@ fn base_url(app: &mut App, args: &str) {
 }
 
 fn login_text(app: &App) -> String {
-    let kind = app.config.agent.provider_kind();
-    let configured = otui_agent::is_configured(&kind, app.config.agent.base_url.as_deref());
-    let state = if configured {
-        "credentials found"
-    } else {
-        "no credentials found"
+    let provider = &app.config.agent.provider;
+    let Some(preset) = otui_agent::catalog::find(provider) else {
+        return format!("unknown provider '{provider}'; /provider lists them");
     };
-    match kind {
-        otui_agent::ProviderKind::Anthropic => format!(
-            "anthropic: {state}\nexport ANTHROPIC_API_KEY=sk-ant-...\nthen restart, or /provider anthropic to re-check"
+
+    match preset.env_var {
+        Some(env_var) => format!(
+            "{}: {}\n\n/key            type a key in, kept in auth.json\nexport {env_var}=…   or set it in your shell\n\nthe environment wins when both are set",
+            preset.label,
+            key_state(app)
         ),
-        otui_agent::ProviderKind::OpenAiCompatible => format!(
-            "openai-compatible — {state}\nexport OPENAI_API_KEY=sk-...\nfor a local server set the endpoint instead: /base-url http://localhost:11434/v1"
-        ),
-        otui_agent::ProviderKind::Offline => {
-            "offline: no model is configured\n/provider anthropic or /provider openai to pick one"
-                .to_string()
+        None if preset.kind == otui_agent::ProviderKind::Offline => {
+            "offline: no model is configured\n/provider picks one".to_string()
         }
+        None => format!(
+            "{} needs no key\nendpoint: {}\n/base-url points somewhere else",
+            preset.label,
+            app.config
+                .agent
+                .base_url
+                .as_deref()
+                .or(preset.base_url)
+                .unwrap_or("(default)")
+        ),
     }
 }
 
 fn logout(app: &mut App) {
-    // The key lives in the environment, which this process cannot unset for the
-    // shell that started it — so "logout" means "stop using it".
-    app.config.agent.provider = otui_agent::ProviderKind::Offline.as_str().to_string();
-    app.config.agent.base_url = None;
-    say(
-        app,
-        "switched to offline and forgot the endpoint\nthe API key is still in your environment; unset it there to remove it",
-    );
+    let provider = app.config.agent.provider.clone();
+    let stored = app.auth.get(&provider).is_some();
+    app.auth.set(&provider, "");
+    let saved = app.auth.save();
+
+    let _ = crate::actions::set_provider(app, "offline");
+
+    let mut message = String::from("switched to offline and forgot the endpoint");
+    if stored {
+        match saved {
+            Ok(_) => message.push_str("\nthe stored key was deleted"),
+            Err(err) => message.push_str(&format!("\ncould not delete the stored key: {err}")),
+        }
+    }
+    // Worth pointing out, because the process cannot unset a variable for the
+    // shell that started it, so "logged out" would otherwise be a lie.
+    if let Some(env_var) = otui_agent::catalog::env_var(&provider) {
+        if std::env::var(env_var).is_ok() {
+            message.push_str(&format!(
+                "\n${env_var} is still set; unset it in your shell"
+            ));
+        }
+    }
+    say(app, &message);
 }
 
 fn status_text(app: &App) -> String {
-    let kind = app.config.agent.provider_kind();
+    let provider = &app.config.agent.provider;
     let usage = app.chat.usage;
     format!(
-        "provider  {}\nmodel     {}\nendpoint  {}\ncredentials {}\nwrites    {}\ncontext   {}\nturns     {}\ntokens    {} in / {} out",
-        kind.as_str(),
+        "provider  {}\nmodel     {}\nendpoint  {}\nkey       {}\nnetwork   {}\nwrites    {}\ncontext   {}\nturns     {}\ntokens    {} in / {} out",
+        provider,
         app.config.agent.model(),
         app.config.agent.base_url.as_deref().unwrap_or("(default)"),
-        if otui_agent::is_configured(&kind, app.config.agent.base_url.as_deref()) {
-            "found"
+        if otui_agent::catalog::needs_key(provider) {
+            crate::auth::source(provider, &app.auth).to_string()
         } else {
-            "missing"
+            "not needed".to_string()
         },
+        // Which roots and which proxy. On a managed network this is the line that
+        // turns "it just fails" into something actionable.
+        otui_agent::http::trust(),
         on_off(app.config.agent.allow_writes),
         on_off(app.config.agent.include_active_note),
         app.chat.conversation.len(),
@@ -776,6 +829,95 @@ mod tests {
     }
 
     #[test]
+    fn provider_with_no_name_offers_the_list_instead_of_explaining_it() {
+        let (_v, mut app) = app();
+        run(&mut app, "/provider");
+
+        let Some(crate::modal::Modal::Picker(picker)) = app.modal.as_ref() else {
+            panic!("expected a picker, got {:?}", app.modal);
+        };
+        assert_eq!(picker.kind, crate::modal::PickerKind::Providers);
+        assert_eq!(
+            picker.visible().count(),
+            otui_agent::catalog::PRESETS.len(),
+            "every backend it knows how to reach"
+        );
+    }
+
+    #[test]
+    fn switching_provider_brings_the_endpoint_with_it() {
+        let (_v, mut app) = app();
+        app.config.agent.model = "claude-opus-5".into();
+
+        run(&mut app, "/provider ollama");
+        assert_eq!(app.config.agent.provider, "ollama");
+        assert_eq!(
+            app.config.agent.base_url.as_deref(),
+            Some("http://localhost:11434/v1"),
+            "a local server has to be pointed at, and nobody remembers the port"
+        );
+        assert!(
+            app.config.agent.model.is_empty(),
+            "the old model belongs to the old provider; Ollama has never heard of it"
+        );
+
+        run(&mut app, "/provider anthropic");
+        assert_eq!(
+            app.config.agent.base_url, None,
+            "and going back drops the endpoint that was only there for Ollama"
+        );
+    }
+
+    #[test]
+    fn a_key_can_be_typed_in_and_is_read_back_over_the_environment() {
+        let (vault, mut app) = app();
+        app.auth = crate::auth::Auth::at(vault.path().join("auth.json"));
+        app.config.agent.provider = "openai".into();
+
+        run(&mut app, "/key sk-typed-in");
+        assert_eq!(
+            crate::auth::key_for("openai", &app.auth).as_deref(),
+            Some("sk-typed-in")
+        );
+        assert!(
+            !last(&app).contains("sk-typed-in"),
+            "and the key itself is not echoed back into the transcript"
+        );
+
+        run(&mut app, "/key clear");
+        assert_eq!(crate::auth::key_for("openai", &app.auth), None);
+    }
+
+    #[test]
+    fn asking_for_a_key_opens_a_prompt_that_hides_what_is_typed() {
+        let (_v, mut app) = app();
+        app.config.agent.provider = "anthropic".into();
+        run(&mut app, "/key");
+
+        let Some(crate::modal::Modal::Prompt(prompt)) = app.modal.as_ref() else {
+            panic!("expected a prompt, got {:?}", app.modal);
+        };
+        assert!(prompt.intent.secret(), "a key on screen is a key leaked");
+        assert!(prompt.title.contains("Anthropic"));
+    }
+
+    #[test]
+    fn a_keyless_provider_says_so_rather_than_asking_for_one() {
+        let (_v, mut app) = app();
+        run(&mut app, "/provider ollama");
+        run(&mut app, "/key");
+        assert!(
+            app.modal.is_none(),
+            "asking for a key a local server won't read is a dead end"
+        );
+        assert!(
+            app.status.text.contains("no API key"),
+            "{}",
+            app.status.text
+        );
+    }
+
+    #[test]
     fn toggles_flip_when_given_no_argument() {
         let (_v, mut app) = app();
         let before = app.config.agent.allow_writes;
@@ -878,13 +1020,22 @@ mod tests {
     }
 
     #[test]
-    fn logout_stops_using_the_provider_and_says_the_key_remains() {
+    fn logout_stops_using_the_provider_and_drops_its_stored_key() {
         let (_v, mut app) = app();
         app.config.agent.base_url = Some("http://localhost:11434/v1".into());
         run(&mut app, "/logout");
+
         assert_eq!(app.config.agent.provider, "offline");
         assert!(app.config.agent.base_url.is_none());
-        assert!(last(&app).contains("environment"));
+        assert!(
+            last(&app).contains("offline"),
+            "and says so: {}",
+            last(&app)
+        );
+        assert!(
+            app.auth.get("anthropic").is_none(),
+            "a stored key is a login, and logging out ends it"
+        );
     }
 
     #[test]
@@ -915,6 +1066,11 @@ mod tests {
         assert!(text.contains("provider"));
         assert!(text.contains("model"));
         assert!(text.contains("tokens"));
+        assert!(
+            text.contains("network") && text.contains("roots"),
+            "on a managed network, which roots and which proxy is the whole \
+             diagnosis: {text}"
+        );
     }
 
     #[test]

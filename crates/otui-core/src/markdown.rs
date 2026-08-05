@@ -126,6 +126,12 @@ pub enum SpanKind {
     Link {
         url: String,
     },
+    /// An `![alt](src)` embed. Whether `src` names something displayable is the
+    /// renderer's business; the `!` only says the author wanted it shown rather
+    /// than linked. `text` holds the alt text.
+    Image {
+        src: String,
+    },
     /// An inline `#tag`, without the `#`.
     Tag(String),
     /// `$inline math$`, passed through verbatim.
@@ -667,9 +673,10 @@ fn wikilink_span(inner: &str, embed: bool) -> Span {
     }
 }
 
-/// Matches `[text](url)` or `![alt](url)`, returning the bytes consumed.
+/// Matches `[text](url)` or `![alt](src)`, returning the bytes consumed.
 fn markdown_link(rest: &str) -> Option<(usize, Span)> {
-    let open = usize::from(rest.starts_with('!'));
+    let embed = rest.starts_with('!');
+    let open = usize::from(embed);
     let text_end = rest.find(']')?;
     if !rest[text_end + 1..].starts_with('(') {
         return None;
@@ -681,14 +688,22 @@ fn markdown_link(rest: &str) -> Option<(usize, Span)> {
     Some((
         text_end + 2 + url_end + 1,
         Span {
-            text: if label.is_empty() {
+            // An embed keeps its alt text even when empty: the renderer shows
+            // the picture, and only falls back to text when it cannot.
+            text: if label.is_empty() && !embed {
                 url.to_string()
             } else {
                 label.to_string()
             },
             style: Style::default(),
-            kind: SpanKind::Link {
-                url: url.to_string(),
+            kind: if embed {
+                SpanKind::Image {
+                    src: url.to_string(),
+                }
+            } else {
+                SpanKind::Link {
+                    url: url.to_string(),
+                }
             },
         },
     ))
@@ -939,6 +954,32 @@ mod tests {
         assert!(spans
             .iter()
             .any(|s| matches!(&s.kind, SpanKind::Tag(t) if t == "project/alpha")));
+    }
+
+    #[test]
+    fn a_bang_makes_an_image_rather_than_a_link() {
+        let spans = parse_inline("![a chart](assets/chart.png) vs [a chart](assets/chart.png)");
+
+        assert!(
+            matches!(&spans[0].kind, SpanKind::Image { src } if src == "assets/chart.png"),
+            "the bang is what says show it, not link to it"
+        );
+        assert_eq!(
+            spans[0].text, "a chart",
+            "alt text is kept for the fallback"
+        );
+        assert!(spans
+            .iter()
+            .any(|s| matches!(&s.kind, SpanKind::Link { url } if url == "assets/chart.png")));
+    }
+
+    #[test]
+    fn an_image_without_alt_text_stays_empty_rather_than_showing_its_path() {
+        let spans = parse_inline("![](a.png)");
+        assert_eq!(
+            spans[0].text, "",
+            "a link falls back to its URL as a label, but an image has a picture to show"
+        );
     }
 
     #[test]

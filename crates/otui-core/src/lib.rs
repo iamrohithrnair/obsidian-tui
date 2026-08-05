@@ -1,5 +1,6 @@
 //! Core engine for obsidian-tui.
 pub mod error;
+pub mod excalidraw;
 pub mod graph;
 pub mod index;
 pub mod links;

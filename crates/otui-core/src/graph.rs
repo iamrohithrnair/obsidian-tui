@@ -6,8 +6,12 @@
 //!
 //! - Repulsion uses a **Barnes-Hut quadtree**, making a step O(n log n) instead
 //!   of O(n²). A five-thousand-note vault stays interactive.
-//! - The simulation **detects when it has settled** and stops. An idle graph
-//!   costs no CPU, which matters for a program that may sit open all day.
+//! - The simulation **cools down and stops**. Motion is scaled by a factor that
+//!   decays every step, so the layout's remaining travel is bounded and it
+//!   always comes to rest; an idle graph costs no CPU, which matters for a
+//!   program that may sit open all day. Detecting a settled layout by its
+//!   energy alone is not enough — a graph of a few hundred notes oscillates
+//!   below that threshold indefinitely.
 //!
 //! Layout is deterministic: nodes start on a fixed spiral rather than at random
 //! positions, so reopening the graph shows the same picture and tests can
@@ -331,6 +335,51 @@ impl Graph {
         out
     }
 
+    /// A graph holding only `indices` and the edges that run between them.
+    ///
+    /// The local graph needs its own layout rather than a filtered view of the
+    /// whole vault's. Laying a neighbourhood out as part of a five-thousand-note
+    /// picture scatters it across coordinates the local view never shows, so it
+    /// arrives as a clump in one corner of an otherwise empty pane. Positions
+    /// are re-seeded, so the neighbourhood settles into the space it actually
+    /// has.
+    #[must_use]
+    pub fn subgraph(&self, indices: &[usize]) -> Self {
+        let mut remap = vec![usize::MAX; self.nodes.len()];
+        let mut nodes = Vec::with_capacity(indices.len());
+        for &index in indices {
+            if index >= self.nodes.len() || remap[index] != usize::MAX {
+                continue;
+            }
+            remap[index] = nodes.len();
+            nodes.push(self.nodes[index].clone());
+        }
+
+        let kept = |node: usize| remap.get(node).copied().filter(|&n| n != usize::MAX);
+        let edges = self
+            .edges
+            .iter()
+            .filter_map(|edge| {
+                Some(Edge {
+                    from: kept(edge.from)?,
+                    to: kept(edge.to)?,
+                })
+            })
+            .collect();
+
+        let mut graph = Self {
+            nodes,
+            edges,
+            adjacency: Vec::new(),
+        };
+        // Degree is recounted over the kept edges, which is what the layout
+        // should react to: a hub's pull inside the neighbourhood comes from the
+        // links you can see, not from the hundred you can't.
+        graph.rebuild_adjacency();
+        graph.seed_positions();
+        graph
+    }
+
     /// Bounding box of all node positions as `(min_x, min_y, max_x, max_y)`.
     ///
     /// Returns a unit box for an empty graph so callers can divide by its size
@@ -386,11 +435,17 @@ pub struct ForceParams {
 
 impl Default for ForceParams {
     fn default() -> Self {
+        // Tuned for spread rather than for any particular scale: the view
+        // auto-fits to the layout's bounding box, so only the ratio of
+        // node spacing to graph diameter reaches the screen. `repel` is low
+        // relative to that ratio because repulsion is degree-weighted (see
+        // `mass_of`), and gravity is high enough to keep orphans from drifting
+        // out far enough to set the zoom for everyone else.
         Self {
-            repel: 900.0,
+            repel: 300.0,
             link_distance: 32.0,
             link_strength: 0.06,
-            center_gravity: 0.012,
+            center_gravity: 0.06,
             damping: 0.82,
             theta: 0.8,
             dt: 0.85,
@@ -405,14 +460,37 @@ pub struct Simulation {
     pub params: ForceParams,
     /// Total kinetic energy from the last step, used for settle detection.
     energy: f32,
+    /// How much of each step's motion is actually applied, decayed every step.
+    ///
+    /// This is what makes the layout *converge*. Force-directed graphs settle
+    /// into limit cycles — a node oscillating between two neighbours never
+    /// slows down — so an energy threshold alone is a hope, not a guarantee,
+    /// and a real vault would drift for the full step budget. Scaling motion by
+    /// a decaying factor bounds the layout's remaining travel, so it always
+    /// comes to a stop.
+    alpha: f32,
     settled: bool,
     steps: usize,
 }
 
 /// Below this average speed per node, the layout is visually static.
 const SETTLE_ENERGY: f32 = 0.06;
-/// Hard cap so a pathological graph can't spin forever.
-const MAX_STEPS: usize = 4_000;
+/// Starting temperature: a fresh layout applies its motion in full.
+const ALPHA_START: f32 = 1.0;
+/// Temperature retained per step. Reaches [`ALPHA_MIN`] in about 260 steps,
+/// which is the schedule d3-force uses and enough for a layout to spread.
+const ALPHA_DECAY: f32 = 0.985;
+/// Below this, a step moves nodes by a fraction of a cell and the layout is
+/// finished whatever its energy says.
+const ALPHA_MIN: f32 = 0.02;
+/// Temperature a nudge — a drag, a filter change — restarts from.
+///
+/// Well below [`ALPHA_START`]: moving one node should let its neighbours
+/// rearrange, not throw the whole picture back into the air.
+const ALPHA_REHEAT: f32 = 0.5;
+/// Hard cap so a pathological graph can't spin forever. With cooling this is a
+/// backstop that nothing should reach: [`ALPHA_DECAY`] ends the run first.
+const MAX_STEPS: usize = 600;
 
 impl Simulation {
     #[must_use]
@@ -421,6 +499,7 @@ impl Simulation {
             graph,
             params: ForceParams::default(),
             energy: f32::MAX,
+            alpha: ALPHA_START,
             settled: false,
             steps: 0,
         }
@@ -438,10 +517,17 @@ impl Simulation {
         self.energy
     }
 
+    /// How much motion the layout has left, from 1 when fresh to 0 when done.
+    #[must_use]
+    pub fn alpha(&self) -> f32 {
+        self.alpha
+    }
+
     /// Restarts the simulation, e.g. after a drag or a filter change.
     pub fn reheat(&mut self) {
         self.settled = false;
         self.energy = f32::MAX;
+        self.alpha = self.alpha.max(ALPHA_REHEAT);
         self.steps = 0;
     }
 
@@ -468,13 +554,22 @@ impl Simulation {
         }
 
         // Link springs.
+        //
+        // A link's pull is divided by the lesser of its two endpoints' degrees.
+        // Without that, every link into a hub pulls at full strength and the
+        // hub's neighbourhood collapses onto it; a leaf hanging off a hub still
+        // gets pulled home at full strength, because the leaf is the lesser end.
         for edge in &self.graph.edges {
             let a = self.graph.nodes[edge.from].pos;
             let b = self.graph.nodes[edge.to].pos;
+            let crowding = 1.0
+                + self.graph.nodes[edge.from]
+                    .degree
+                    .min(self.graph.nodes[edge.to].degree) as f32;
             let dx = b.x - a.x;
             let dy = b.y - a.y;
             let dist = (dx * dx + dy * dy).sqrt().max(0.01);
-            let pull = (dist - self.params.link_distance) * self.params.link_strength;
+            let pull = (dist - self.params.link_distance) * self.params.link_strength / crowding;
             let fx = dx / dist * pull;
             let fy = dy / dist * pull;
             forces[edge.from].x += fx;
@@ -511,14 +606,18 @@ impl Simulation {
                 node.vel.y = node.vel.y / speed * MAX_SPEED;
             }
 
-            node.pos.x += node.vel.x;
-            node.pos.y += node.vel.y;
-            energy += node.vel.length();
+            // Cooling applies to the distance travelled, not to the velocity
+            // itself: damping keeps its usual meaning and the layout's shape is
+            // unchanged, it just stops sooner.
+            node.pos.x += node.vel.x * self.alpha;
+            node.pos.y += node.vel.y * self.alpha;
+            energy += node.vel.length() * self.alpha;
         }
 
         self.energy = energy / count as f32;
+        self.alpha *= ALPHA_DECAY;
         self.steps += 1;
-        if self.energy < SETTLE_ENERGY || self.steps >= MAX_STEPS {
+        if self.alpha <= ALPHA_MIN || self.energy < SETTLE_ENERGY || self.steps >= MAX_STEPS {
             self.settled = true;
         }
     }
@@ -598,8 +697,19 @@ struct Cell {
     /// center of mass has already absorbed the incoming body by the time a
     /// leaf splits, so it can't be used to re-place the resident one.
     body_pos: Vec2,
+    /// That body's mass, kept for the same reason as `body_pos`.
+    body_mass: f32,
     children: [usize; 4],
     leaf: bool,
+}
+
+/// How hard a node pushes its neighbours away.
+///
+/// Weighting by degree is what stops a hub from collecting its whole
+/// neighbourhood into a single illegible clump: the more links a note has, the
+/// more room it claims, which is also how it reads in Obsidian.
+fn mass_of(node: &Node) -> f32 {
+    1.0 + node.degree as f32
 }
 
 impl Cell {
@@ -613,6 +723,7 @@ impl Cell {
             com_y: 0.0,
             body: NO_CELL,
             body_pos: Vec2::default(),
+            body_mass: 0.0,
             children: [NO_CELL; 4],
             leaf: true,
         }
@@ -646,18 +757,18 @@ impl QuadTree {
             root: 0,
         };
         for (i, node) in nodes.iter().enumerate() {
-            tree.insert(0, i, node.pos, 0);
+            tree.insert(0, i, node.pos, mass_of(node), 0);
         }
         tree
     }
 
-    fn insert(&mut self, cell: usize, body: usize, pos: Vec2, depth: usize) {
+    fn insert(&mut self, cell: usize, body: usize, pos: Vec2, mass: f32, depth: usize) {
         // Accumulate the center of mass on the way down.
         {
             let c = &mut self.cells[cell];
-            let total = c.mass + 1.0;
-            c.com_x = (c.com_x * c.mass + pos.x) / total;
-            c.com_y = (c.com_y * c.mass + pos.y) / total;
+            let total = c.mass + mass;
+            c.com_x = (c.com_x * c.mass + pos.x * mass) / total;
+            c.com_y = (c.com_y * c.mass + pos.y * mass) / total;
             c.mass = total;
 
             if c.half <= MIN_HALF || depth > MAX_TREE_DEPTH {
@@ -667,9 +778,9 @@ impl QuadTree {
             }
         }
 
-        let (leaf, existing, existing_pos) = {
+        let (leaf, existing, existing_pos, existing_mass) = {
             let c = &self.cells[cell];
-            (c.leaf, c.body, c.body_pos)
+            (c.leaf, c.body, c.body_pos, c.body_mass)
         };
 
         if leaf {
@@ -677,6 +788,7 @@ impl QuadTree {
                 let c = &mut self.cells[cell];
                 c.body = body;
                 c.body_pos = pos;
+                c.body_mass = mass;
                 return;
             }
             // Split, then push the resident body down before the new one.
@@ -687,11 +799,11 @@ impl QuadTree {
             }
             self.subdivide(cell);
             let quadrant = self.quadrant_of(cell, existing_pos);
-            self.insert(quadrant, existing, existing_pos, depth + 1);
+            self.insert(quadrant, existing, existing_pos, existing_mass, depth + 1);
         }
 
         let quadrant = self.quadrant_of(cell, pos);
-        self.insert(quadrant, body, pos, depth + 1);
+        self.insert(quadrant, body, pos, mass, depth + 1);
     }
 
     fn subdivide(&mut self, cell: usize) {
@@ -891,6 +1003,49 @@ mod tests {
     }
 
     #[test]
+    fn a_subgraph_stands_on_its_own() {
+        let vault = TempVault::new("subgraph");
+        vault.write("A.md", "[[B]]\n");
+        vault.write("B.md", "[[C]]\n");
+        vault.write("C.md", "end\n");
+
+        let index = vault.index();
+        let graph = Graph::build(&index, &GraphOptions::default());
+        let a = graph
+            .node_of_note(index.id_of_rel("A.md").unwrap())
+            .unwrap();
+
+        let local = graph.subgraph(&graph.neighborhood(a, 1));
+
+        let labels: Vec<&str> = local.nodes.iter().map(|n| n.label.as_str()).collect();
+        assert_eq!(labels, vec!["A", "B"], "one hop from A reaches B, not C");
+        assert_eq!(
+            local.edges.len(),
+            1,
+            "B's link to C has nowhere to land and must be dropped, not left dangling"
+        );
+        // Indices are remapped, or an edge points past the end of the node list.
+        for edge in &local.edges {
+            assert!(edge.from < local.nodes.len() && edge.to < local.nodes.len());
+        }
+        // Degree is recounted over the kept edges: inside this view B is a leaf.
+        assert_eq!(local.nodes[1].degree, 1, "B keeps only its link to A");
+        // Positions are re-seeded, or the layout starts with every node stacked
+        // on the coordinates it held in the full graph.
+        assert_ne!(local.nodes[0].pos, local.nodes[1].pos);
+    }
+
+    #[test]
+    fn a_subgraph_ignores_indices_that_do_not_exist() {
+        let vault = linked_vault();
+        let index = vault.index();
+        let graph = Graph::build(&index, &GraphOptions::default());
+
+        let local = graph.subgraph(&[0, 0, usize::MAX, 999]);
+        assert_eq!(local.nodes.len(), 1, "duplicates and strays are skipped");
+    }
+
+    #[test]
     fn layout_is_deterministic() {
         let vault = linked_vault();
         let index = vault.index();
@@ -975,6 +1130,112 @@ mod tests {
             linked < unlinked,
             "linked {linked} should be closer than unlinked {unlinked}"
         );
+    }
+
+    /// How well spread a settled layout is.
+    ///
+    /// The closest pair of nodes, measured against the spacing an even scatter
+    /// over the same bounding box would give. Below 1 the layout is clumpier
+    /// than an even scatter; this is the number that decides whether the graph
+    /// reads as distinct notes or as one smear, because the view auto-fits to
+    /// the bounding box and so only relative spacing survives to the screen.
+    fn spread(sim: &Simulation) -> f32 {
+        let nodes = &sim.graph.nodes;
+        let mut closest = f32::MAX;
+        for (i, a) in nodes.iter().enumerate() {
+            for b in &nodes[i + 1..] {
+                closest = closest.min((a.pos.x - b.pos.x).hypot(a.pos.y - b.pos.y));
+            }
+        }
+        let (min_x, min_y, max_x, max_y) = sim.graph.bounds();
+        let diameter = (max_x - min_x).max(max_y - min_y);
+        closest / (diameter / (nodes.len() as f32).sqrt())
+    }
+
+    #[test]
+    fn the_layout_spreads_nodes_out() {
+        // The shape that used to collapse: a hub with many spokes, a couple of
+        // interlinked notes off to one side, an orphan, and an unresolved link.
+        let vault = TempVault::new("spread");
+        let mut hub = String::new();
+        for i in 0..8 {
+            hub.push_str(&format!("[[S{i}]]\n"));
+            vault.write(&format!("S{i}.md"), "[[Hub]]\n");
+        }
+        hub.push_str("[[Ghost]]\n");
+        vault.write("Hub.md", &hub);
+        vault.write("A.md", "[[B]] and [[Hub]]\n");
+        vault.write("B.md", "[[A]]\n");
+        vault.write("Orphan.md", "no links\n");
+
+        let index = vault.index();
+        let mut sim = Simulation::new(Graph::build(&index, &GraphOptions::default()));
+        sim.run(MAX_STEPS);
+
+        let spread = spread(&sim);
+        assert!(
+            spread > 0.5,
+            "nodes are bunched too tightly to tell apart: spread {spread}"
+        );
+    }
+
+    /// How many steps a layout takes to come to rest.
+    fn steps_to_settle(sim: &mut Simulation) -> usize {
+        let mut steps = 0;
+        while !sim.is_settled() && steps < MAX_STEPS * 2 {
+            sim.step();
+            steps += 1;
+        }
+        steps
+    }
+
+    #[test]
+    fn a_vault_sized_layout_settles_instead_of_drifting_forever() {
+        // A few hundred interlinked notes is where the layout used to come
+        // apart: with no cooling this graph never reached the settle threshold
+        // at all. Left running it drifted for the whole step budget — minutes
+        // of motion at 30fps — and collapsed to a smear as it went, which is
+        // both of the symptoms this test exists to catch.
+        let vault = TempVault::new("convergence");
+        const NOTES: usize = 200;
+        for i in 0..NOTES {
+            let mut body = String::new();
+            for j in 1..=3 {
+                body.push_str(&format!("[[N{}]]\n", (i * 7 + j * 13) % NOTES));
+            }
+            vault.write(&format!("N{i}.md"), &body);
+        }
+
+        let index = vault.index();
+        let mut sim = Simulation::new(Graph::build(&index, &GraphOptions::default()));
+
+        let steps = steps_to_settle(&mut sim);
+        assert!(sim.is_settled(), "never came to rest");
+        assert!(
+            steps < 400,
+            "took {steps} steps to settle; the layout is still drifting under the user"
+        );
+        // A layout that stops but has bunched into one blob is no better than
+        // one that never stops, so quality is asserted alongside convergence.
+        let spread = spread(&sim);
+        assert!(spread > 0.4, "settled into a smear: spread {spread}");
+    }
+
+    #[test]
+    fn a_nudge_reheats_gently_and_settles_again() {
+        let vault = linked_vault();
+        let index = vault.index();
+        let mut sim = Simulation::new(Graph::build(&index, &GraphOptions::default()));
+        sim.run(MAX_STEPS);
+
+        sim.reheat();
+        assert!(
+            sim.alpha() <= 0.5,
+            "a drag should let neighbours rearrange, not relaunch the whole layout"
+        );
+        let steps = steps_to_settle(&mut sim);
+        assert!(sim.is_settled(), "a reheated layout must settle again");
+        assert!(steps < 400, "reheating took {steps} steps");
     }
 
     #[test]

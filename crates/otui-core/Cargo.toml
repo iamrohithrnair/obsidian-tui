@@ -12,6 +12,8 @@ serde_json.workspace = true
 dirs.workspace = true
 anyhow.workspace = true
 unicode-width.workspace = true
+# Excalidraw's Obsidian format stores its scene as LZ-String compressed base64.
+lz-str.workspace = true
 
 [features]
 test-support = []

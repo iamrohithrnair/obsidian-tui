@@ -47,7 +47,7 @@ npx obsidian-tui ~/Notes     # run it once, install nothing
 npm install -g obsidian-tui  # keep it
 ```
 
-**Cargo** (needs Rust 1.88 or newer):
+**Cargo** (needs Rust 1.90 or newer):
 
 ```sh
 cargo install --git https://github.com/iamrohithrnair/obsidian-tui obsidian-tui
@@ -174,6 +174,19 @@ The ribbon icons are buttons, and most of the UI is clickable:
 callouts, tables, and fenced code with syntax highlighting. Frontmatter is
 optional: a Markdown file dropped in from anywhere shows up.
 
+**Pictures.** `![[chart.png]]` and `![alt](assets/chart.png)` are drawn in the
+reading pane — real pixels in Kitty, Ghostty, WezTerm, iTerm2 and anything that
+speaks sixel, and half-block mosaics everywhere else. Obsidian's `|400` width
+works. Decoding happens off the draw loop, and the space a picture needs is
+worked out before it is decoded, so nothing jumps as it appears. A picture that
+can't be drawn leaves its alt text where it was.
+
+**Excalidraw.** A `.excalidraw.md` note opens as the drawing, not as the wall of
+compressed base64 it is stored as. Shapes, arrows, freehand strokes and labels are
+drawn as vectors on a braille canvas, so a diagram reads the same in every
+terminal whether or not it can show pictures. Scaled to the pane's width and
+scrolled vertically, like the prose it replaces.
+
 **Explorer.** The file tree opens with your most recently edited notes at the
 top, which is usually where you left off. `s` steps through the other orders:
 modified, created and file name, each in both directions. Folders stay
@@ -202,17 +215,29 @@ the transcript, so you can see what it did rather than trusting a summary.
 
 ## The assistant
 
-Set a key and restart:
+Set it up without leaving the app: `Ctrl+L` opens the panel, then
+
+- `/provider` — pick from Anthropic, OpenAI, Ollama, LM Studio, OpenRouter, Groq,
+  a custom endpoint, or off. Choosing one sets its address for you.
+- `/key` — type a key into a masked prompt. Kept in `auth.json` beside the
+  config, mode `0600`, never in `config.toml`.
+- `/model` — asks the provider which models it has and offers the list, rather
+  than making you remember a name. Local servers answer with whatever you've
+  pulled.
+
+The panel's title says which model is answering, or what is still missing.
+
+If you'd rather use the environment, that still works and takes precedence:
 
 ```sh
-export ANTHROPIC_API_KEY=sk-ant-...
+export ANTHROPIC_API_KEY=sk-ant-...      # or OPENAI_API_KEY, GROQ_API_KEY, …
 ```
 
-Or run it entirely offline against a local model:
+Or configure it by hand:
 
 ```toml
 [agent]
-provider = "openai"                      # any OpenAI-compatible server
+provider = "ollama"                      # or any OpenAI-compatible server
 base_url = "http://localhost:11434/v1"   # Ollama, LM Studio, vLLM, OpenRouter…
 model = "llama3.1"
 ```
@@ -230,7 +255,8 @@ Set `allow_writes = false` under `[agent]` to give it search and read only.
 
 ### Slash commands
 
-Type `/` in the chat box for a completion list; `Tab` completes, `Enter` runs.
+Type `/` in the chat box for the list, `↑`/`↓` to walk it, `Tab` or `Enter` to
+take one, `Enter` again to run it. `Esc` abandons what you were typing.
 Commands are handled locally and never reach the model: `/model` changes the
 model rather than asking the current one to.
 
@@ -239,7 +265,8 @@ model rather than asking the current one to.
 | `/help` | List the commands |
 | `/new`, `/compact` | Start over, or trim older turns to free up context |
 | `/save`, `/resume`, `/sessions` | Keep a conversation and pick it up later |
-| `/provider`, `/model`, `/base-url` | Point the agent at a different backend |
+| `/provider`, `/model` | Choose a backend and a model, from menus |
+| `/key`, `/base-url` | Store an API key; point at another endpoint |
 | `/login`, `/logout`, `/status` | Credentials and what the next turn will do |
 | `/writes`, `/context`, `/reasoning` | Toggle what the agent may do and see |
 | `/tools`, `/vault`, `/obsidian` | What's available: tools, index, Obsidian CLI |
@@ -281,9 +308,40 @@ to stop it reading notes on its own, set `allow_writes = false`. That leaves
 search and read, which still read note contents, so use a local model if that
 matters to you.
 
-Your API key is read from the environment (`ANTHROPIC_API_KEY` or
-`OPENAI_API_KEY`) and is never written to the config file, never logged, and
-never included in any error message.
+Your API key comes from the environment (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`
+and so on) or, if you'd rather type it once, from `auth.json` beside the config
+file — written mode `0600`, never in `config.toml`, never logged, and never
+included in an error message. The environment wins when both are set, so a key
+exported for one run takes effect without editing anything.
+
+## Behind a corporate proxy
+
+Managed networks usually terminate TLS at a proxy and re-sign it with the
+company's own certificate authority. That CA is in your machine's trust store but
+not in the root list compiled into this binary, so requests would fail with
+"unknown issuer" and no hint as to why.
+
+A CA bundle named in the environment is used instead, the same way curl and
+everything built on OpenSSL do it — the first of these that is set wins:
+
+```
+OTUI_CA_BUNDLE  SSL_CERT_FILE  REQUESTS_CA_BUNDLE
+CURL_CA_BUNDLE  NODE_EXTRA_CA_CERTS  CARGO_HTTP_CAINFO  SSL_CERT_DIR
+```
+
+On a laptop already set up for such a network one of these is usually exported
+already, so there is nothing to do. The bundle *replaces* the built-in roots, as
+it does for curl, so it needs to be a complete one — which an IT-provided bundle
+normally is. A named bundle that can't be read leaves the built-in roots in place
+rather than trusting nothing, and `/status` says so.
+
+Proxies are read from `HTTPS_PROXY`, `ALL_PROXY` and `NO_PROXY` with no
+configuration. `/status` reports both, which is the fastest way to tell a missing
+CA from a missing proxy:
+
+```
+network   roots 146 from $SSL_CERT_FILE (/etc/ssl/corp.pem), via proxy.corp:8080
+```
 
 ## Configuration
 
@@ -294,6 +352,19 @@ Written on first run, with every default spelled out:
 - Windows: `%APPDATA%\obsidian-tui\config.toml`
 
 Custom themes go in a `themes/` directory beside it.
+
+Which folders you left open is remembered per vault in `state.json`, alongside
+the config — not in it, since it isn't something you'd type by hand. Set
+`OTUI_STATE_FILE` to keep it somewhere else, or delete it to start with every
+folder collapsed again.
+
+Pictures can be turned off, and capped, under `[images]`:
+
+```toml
+[images]
+enabled = true
+max_height_percent = 66   # tallest one picture may be drawn, as a share of the pane
+```
 
 ## Layout
 
@@ -313,9 +384,15 @@ same state.
 ## Development
 
 ```sh
-cargo test --workspace          # 473 tests
+cargo test --workspace          # 542 tests
 cargo clippy --workspace --all-targets
 cargo fmt --all --check
+```
+
+Behind a corporate proxy that re-signs TLS, point cargo at your CA bundle:
+
+```sh
+CARGO_HTTP_CAINFO="$SSL_CERT_FILE" cargo build
 ```
 
 Releases are cut by tagging. Pushing a `v*` tag builds every target, publishes
@@ -367,6 +444,12 @@ coding-agent harness. The assistant's architecture follows its shape closely:
 the streaming tool-calling loop, and the idea that slash commands are handled
 by the client and never reach the model. Reimplemented in Rust; the design
 credit is pi's.
+
+**[glry](https://github.com/uherman/glry)** by uherman (MIT). A terminal image
+gallery. Where I learned that the terminal has to be asked what it can draw
+*before* the alternate screen is entered, and that encoding belongs off the draw
+loop. Pictures here are drawn by
+[ratatui-image](https://github.com/ratatui/ratatui-image) (MIT).
 
 Licensing note, since two of these are copyleft: nothing was copied, so the
 choice of licence here was a free one rather than an obligation. It went to the
