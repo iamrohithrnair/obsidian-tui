@@ -302,14 +302,16 @@ impl Theme {
             callout_quote: s.muted.into(),
 
             graph_bg: s.bg.into(),
-            // Brighter than `graph_edge` on purpose: links should read as
-            // connective tissue behind the notes, not compete with them.
             graph_node: s.text.into(),
             graph_node_focused: s.accent.into(),
             graph_node_neighbor: s.cyan.into(),
             graph_node_unresolved: s.faint.into(),
             graph_node_tag: s.green.into(),
-            graph_edge: s.border.into(),
+            // Full text weight, not the border tone this used to borrow: a
+            // border is drawn to be ignored, and at `#2f2f2f` on a `#1e1e1e`
+            // background the links simply weren't there. A graph whose edges
+            // can't be seen is a scatter plot.
+            graph_edge: s.text.into(),
             graph_edge_active: s.accent.into(),
             graph_label: s.muted.into(),
             graph_label_focused: s.text.into(),
@@ -379,6 +381,37 @@ mod tests {
         assert_ne!(palette.bg_primary, Color::Reset);
         assert_ne!(palette.graph_node_focused, Color::Reset);
         assert_ne!(palette.syn_keyword, Color::Reset);
+    }
+
+    #[test]
+    fn graph_edges_stand_out_against_the_graph_background() {
+        // Edges used to borrow the border tone, which on obsidian-dark is
+        // #2f2f2f against a #1e1e1e background — about 1.3:1, invisible. Every
+        // theme is checked, because the seed derivation is shared and a new
+        // preset could quietly reintroduce it.
+        for seed in crate::presets::ALL {
+            let palette = Palette::from(&Theme::from_seed(seed));
+            // The `terminal` theme resolves to `Reset` so the emulator's own
+            // colours show through. There is nothing to measure: `Reset` as a
+            // foreground and `Reset` as a background are different colours on
+            // screen, and only the terminal knows what they are.
+            let (Some(edge), Some(background)) = (
+                crate::luminance(palette.graph_edge),
+                crate::luminance(palette.graph_bg),
+            ) else {
+                continue;
+            };
+            assert_ne!(
+                palette.graph_edge, palette.graph_bg,
+                "{}: edges are the background",
+                seed.name
+            );
+            assert!(
+                (edge - background).abs() > 0.3,
+                "{}: edges at {edge:.2} vanish into a {background:.2} background",
+                seed.name
+            );
+        }
     }
 
     #[test]

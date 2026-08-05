@@ -45,8 +45,31 @@ pub fn handle(app: &mut App, key: KeyEvent) {
     }
 }
 
+/// Rewrites the control bytes a legacy terminal sends into the keys they mean.
+///
+/// Without the Kitty keyboard protocol a terminal has no way to say "Ctrl and
+/// this punctuation key"; it sends a single C0 byte instead. `Ctrl+\` is `0x1C`
+/// and `Ctrl+]` is `0x1D`, and crossterm decodes that range as `Ctrl` plus the
+/// digits `4`–`7` — so a binding written as `Ctrl+]` can never match, which is
+/// exactly what left both sidebar toggles dead.
+///
+/// Nothing binds `Ctrl` with a digit, and modals are dispatched before the
+/// global map, so no typed input passes through here.
+fn normalize_legacy_ctrl(key: KeyEvent) -> KeyEvent {
+    if !key.modifiers.contains(KeyModifiers::CONTROL) {
+        return key;
+    }
+    let code = match key.code {
+        KeyCode::Char('4') => KeyCode::Char('\\'),
+        KeyCode::Char('5') => KeyCode::Char(']'),
+        other => other,
+    };
+    KeyEvent { code, ..key }
+}
+
 /// Bindings that work everywhere. Returns whether the key was consumed.
 fn handle_global(app: &mut App, key: KeyEvent) -> bool {
+    let key = normalize_legacy_ctrl(key);
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
     let shift = key.modifiers.contains(KeyModifiers::SHIFT);
     let alt = key.modifiers.contains(KeyModifiers::ALT);
@@ -750,6 +773,53 @@ mod tests {
         handle(&mut app, key(KeyCode::Char('k')));
         handle(&mut app, key(KeyCode::Char('k')));
         assert_eq!(app.active().unwrap().scroll, 0, "must not go negative");
+    }
+
+    #[test]
+    fn the_pane_toggles_respond_to_the_bytes_a_terminal_actually_sends() {
+        let (_v, mut app) = app();
+
+        // A terminal without the Kitty keyboard protocol sends 0x1C for Ctrl+\
+        // and 0x1D for Ctrl+], which crossterm reports as Ctrl+4 and Ctrl+5.
+        // Binding the punctuation alone left both toggles doing nothing.
+        let right = app.config.ui.show_right_sidebar;
+        handle(&mut app, ctrl(KeyCode::Char('5')));
+        assert_ne!(
+            app.config.ui.show_right_sidebar, right,
+            "Ctrl+] must toggle the outline sidebar"
+        );
+
+        let left = app.config.ui.show_left_sidebar;
+        handle(&mut app, ctrl(KeyCode::Char('4')));
+        assert_ne!(
+            app.config.ui.show_left_sidebar, left,
+            "Ctrl+\\ must toggle the file explorer"
+        );
+
+        // The punctuation form still works, for terminals that do send it.
+        handle(&mut app, ctrl(KeyCode::Char(']')));
+        assert_eq!(app.config.ui.show_right_sidebar, right);
+        handle(&mut app, ctrl(KeyCode::Char('\\')));
+        assert_eq!(app.config.ui.show_left_sidebar, left);
+    }
+
+    #[test]
+    fn a_plain_digit_is_not_mistaken_for_a_pane_toggle() {
+        let (_v, mut app) = app();
+        let before = (
+            app.config.ui.show_left_sidebar,
+            app.config.ui.show_right_sidebar,
+        );
+        handle(&mut app, key(KeyCode::Char('4')));
+        handle(&mut app, key(KeyCode::Char('5')));
+        assert_eq!(
+            (
+                app.config.ui.show_left_sidebar,
+                app.config.ui.show_right_sidebar
+            ),
+            before,
+            "only the control form is rewritten"
+        );
     }
 
     #[test]

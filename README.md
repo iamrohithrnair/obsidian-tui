@@ -353,6 +353,11 @@ Written on first run, with every default spelled out:
 
 Custom themes go in a `themes/` directory beside it.
 
+Which folders you left open is remembered per vault in `state.json`, alongside
+the config — not in it, since it isn't something you'd type by hand. Set
+`OTUI_STATE_FILE` to keep it somewhere else, or delete it to start with every
+folder collapsed again.
+
 Pictures can be turned off, and capped, under `[images]`:
 
 ```toml

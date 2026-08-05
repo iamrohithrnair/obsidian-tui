@@ -80,7 +80,12 @@ fn draw_picker(frame: &mut Frame, picker: &mut Picker, palette: &Palette, area: 
 
     let selected = picker.selected;
     let scroll = picker.scroll;
-    let width = list.width as usize;
+    // One column short of the list, because the scrollbar is painted down the
+    // last one. Shortcuts are right-aligned, so without this the end of every
+    // one of them is covered — `Ctrl+Shift+F` reads as `Ctrl+Shift+`. Reserved
+    // whether or not the bar is showing, so entries don't shift sideways by a
+    // column as the list is filtered.
+    let width = list.width.saturating_sub(1) as usize;
 
     let lines: Vec<Line> = picker
         .visible()
@@ -339,7 +344,12 @@ fn draw_help(frame: &mut Frame, scroll: &mut usize, palette: &Palette, area: Rec
     *scroll = (*scroll).min(lines.len().saturating_sub(height));
 
     let visible: Vec<Line> = lines.iter().skip(*scroll).take(height).cloned().collect();
-    Paragraph::new(visible).render(inner, frame.buffer_mut());
+    // The scrollbar owns the last column, so the text stops one short of it.
+    let text = Rect {
+        width: inner.width.saturating_sub(1),
+        ..inner
+    };
+    Paragraph::new(visible).render(text, frame.buffer_mut());
     scrollbar(frame, palette, inner, *scroll, lines.len());
 }
 
@@ -357,6 +367,44 @@ mod tests {
                 assert!(!key.is_empty() && !description.is_empty());
             }
         }
+    }
+
+    #[test]
+    fn a_long_shortcut_is_not_clipped_by_the_scrollbar() {
+        use crate::app::App;
+        use crate::config::Config;
+        use otui_core::test_support::TempVault;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // Shortcuts are right-aligned against the list, and the scrollbar is
+        // painted down its last column — so every shortcut used to lose its
+        // final character once the palette had enough entries to scroll.
+        let vault = TempVault::new("palette-clip");
+        vault.write("A.md", "a\n");
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        crate::actions::dispatch(&mut app, crate::app::Action::OpenPalette);
+
+        let mut terminal = Terminal::new(TestBackend::new(120, 40)).expect("terminal");
+        terminal
+            .draw(|frame| crate::ui::draw(frame, &mut app))
+            .expect("draw");
+
+        let buffer = terminal.backend().buffer();
+        let screen: String = (0..buffer.area.height)
+            .map(|y| {
+                (0..buffer.area.width)
+                    .map(|x| buffer[(x, y)].symbol())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(
+            screen.contains("Ctrl+Shift+Tab"),
+            "the longest shortcut lost its tail to the scrollbar:\n{screen}"
+        );
+        assert!(screen.contains("Ctrl+Shift+F"));
     }
 
     #[test]

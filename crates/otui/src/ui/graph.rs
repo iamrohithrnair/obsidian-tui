@@ -23,7 +23,7 @@ use ratatui::widgets::canvas::{Canvas, Context, Line as CanvasLine};
 use ratatui::widgets::{Paragraph, Widget};
 use ratatui::Frame;
 
-use otui_core::graph::{Node, NodeKind, Vec2};
+use otui_core::graph::{Edge, Node, NodeKind, Vec2};
 use otui_theme::Palette;
 
 use crate::app::{App, Focus, GraphView, Regions};
@@ -128,25 +128,40 @@ pub fn draw(
         .paint(|ctx: &mut Context| {
             // Only edges live on the canvas; nodes are drawn as glyphs
             // afterwards, over the top.
-            for edge in &simulation.graph.edges {
-                let (Some(a), Some(b)) = (
-                    simulation.graph.nodes.get(edge.from),
-                    simulation.graph.nodes.get(edge.to),
-                ) else {
-                    continue;
-                };
-                let touches_selection = selected == Some(edge.from) || selected == Some(edge.to);
-                ctx.draw(&CanvasLine {
-                    x1: f64::from(a.pos.x),
-                    y1: f64::from(a.pos.y),
-                    x2: f64::from(b.pos.x),
-                    y2: f64::from(b.pos.y),
-                    color: if touches_selection {
-                        palette.graph_edge_active
-                    } else {
-                        palette.graph_edge
-                    },
-                });
+            //
+            // The selection's links are drawn in a second pass rather than
+            // coloured differently in one. A braille cell keeps a single
+            // colour — the last one written — so an ordinary edge crossing a
+            // highlighted one would rub the highlight out wherever they meet,
+            // which is precisely where a reader is looking.
+            let touches_selection =
+                |edge: &Edge| selected == Some(edge.from) || selected == Some(edge.to);
+
+            for pass in [false, true] {
+                for edge in simulation
+                    .graph
+                    .edges
+                    .iter()
+                    .filter(|edge| touches_selection(edge) == pass)
+                {
+                    let (Some(a), Some(b)) = (
+                        simulation.graph.nodes.get(edge.from),
+                        simulation.graph.nodes.get(edge.to),
+                    ) else {
+                        continue;
+                    };
+                    ctx.draw(&CanvasLine {
+                        x1: f64::from(a.pos.x),
+                        y1: f64::from(a.pos.y),
+                        x2: f64::from(b.pos.x),
+                        y2: f64::from(b.pos.y),
+                        color: if pass {
+                            palette.graph_edge_active
+                        } else {
+                            palette.graph_edge
+                        },
+                    });
+                }
             }
         });
 
@@ -333,7 +348,12 @@ fn draw_labels(
 /// cells instead disagrees by up to a whole cell — increasingly so toward the
 /// right and bottom edges — which is what left edges ending beside their nodes
 /// rather than on them.
-fn project(pos: Vec2, area: Rect, x_bounds: [f64; 2], y_bounds: [f64; 2]) -> Option<(u16, u16)> {
+pub(super) fn project(
+    pos: Vec2,
+    area: Rect,
+    x_bounds: [f64; 2],
+    y_bounds: [f64; 2],
+) -> Option<(u16, u16)> {
     let x_span = x_bounds[1] - x_bounds[0];
     let y_span = y_bounds[1] - y_bounds[0];
     if x_span <= 0.0 || y_span <= 0.0 {

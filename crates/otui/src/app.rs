@@ -412,8 +412,41 @@ impl App {
             index,
         };
 
+        // A vault opens with its folders shut, so the explorer is a short list
+        // of top-level groupings rather than every note at once. `main` calls
+        // `restore_ui_state` straight after to reopen whatever was left open;
+        // constructing an `App` deliberately touches no disk beyond the vault,
+        // so tests aren't steered by whatever is in the real config directory.
+        app.explorer.collapse_all(&app.index);
         app.explorer.rebuild(&app.index);
         Ok(app)
+    }
+
+    /// Reopens the folders left open last time this vault was used.
+    ///
+    /// A vault with no saved entry keeps the collapsed-by-default state set up
+    /// in `new`, which is what a first run should look like.
+    pub fn restore_ui_state(&mut self) {
+        let state = crate::state::State::load();
+        let Some(expanded) = state
+            .vault(&self.index.vault.path)
+            .map(|saved| saved.expanded_folders.clone())
+        else {
+            return;
+        };
+        self.explorer.set_expanded(&expanded, &self.index);
+    }
+
+    /// Writes down how the explorer was left, for the next run.
+    pub fn save_ui_state(&self) {
+        let mut state = crate::state::State::load();
+        state.set_vault(
+            &self.index.vault.path,
+            crate::state::VaultState {
+                expanded_folders: self.explorer.expanded(&self.index),
+            },
+        );
+        state.save();
     }
 
     // ---- accessors -------------------------------------------------------
@@ -802,6 +835,70 @@ mod tests {
         vault.write("B.md", "# B\n");
         vault.write("Folder/C.md", "# C\n");
         vault
+    }
+
+    #[test]
+    fn the_open_folders_survive_a_restart() {
+        // The seam between the explorer and the file on disk: everything either
+        // side of it is covered, but nothing proved the two ends met.
+        let vault = sample();
+        let state_file = vault.vault().path.join("state.json");
+        std::env::set_var("OTUI_STATE_FILE", &state_file);
+
+        let mut first = app(&vault);
+        assert!(first.explorer.expanded(&first.index).is_empty());
+
+        // Open a folder, then quit.
+        let folder = first
+            .explorer
+            .rows()
+            .iter()
+            .position(|row| row.name().trim() == "Folder")
+            .expect("Folder is listed");
+        first.explorer.selected = folder;
+        first.explorer.toggle(&first.index);
+        assert_eq!(first.explorer.expanded(&first.index), vec!["Folder"]);
+        first.save_ui_state();
+
+        // Start again: `new` collapses everything, `restore_ui_state` reopens
+        // what was left open.
+        let mut second = app(&vault);
+        assert!(
+            second.explorer.expanded(&second.index).is_empty(),
+            "a fresh App is collapsed until the saved state is applied"
+        );
+        second.restore_ui_state();
+        assert_eq!(
+            second.explorer.expanded(&second.index),
+            vec!["Folder"],
+            "the folder left open was not reopened"
+        );
+
+        std::env::remove_var("OTUI_STATE_FILE");
+    }
+
+    #[test]
+    fn a_vault_opens_with_its_folders_closed() {
+        // The explorer used to list every note in the vault at once, which
+        // buries the top-level structure the folders exist to express.
+        let vault = sample();
+        let app = app(&vault);
+
+        assert!(
+            app.explorer.expanded(&app.index).is_empty(),
+            "nothing is open on a first run"
+        );
+        let rows: Vec<String> = app
+            .explorer
+            .rows()
+            .iter()
+            .map(|row| row.name().trim().to_string())
+            .collect();
+        assert!(rows.iter().any(|n| n == "Folder"), "{rows:?}");
+        assert!(
+            !rows.iter().any(|n| n == "C"),
+            "a note inside a folder stays hidden until it is opened: {rows:?}"
+        );
     }
 
     #[test]

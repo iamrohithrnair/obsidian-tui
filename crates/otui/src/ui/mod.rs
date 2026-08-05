@@ -35,6 +35,7 @@ pub mod icons {
     pub const SEARCH: &str = "⌕";
     pub const GRAPH: &str = "◈";
     pub const FILES: &str = "≡";
+    pub const OUTLINE: &str = "▤";
     pub const CHAT: &str = "✦";
     pub const SETTINGS: &str = "⚙";
     pub const BULLET: &str = "•";
@@ -92,14 +93,27 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     );
 
     // The hint bar is the first thing to go on a short terminal — the note
-    // matters more than the reminder of how to read it.
+    // matters more than the reminder of how to read it. It spills onto a
+    // second row when the keys don't fit one, but only where there is height
+    // to spare; the rows are laid out here rather than at draw time so the
+    // layout and the renderer can't disagree about how many there are.
     let show_hints = app.config.ui.show_hints && area.height >= 8;
+    let hint_rows = if show_hints {
+        hint_lines(
+            hints_for(app),
+            &palette,
+            area.width as usize,
+            if area.height >= 10 { 2 } else { 1 },
+        )
+    } else {
+        Vec::new()
+    };
     let mut constraints = vec![
         Constraint::Length(1), // title bar
         Constraint::Min(1),    // body
     ];
     if show_hints {
-        constraints.push(Constraint::Length(1));
+        constraints.push(Constraint::Length(hint_rows.len() as u16));
     }
     constraints.push(Constraint::Length(1)); // status bar
 
@@ -164,7 +178,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     }
 
     if show_hints {
-        draw_hints(frame, app, &palette, rows[2]);
+        draw_hints(frame, &palette, rows[2], hint_rows);
     }
     draw_status_bar(frame, app, &palette, status_row);
     modal::draw(frame, app, &palette, area);
@@ -172,12 +186,12 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     app.regions = regions;
 }
 
-/// The shortcut bar: the handful of keys that matter wherever you are.
+/// The keys worth showing for wherever the user currently is.
 ///
 /// Discoverability in a TUI comes from the screen, not the manual — a user who
 /// never presses `?` should still learn the app by using it.
-fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
-    let hints: &[(&str, &str)] = if app.modal.is_some() {
+fn hints_for(app: &App) -> &'static [(&'static str, &'static str)] {
+    if app.modal.is_some() {
         match app.modal.as_ref() {
             Some(Modal::Confirm(_)) => &[("y/Enter", "confirm"), ("Esc", "cancel")],
             Some(Modal::Help(_)) => &[("j/k", "scroll"), ("Esc", "close")],
@@ -208,6 +222,10 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
                 ("/", "filter"),
                 ("s", "sort"),
                 ("^N", "new"),
+                ("^W", "close tab"),
+                ("^\\", "files"),
+                ("^]", "outline"),
+                ("^L", "chat"),
                 ("?", "help"),
                 ("q", "quit"),
             ],
@@ -217,6 +235,10 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
                     ("Esc", "read"),
                     ("^B/^I", "bold/italic"),
                     ("^Z", "undo"),
+                    ("^W", "close tab"),
+                    ("^\\", "files"),
+                    ("^]", "outline"),
+                    ("^L", "chat"),
                     ("^P", "palette"),
                 ],
                 _ => &[
@@ -225,6 +247,10 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
                     ("←→", "pan wide"),
                     ("^O", "switcher"),
                     ("^G", "graph"),
+                    ("^W", "close tab"),
+                    ("^\\", "files"),
+                    ("^]", "outline"),
+                    ("^L", "chat"),
                     ("?", "help"),
                     ("q", "quit"),
                 ],
@@ -233,6 +259,10 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
                 ("Enter", "jump"),
                 ("^K", "next panel"),
                 ("Tab", "panes"),
+                ("^W", "close tab"),
+                ("^\\", "files"),
+                ("^]", "outline"),
+                ("^L", "chat"),
                 ("?", "help"),
                 ("q", "quit"),
             ],
@@ -247,10 +277,57 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
             // which the branch above already handles.
             Focus::Graph => &[("Esc", "back"), ("?", "help"), ("q", "quit")],
         }
-    };
+    }
+}
 
+/// The separator between two hints on the same row.
+const HINT_GAP: &str = "  ·  ";
+
+/// Lays hints out across at most `max_rows` rows of `width` columns.
+///
+/// There are more keys worth showing than fit on one row, so a row that fills
+/// up continues onto the next. Anything still left over once the last row is
+/// full is dropped rather than half-drawn — the bar is a reminder, and a
+/// truncated one is worse than a shorter one.
+fn hint_lines(
+    hints: &[(&str, &str)],
+    palette: &Palette,
+    width: usize,
+    max_rows: usize,
+) -> Vec<Line<'static>> {
+    if width == 0 || max_rows == 0 {
+        return Vec::new();
+    }
+
+    let mut rows: Vec<Line<'static>> = Vec::new();
     let mut spans = vec![Span::raw(" ")];
+    let mut used = 1usize;
+
     for (key, label) in hints {
+        let hint = key.chars().count() + 1 + label.chars().count();
+        let gap = if used > 1 {
+            HINT_GAP.chars().count()
+        } else {
+            0
+        };
+
+        if used + gap + hint > width {
+            if rows.len() + 1 >= max_rows {
+                break;
+            }
+            rows.push(Line::from(std::mem::replace(
+                &mut spans,
+                vec![Span::raw(" ")],
+            )));
+            used = 1;
+        } else if gap > 0 {
+            spans.push(Span::styled(
+                HINT_GAP,
+                Style::default().fg(palette.text_faint),
+            ));
+            used += gap;
+        }
+
         spans.push(Span::styled(
             (*key).to_string(),
             Style::default()
@@ -261,22 +338,17 @@ fn draw_hints(frame: &mut Frame, app: &App, palette: &Palette, area: Rect) {
             format!(" {label}"),
             Style::default().fg(palette.text_muted),
         ));
-        spans.push(Span::styled(
-            "  ·  ",
-            Style::default().fg(palette.text_faint),
-        ));
+        used += hint;
     }
-    spans.pop();
 
-    // Drop trailing hints rather than wrapping onto a second row.
-    let mut used = 0usize;
-    let width = area.width as usize;
-    spans.retain(|span| {
-        used += span.content.chars().count();
-        used <= width
-    });
+    if spans.len() > 1 {
+        rows.push(Line::from(spans));
+    }
+    rows
+}
 
-    Paragraph::new(Line::from(spans))
+fn draw_hints(frame: &mut Frame, palette: &Palette, area: Rect, lines: Vec<Line<'static>>) {
+    Paragraph::new(lines)
         .style(Style::default().bg(palette.bg_secondary))
         .render(area, frame.buffer_mut());
 }
@@ -334,6 +406,13 @@ fn draw_ribbon(frame: &mut Frame, app: &App, palette: &Palette, area: Rect, regi
         (icons::SEARCH, false, Action::OpenSearch),
         (icons::GRAPH, app.view == View::Graph, Action::OpenGraph),
         (icons::CHAT, app.config.ui.show_chat, Action::ToggleChat),
+        // After the chat icon rather than beside the file one: both are panels
+        // you open and close, and it keeps the earlier icons at their indices.
+        (
+            icons::OUTLINE,
+            app.config.ui.show_right_sidebar,
+            Action::ToggleRightSidebar,
+        ),
         (icons::SETTINGS, false, Action::OpenPalette),
     ];
 
@@ -565,6 +644,7 @@ mod tests {
     use super::*;
     use crate::app::App;
     use crate::config::Config;
+    use otui_core::graph::Vec2;
     use otui_core::test_support::TempVault;
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
@@ -624,6 +704,69 @@ mod tests {
     }
 
     #[test]
+    fn the_hint_bar_shows_how_to_close_things() {
+        let (_vault, mut app) = demo_app();
+        let screen = render(&mut app, 140, 40).join("\n");
+
+        // Closing a tab or a pane was reachable but unadvertised, so the only
+        // way to find it was the `?` overlay.
+        for hint in ["^W close tab", "^\\ files", "^] outline", "^L chat"] {
+            assert!(screen.contains(hint), "{hint:?} is missing from the bar");
+        }
+    }
+
+    #[test]
+    fn the_hint_bar_wraps_rather_than_dropping_keys() {
+        let palette = crate::app::App::new(
+            TempVault::new("hint-width").vault(),
+            crate::config::Config::default(),
+        )
+        .expect("app")
+        .theme
+        .palette
+        .clone();
+
+        let hints = [
+            ("^E", "edit"),
+            ("Enter", "follow link"),
+            ("^W", "close tab"),
+            ("^]", "outline"),
+        ];
+
+        // Wide enough for everything: one row, nothing lost.
+        let one = hint_lines(&hints, &palette, 120, 2);
+        assert_eq!(one.len(), 1);
+        assert_eq!(
+            one[0]
+                .spans
+                .iter()
+                .filter(|s| s.content == HINT_GAP)
+                .count(),
+            3,
+            "all four hints on the row"
+        );
+
+        // Too narrow for one row: continues onto a second rather than
+        // silently losing the last keys.
+        let two = hint_lines(&hints, &palette, 30, 2);
+        assert_eq!(two.len(), 2, "wrapped");
+        let text: String = two
+            .iter()
+            .flat_map(|line| line.spans.iter())
+            .map(|s| s.content.as_ref())
+            .collect();
+        assert!(text.contains("outline"), "the last hint survived: {text:?}");
+        for line in &two {
+            let used: usize = line.spans.iter().map(|s| s.content.chars().count()).sum();
+            assert!(used <= 30, "a row overflowed its width: {used}");
+        }
+
+        // A terminal with only one row to give keeps the old behaviour.
+        let capped = hint_lines(&hints, &palette, 30, 1);
+        assert_eq!(capped.len(), 1);
+    }
+
+    #[test]
     fn the_hint_bar_can_be_turned_off_and_yields_on_short_terminals() {
         let (_vault, mut app) = demo_app();
         assert!(render(&mut app, 140, 40).join("\n").contains("help"));
@@ -643,7 +786,7 @@ mod tests {
         render(&mut app, 160, 40);
 
         let regions = &app.regions;
-        assert_eq!(regions.ribbon.len(), 5, "every ribbon icon is a button");
+        assert_eq!(regions.ribbon.len(), 6, "every ribbon icon is a button");
         assert_eq!(regions.tabs.len(), app.tabs.len());
         assert_eq!(regions.side_tabs.len(), 3);
         assert!(regions.explorer.is_some());
@@ -764,6 +907,112 @@ mod tests {
             "the legend reports the graph size"
         );
         assert!(screen.contains("links"));
+    }
+
+    /// The foreground colours of every braille cell on screen.
+    fn edge_colours(terminal: &Terminal<TestBackend>) -> Vec<ratatui::style::Color> {
+        let buffer = terminal.backend().buffer();
+        buffer
+            .content()
+            .iter()
+            .filter(|cell| {
+                cell.symbol()
+                    .chars()
+                    .next()
+                    .is_some_and(|c| ('\u{2801}'..='\u{28ff}').contains(&c))
+            })
+            .filter_map(|cell| cell.fg.into())
+            .collect()
+    }
+
+    #[test]
+    fn selecting_a_node_lights_up_its_links() {
+        let (_vault, mut app) = demo_app();
+        app.open_graph(None);
+        let graph = app.graph.as_mut().expect("graph");
+        graph.simulation.run(4000);
+        graph.fit();
+
+        let palette = app.theme.palette.clone();
+
+        // Nothing selected: every link is drawn in the ordinary edge colour,
+        // and that colour has to be something other than the background or the
+        // graph reads as a scatter plot.
+        let mut terminal = Terminal::new(TestBackend::new(140, 40)).expect("terminal");
+        terminal.draw(|frame| draw(frame, &mut app)).expect("draw");
+        let plain = edge_colours(&terminal);
+        assert!(!plain.is_empty(), "no links were drawn at all");
+        assert!(
+            plain.iter().all(|c| *c != palette.graph_bg),
+            "links are painted in the background colour"
+        );
+
+        // Select the best-connected node; its links must now carry the accent,
+        // and must survive the ordinary edges drawn around them.
+        let graph = app.graph.as_mut().expect("graph");
+        graph.cycle_selection(0);
+        let selected = graph.selected.expect("a selection");
+        let links = graph.simulation.graph.neighbors(selected).len();
+        assert!(links > 0, "the test needs a node with links");
+
+        terminal.draw(|frame| draw(frame, &mut app)).expect("draw");
+        let highlighted = edge_colours(&terminal);
+        assert!(
+            highlighted.contains(&palette.graph_edge_active),
+            "the selected node's links are not highlighted"
+        );
+    }
+
+    #[test]
+    fn a_highlighted_link_survives_an_ordinary_one_crossing_it() {
+        // A braille cell holds one colour — whichever was written last — so
+        // drawing every edge in one pass let an ordinary link rub out the
+        // highlight wherever the two crossed. That is exactly the middle of the
+        // picture, where the reader is looking.
+        let vault = TempVault::new("crossing-links");
+        vault.write("A.md", "[[B]]\n");
+        vault.write("B.md", "b\n");
+        vault.write("C.md", "[[D]]\n");
+        vault.write("D.md", "d\n");
+
+        let mut app = App::new(vault.vault(), Config::default()).expect("app");
+        app.open_graph(None);
+        let palette = app.theme.palette.clone();
+
+        // Two diagonals crossing at the origin. Dragging pins them, so the
+        // layout cannot drift and the crossing point is exactly (0, 0).
+        let graph = app.graph.as_mut().expect("graph");
+        let node = |label: &str| {
+            graph
+                .simulation
+                .graph
+                .nodes
+                .iter()
+                .position(|n| n.label == label)
+                .unwrap_or_else(|| panic!("{label} is in the graph"))
+        };
+        let (a, b, c, d) = (node("A"), node("B"), node("C"), node("D"));
+        // A-B is listed before C-D, so C-D is the one that used to win.
+        graph.simulation.drag(a, Vec2::new(-10.0, -10.0));
+        graph.simulation.drag(b, Vec2::new(10.0, 10.0));
+        graph.simulation.drag(c, Vec2::new(-10.0, 10.0));
+        graph.simulation.drag(d, Vec2::new(10.0, -10.0));
+        graph.fit();
+        graph.selected = Some(a);
+
+        let mut terminal = Terminal::new(TestBackend::new(80, 30)).expect("terminal");
+        terminal.draw(|frame| draw(frame, &mut app)).expect("draw");
+
+        let (rect, x_bounds, y_bounds) = app.regions.graph.expect("graph region");
+        let (x, y) = graph::project(Vec2::new(0.0, 0.0), rect, x_bounds, y_bounds)
+            .expect("the crossing is on screen");
+
+        let buffer = terminal.backend().buffer();
+        assert_eq!(
+            buffer[(x, y)].fg,
+            palette.graph_edge_active,
+            "the crossing at ({x}, {y}) lost the selection's colour to the link crossing it"
+        );
     }
 
     #[test]

@@ -14,6 +14,7 @@ mod modal;
 mod obsidian;
 mod session;
 mod slash;
+mod state;
 mod tools;
 mod ui;
 
@@ -112,6 +113,7 @@ fn main() -> io::Result<()> {
         return run_prompt(&mut app, &prompt);
     }
 
+    app.restore_ui_state();
     apply_startup_args(&mut app, &args);
     run(&mut app)
 }
@@ -271,6 +273,10 @@ fn run(app: &mut App) -> io::Result<()> {
     let _ = crossterm::execute!(std::io::stdout(), crossterm::event::EnableMouseCapture);
 
     let result = event_loop(&mut terminal, app);
+
+    // Written here rather than from the quit action, so that driving the app
+    // in a test never reaches into the real config directory.
+    app.save_ui_state();
 
     let _ = crossterm::execute!(std::io::stdout(), crossterm::event::DisableMouseCapture);
     ratatui::restore();
@@ -908,13 +914,14 @@ mod tests {
             .iter()
             .position(|r| r.name() == "Folder")
             .expect("Folder is listed");
+        // Folders start closed, so the first click opens this one.
         let before = app.explorer.len();
 
         click(&mut app, rect.x + 2, rect.y + folder_row as u16);
-        assert!(app.explorer.len() < before, "one click folds the folder");
+        assert!(app.explorer.len() > before, "one click unfolds the folder");
 
         click(&mut app, rect.x + 2, rect.y + folder_row as u16);
-        assert_eq!(app.explorer.len(), before, "and unfolds it again");
+        assert_eq!(app.explorer.len(), before, "and folds it again");
     }
 
     #[test]

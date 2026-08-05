@@ -4,7 +4,11 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] — 2026-08-05
+
+The release that puts the parts of a vault a text reader could never show —
+pictures and drawings — on the screen, and adds an assistant that can be set up
+without leaving the app.
 
 ### Added
 
@@ -77,9 +81,36 @@ All notable changes to this project are documented here. The format follows
   distinguishes a missing CA from a missing proxy.
 - Requests now share one HTTP client, so a turn with several tool calls reuses its
   connection instead of repeating the TLS handshake.
+- **The vault opens with its folders closed, and reopens how you left it.**
+  Listing every note at once buries the structure the folders exist to express.
+  Which folders you left open is remembered per vault in `state.json`, beside
+  the config — the folders left *open* are what's stored, so a folder added
+  since the last run starts closed rather than springing open. `OTUI_STATE_FILE`
+  moves the file elsewhere.
+- An outline button in the ribbon, alongside the assistant's, so the right
+  sidebar can be toggled with the mouse.
+- The shortcut bar lists closing a tab and toggling each pane, and spills onto
+  a second row when they don't fit one instead of silently dropping the last
+  few.
 
 ### Fixed
 
+- **`Ctrl+]` and `Ctrl+\` work.** Neither sidebar toggle could ever fire: a
+  terminal without the Kitty keyboard protocol has no way to say "Ctrl and this
+  punctuation key" and sends a single control byte instead, which arrives as
+  `Ctrl+5` and `Ctrl+4`. Both forms are accepted now. The file explorer's toggle
+  was broken the same way and went unnoticed only because the ribbon has a
+  button for it.
+- **Graph links are visible.** They borrowed the theme's border tone — `#2f2f2f`
+  against a `#1e1e1e` background on obsidian-dark, about 1.3:1 — so the graph
+  read as a scatter plot. Borders are drawn to be ignored; links are the point.
+- Selecting a node now lights up its links properly. A braille cell holds one
+  colour, so drawing every link in a single pass let an ordinary one rub out the
+  highlight wherever they crossed — which is the middle of the picture.
+- Shortcuts in the command palette are no longer clipped. They are right-aligned
+  against the list and the scrollbar is painted down its last column, so
+  `Ctrl+Shift+F` rendered as `Ctrl+Shift+`. The `?` overlay had the same
+  collision.
 - **The local graph is laid out on its own.** It was a filtered view of the whole
   vault: positioned among every other note, framed to their bounds, and drawn
   with edges running off to nodes outside the neighbourhood, so it arrived as a
@@ -237,6 +268,7 @@ First release.
 - Unreadable vaults are reported clearly, including the macOS privacy
   permission that usually causes it.
 
+[0.2.0]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.2.0
 [0.1.2]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.2
 [0.1.1]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.1
 [0.1.0]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.0
