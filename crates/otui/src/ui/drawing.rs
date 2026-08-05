@@ -14,13 +14,13 @@
 //! prose it replaces — diagrams are often far taller than a terminal, and
 //! shrinking one to fit turns it into grey fuzz.
 
+use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::symbols::Marker;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::canvas::{Canvas, Context, Line as CanvasLine};
 use ratatui::widgets::{Paragraph, Widget};
-use ratatui::Frame;
 
 use otui_core::excalidraw::{Drawing, Element, Rgb, Shape};
 use otui_theme::Palette;
@@ -165,17 +165,17 @@ fn stroke(ctx: &mut Context, element: &Element, color: Color, scale: f64) {
         }
     }
 
-    if element.shape == Shape::Arrow {
-        if let [.., from, to] = path.as_slice() {
-            for barb in arrowhead(*from, *to, scale) {
-                ctx.draw(&CanvasLine {
-                    x1: to.0,
-                    y1: -to.1,
-                    x2: barb.0,
-                    y2: -barb.1,
-                    color,
-                });
-            }
+    if element.shape == Shape::Arrow
+        && let [.., from, to] = path.as_slice()
+    {
+        for barb in arrowhead(*from, *to, scale) {
+            ctx.draw(&CanvasLine {
+                x1: to.0,
+                y1: -to.1,
+                x2: barb.0,
+                y2: -barb.1,
+                color,
+            });
         }
     }
 }

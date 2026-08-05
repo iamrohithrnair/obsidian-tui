@@ -1,10 +1,10 @@
 //! Overlay rendering: pickers, prompts, confirmations and help.
 
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph, Widget};
-use ratatui::Frame;
 
 use otui_theme::Palette;
 
@@ -374,8 +374,8 @@ mod tests {
         use crate::app::App;
         use crate::config::Config;
         use otui_core::test_support::TempVault;
-        use ratatui::backend::TestBackend;
         use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
 
         // Shortcuts are right-aligned against the list, and the scrollbar is
         // painted down its last column — so every shortcut used to lose its

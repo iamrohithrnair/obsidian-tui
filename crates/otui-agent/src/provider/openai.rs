@@ -11,9 +11,9 @@
 
 use std::io::Read;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
-use super::{post_stream, Completion, Provider, Request, StopReason, StreamEvent};
+use super::{Completion, Provider, Request, StopReason, StreamEvent, post_stream};
 use crate::error::{Error, Result};
 use crate::sse::SseReader;
 use crate::types::{Role, ToolCall, Usage};
@@ -272,21 +272,21 @@ pub(crate) fn decode(
             continue;
         };
 
-        if let Some(chunk) = delta.get("content").and_then(Value::as_str) {
-            if !chunk.is_empty() {
-                text.push_str(chunk);
-                sink(StreamEvent::Text(chunk.to_string()));
-            }
+        if let Some(chunk) = delta.get("content").and_then(Value::as_str)
+            && !chunk.is_empty()
+        {
+            text.push_str(chunk);
+            sink(StreamEvent::Text(chunk.to_string()));
         }
 
         // Reasoning models on this API use one of two field names depending on
         // the server, so both are accepted.
         for field in ["reasoning_content", "reasoning"] {
-            if let Some(chunk) = delta.get(field).and_then(Value::as_str) {
-                if !chunk.is_empty() {
-                    reasoning_seen = true;
-                    sink(StreamEvent::Reasoning(chunk.to_string()));
-                }
+            if let Some(chunk) = delta.get(field).and_then(Value::as_str)
+                && !chunk.is_empty()
+            {
+                reasoning_seen = true;
+                sink(StreamEvent::Reasoning(chunk.to_string()));
             }
         }
 
@@ -299,15 +299,15 @@ pub(crate) fn decode(
                     tools.resize_with(index + 1, ToolAcc::default);
                 }
                 let acc = &mut tools[index];
-                if let Some(id) = call.get("id").and_then(Value::as_str) {
-                    if !id.is_empty() {
-                        acc.id = id.to_string();
-                    }
+                if let Some(id) = call.get("id").and_then(Value::as_str)
+                    && !id.is_empty()
+                {
+                    acc.id = id.to_string();
                 }
-                if let Some(name) = call.pointer("/function/name").and_then(Value::as_str) {
-                    if !name.is_empty() {
-                        acc.name = name.to_string();
-                    }
+                if let Some(name) = call.pointer("/function/name").and_then(Value::as_str)
+                    && !name.is_empty()
+                {
+                    acc.name = name.to_string();
                 }
                 if let Some(args) = call.pointer("/function/arguments").and_then(Value::as_str) {
                     acc.arguments.push_str(args);

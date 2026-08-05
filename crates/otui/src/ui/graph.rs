@@ -15,13 +15,13 @@
 //! shown is unreadable past a few dozen notes — the same reason Obsidian fades
 //! labels out as you zoom away.
 
+use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::symbols::Marker;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::canvas::{Canvas, Context, Line as CanvasLine};
 use ratatui::widgets::{Paragraph, Widget};
-use ratatui::Frame;
 
 use otui_core::graph::{Edge, Node, NodeKind, Vec2};
 use otui_theme::Palette;
@@ -444,9 +444,9 @@ mod tests {
     /// a second copy of the canvas's arithmetic drifting from the original, so
     /// the test asks the canvas instead of trusting a formula.
     fn painted_cell(pos: Vec2, area: Rect, x_bounds: [f64; 2], y_bounds: [f64; 2]) -> (u16, u16) {
+        use ratatui::Terminal;
         use ratatui::backend::TestBackend;
         use ratatui::widgets::canvas::Points;
-        use ratatui::Terminal;
 
         let mut terminal =
             Terminal::new(TestBackend::new(area.width, area.height)).expect("test terminal");

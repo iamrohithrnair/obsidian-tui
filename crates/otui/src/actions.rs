@@ -326,10 +326,11 @@ pub fn dispatch(app: &mut App, action: Action) {
             let should_save = app
                 .active()
                 .is_some_and(|t| t.mode == Mode::Editing && t.is_modified());
-            if should_save && app.config.editor.auto_save {
-                if let Some(index) = app.active_tab {
-                    app.save_tab(index);
-                }
+            if should_save
+                && app.config.editor.auto_save
+                && let Some(index) = app.active_tab
+            {
+                app.save_tab(index);
             }
             if let Some(tab) = app.active_mut() {
                 tab.mode = match tab.mode {

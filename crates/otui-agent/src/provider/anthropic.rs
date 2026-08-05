@@ -9,9 +9,9 @@
 
 use std::io::Read;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
-use super::{post_stream, Completion, Provider, Request, StopReason, StreamEvent};
+use super::{Completion, Provider, Request, StopReason, StreamEvent, post_stream};
 use crate::error::{Error, Result};
 use crate::sse::SseReader;
 use crate::types::{Role, ToolCall, Usage};

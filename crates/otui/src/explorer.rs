@@ -620,10 +620,12 @@ mod tests {
         let mut explorer = explorer();
         explorer.rebuild(&index);
 
-        assert!(explorer
-            .rows()
-            .iter()
-            .any(|r| matches!(r, Row::Folder { name, .. } if name == "Empty")));
+        assert!(
+            explorer
+                .rows()
+                .iter()
+                .any(|r| matches!(r, Row::Folder { name, .. } if name == "Empty"))
+        );
     }
 
     #[test]

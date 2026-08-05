@@ -13,8 +13,8 @@
 
 use serde_json::Value;
 
-use crate::error::{Error, Result};
 use crate::ProviderKind;
+use crate::error::{Error, Result};
 
 /// One configurable backend.
 pub struct Preset {
@@ -159,7 +159,7 @@ pub fn models(
         // no need to special-case the keyless ones.
         ProviderKind::OpenAiCompatible => vec![("accept", "application/json")],
         ProviderKind::Offline => {
-            return Err(Error::Protocol("the offline provider has no models".into()))
+            return Err(Error::Protocol("the offline provider has no models".into()));
         }
     };
 

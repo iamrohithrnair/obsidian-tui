@@ -48,9 +48,20 @@ impl std::fmt::Display for Error {
 /// last resort, so a user who never enabled the setting still gets a working
 /// "open in Obsidian" on macOS.
 fn candidates() -> Vec<PathBuf> {
+    candidates_with(std::env::var_os("OBSIDIAN_CLI").map(PathBuf::from))
+}
+
+/// The same list, for a given override.
+///
+/// Taking the override rather than reading it here is what lets a test check
+/// the ordering without `set_var`. Writing to the environment from a test is
+/// undefined behaviour, not merely untidy: the harness runs tests on several
+/// threads, this module reads `OBSIDIAN_CLI` and `PATH`, and `setenv` may
+/// reallocate the block `getenv` is walking.
+fn candidates_with(explicit: Option<PathBuf>) -> Vec<PathBuf> {
     let mut paths = Vec::new();
-    if let Some(explicit) = std::env::var_os("OBSIDIAN_CLI") {
-        paths.push(PathBuf::from(explicit));
+    if let Some(explicit) = explicit {
+        paths.push(explicit);
     }
     paths.push(PathBuf::from("/usr/local/bin/obsidian"));
     paths.push(PathBuf::from("/opt/homebrew/bin/obsidian"));
@@ -206,12 +217,16 @@ mod tests {
 
     #[test]
     fn an_explicit_override_wins() {
-        // Set for this test only; `candidates` reads the environment directly
-        // so the override has to come first in the list.
-        unsafe { std::env::set_var("OBSIDIAN_CLI", "/tmp/obsidian-test-binary") };
-        let candidates = candidates();
-        assert_eq!(candidates[0], PathBuf::from("/tmp/obsidian-test-binary"));
-        unsafe { std::env::remove_var("OBSIDIAN_CLI") };
+        // `OBSIDIAN_CLI` is the escape hatch for an install the search doesn't
+        // know about, so it has to be tried before any of the guesses.
+        let explicit = PathBuf::from("/tmp/obsidian-test-binary");
+        let candidates = candidates_with(Some(explicit.clone()));
+        assert_eq!(candidates[0], explicit);
+        assert_eq!(
+            candidates.len(),
+            candidates_with(None).len() + 1,
+            "the override is added to the usual list, not a replacement for it"
+        );
     }
 
     #[test]

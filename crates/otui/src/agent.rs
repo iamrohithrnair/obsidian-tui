@@ -238,18 +238,16 @@ pub fn send(app: &mut App) {
     // The open note travels with the message so "summarize this" works without
     // the user naming the note.
     let mut prompt = text;
-    if app.config.agent.include_active_note {
-        if let Some(id) = app.active_note() {
-            if let (Some(note), Ok(body)) = (app.index.note(id), app.index.read_body(id)) {
-                let rel = note.meta.rel.clone();
-                let clipped: String = body.chars().take(8_000).collect();
-                app.chat
-                    .transcript
-                    .push(Entry::Context(format!("attached: {rel}")));
-                prompt =
-                    format!("{prompt}\n\n<active_note path=\"{rel}\">\n{clipped}\n</active_note>");
-            }
-        }
+    if app.config.agent.include_active_note
+        && let Some(id) = app.active_note()
+        && let (Some(note), Ok(body)) = (app.index.note(id), app.index.read_body(id))
+    {
+        let rel = note.meta.rel.clone();
+        let clipped: String = body.chars().take(8_000).collect();
+        app.chat
+            .transcript
+            .push(Entry::Context(format!("attached: {rel}")));
+        prompt = format!("{prompt}\n\n<active_note path=\"{rel}\">\n{clipped}\n</active_note>");
     }
 
     let mut conversation = std::mem::take(&mut app.chat.conversation);
@@ -614,11 +612,12 @@ mod tests {
         send(&mut app);
 
         // The transcript shows the attachment; the model message carries it.
-        assert!(app
-            .chat
-            .transcript
-            .iter()
-            .any(|e| matches!(e, Entry::Context(c) if c.contains("A.md"))));
+        assert!(
+            app.chat
+                .transcript
+                .iter()
+                .any(|e| matches!(e, Entry::Context(c) if c.contains("A.md")))
+        );
 
         app.chat.cancel();
     }

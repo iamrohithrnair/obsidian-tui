@@ -20,8 +20,8 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use ureq::tls::{Certificate, RootCerts, TlsConfig};
 use ureq::Agent;
+use ureq::tls::{Certificate, RootCerts, TlsConfig};
 
 /// Variables that may name a CA bundle, in the order they are tried.
 ///

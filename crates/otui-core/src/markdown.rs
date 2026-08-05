@@ -295,26 +295,25 @@ fn parse_blocks(lines: &[&str], offset: usize, out: &mut Vec<Block>) {
 }
 
 fn parse_quote_or_callout(inner: &[String], line: usize) -> Block {
-    if let Some(first) = inner.first() {
-        if let Some(rest) = first.trim_start().strip_prefix("[!") {
-            if let Some((kind, title)) = rest.split_once(']') {
-                let kind = kind.trim().to_lowercase();
-                // A trailing `+`/`-` marks a foldable callout; the marker isn't
-                // part of the title.
-                let title = title.trim_start_matches(['+', '-']).trim();
-                let refs: Vec<&str> = inner[1..].iter().map(String::as_str).collect();
-                let mut body = Vec::new();
-                parse_blocks(&refs, line + 1, &mut body);
-                return Block {
-                    line,
-                    kind: BlockKind::Callout {
-                        kind,
-                        title: parse_inline(title),
-                        body,
-                    },
-                };
-            }
-        }
+    if let Some(first) = inner.first()
+        && let Some(rest) = first.trim_start().strip_prefix("[!")
+        && let Some((kind, title)) = rest.split_once(']')
+    {
+        let kind = kind.trim().to_lowercase();
+        // A trailing `+`/`-` marks a foldable callout; the marker isn't
+        // part of the title.
+        let title = title.trim_start_matches(['+', '-']).trim();
+        let refs: Vec<&str> = inner[1..].iter().map(String::as_str).collect();
+        let mut body = Vec::new();
+        parse_blocks(&refs, line + 1, &mut body);
+        return Block {
+            line,
+            kind: BlockKind::Callout {
+                kind,
+                title: parse_inline(title),
+                body,
+            },
+        };
     }
 
     let refs: Vec<&str> = inner.iter().map(String::as_str).collect();
@@ -379,12 +378,13 @@ fn list_item(line: &str) -> Option<(usize, Marker, &str)> {
             .strip_prefix(bullet)
             .and_then(|r| r.strip_prefix(' '))
         {
-            if let Some(task) = rest.strip_prefix('[') {
-                if task.len() >= 2 && task.as_bytes()[1] == b']' {
-                    let state = task.as_bytes()[0];
-                    let text = task[2..].strip_prefix(' ').unwrap_or(&task[2..]);
-                    return Some((depth, Marker::Task(state != b' ' && state != b'\t'), text));
-                }
+            if let Some(task) = rest.strip_prefix('[')
+                && task.len() >= 2
+                && task.as_bytes()[1] == b']'
+            {
+                let state = task.as_bytes()[0];
+                let text = task[2..].strip_prefix(' ').unwrap_or(&task[2..]);
+                return Some((depth, Marker::Task(state != b' ' && state != b'\t'), text));
             }
             return Some((depth, Marker::Bullet, rest));
         }
@@ -555,10 +555,10 @@ fn match_inline(rest: &str, tag_boundary: bool) -> Option<(usize, Vec<Span>)> {
         }
         return None;
     }
-    if rest.starts_with('[') || rest.starts_with("![") {
-        if let Some((consumed, span)) = markdown_link(rest) {
-            return Some((consumed, vec![span]));
-        }
+    if (rest.starts_with('[') || rest.starts_with("!["))
+        && let Some((consumed, span)) = markdown_link(rest)
+    {
+        return Some((consumed, vec![span]));
     }
 
     // Inline code wins over emphasis: backticks suppress markup inside them.
@@ -578,18 +578,18 @@ fn match_inline(rest: &str, tag_boundary: bool) -> Option<(usize, Vec<Span>)> {
     }
 
     for (delim, apply) in DOUBLE_DELIMITERS {
-        if rest.starts_with(delim) {
-            if let Some((consumed, inner)) = delimited_text(rest, delim) {
-                // The inside is parsed too, so `**bold `code`**` keeps both.
-                let spans = parse_inline(inner)
-                    .into_iter()
-                    .map(|mut span| {
-                        span.style = apply(span.style);
-                        span
-                    })
-                    .collect();
-                return Some((consumed, spans));
-            }
+        if rest.starts_with(delim)
+            && let Some((consumed, inner)) = delimited_text(rest, delim)
+        {
+            // The inside is parsed too, so `**bold `code`**` keeps both.
+            let spans = parse_inline(inner)
+                .into_iter()
+                .map(|mut span| {
+                    span.style = apply(span.style);
+                    span
+                })
+                .collect();
+            return Some((consumed, spans));
         }
     }
 
@@ -597,31 +597,32 @@ fn match_inline(rest: &str, tag_boundary: bool) -> Option<(usize, Vec<Span>)> {
     // read as two nested italics.
     for delim in ["*", "_"] {
         let doubled = rest.starts_with(&delim.repeat(2));
-        if rest.starts_with(delim) && !doubled {
-            if let Some((consumed, inner)) = delimited_text(rest, delim) {
-                let spans = parse_inline(inner)
-                    .into_iter()
-                    .map(|mut span| {
-                        span.style.italic = true;
-                        span
-                    })
-                    .collect();
-                return Some((consumed, spans));
-            }
+        if rest.starts_with(delim)
+            && !doubled
+            && let Some((consumed, inner)) = delimited_text(rest, delim)
+        {
+            let spans = parse_inline(inner)
+                .into_iter()
+                .map(|mut span| {
+                    span.style.italic = true;
+                    span
+                })
+                .collect();
+            return Some((consumed, spans));
         }
     }
 
-    if rest.starts_with('$') {
-        if let Some((consumed, inner)) = delimited_text(rest, "$") {
-            return Some((
-                consumed,
-                vec![Span {
-                    text: inner.to_string(),
-                    style: Style::default(),
-                    kind: SpanKind::Math,
-                }],
-            ));
-        }
+    if rest.starts_with('$')
+        && let Some((consumed, inner)) = delimited_text(rest, "$")
+    {
+        return Some((
+            consumed,
+            vec![Span {
+                text: inner.to_string(),
+                style: Style::default(),
+                kind: SpanKind::Math,
+            }],
+        ));
     }
 
     if tag_boundary && rest.starts_with('#') {
@@ -951,9 +952,11 @@ mod tests {
         let spans = parse_inline("see [docs](https://e.com) #project/alpha");
         assert!(spans.iter().any(|s| s.text == "docs"
             && matches!(&s.kind, SpanKind::Link { url } if url == "https://e.com")));
-        assert!(spans
-            .iter()
-            .any(|s| matches!(&s.kind, SpanKind::Tag(t) if t == "project/alpha")));
+        assert!(
+            spans
+                .iter()
+                .any(|s| matches!(&s.kind, SpanKind::Tag(t) if t == "project/alpha"))
+        );
     }
 
     #[test]
@@ -968,9 +971,11 @@ mod tests {
             spans[0].text, "a chart",
             "alt text is kept for the fallback"
         );
-        assert!(spans
-            .iter()
-            .any(|s| matches!(&s.kind, SpanKind::Link { url } if url == "assets/chart.png")));
+        assert!(
+            spans
+                .iter()
+                .any(|s| matches!(&s.kind, SpanKind::Link { url } if url == "assets/chart.png"))
+        );
     }
 
     #[test]

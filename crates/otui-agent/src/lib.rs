@@ -26,6 +26,8 @@
 //! }
 //! ```
 
+#![forbid(unsafe_code)]
+
 pub mod catalog;
 pub mod error;
 pub mod http;
@@ -37,7 +39,7 @@ pub mod types;
 
 pub use error::{Error, Result};
 pub use provider::{Effort, Provider};
-pub use session::{run_turn, spawn, AgentConfig, Runner};
+pub use session::{AgentConfig, Runner, run_turn, spawn};
 pub use tool::{ChannelToolHost, ToolHost, ToolOutcome, ToolRequest, ToolRequests};
 pub use types::{AgentEvent, Message, Role, ToolCall, ToolResult, ToolSpec, Usage};
 

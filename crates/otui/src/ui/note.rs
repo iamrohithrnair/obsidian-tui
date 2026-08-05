@@ -7,11 +7,11 @@
 
 use std::path::{Path, PathBuf};
 
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect, Size};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
-use ratatui::Frame;
 use ratatui_image::sliced::{SignedPosition, SlicedImage};
 
 use otui_core::excalidraw;
@@ -870,10 +870,10 @@ fn highlight(line: &str, lang: &str, palette: &Palette, base: Style) -> Vec<Span
     let keywords = keywords_for(lang);
     let comment = comment_prefix(lang);
 
-    if let Some(prefix) = comment {
-        if line.trim_start().starts_with(prefix) {
-            return vec![Span::styled(line.to_string(), base.fg(palette.syn_comment))];
-        }
+    if let Some(prefix) = comment
+        && line.trim_start().starts_with(prefix)
+    {
+        return vec![Span::styled(line.to_string(), base.fg(palette.syn_comment))];
     }
 
     let mut spans = Vec::new();
@@ -1152,7 +1152,7 @@ fn draw_editing(frame: &mut Frame, app: &mut App, palette: &Palette, area: Rect)
 mod tests {
     use super::*;
     use otui_core::test_support::TempVault;
-    use otui_theme::{presets, Palette};
+    use otui_theme::{Palette, presets};
 
     fn palette() -> Palette {
         Palette::from(&presets::default_theme())
@@ -1504,10 +1504,12 @@ mod tests {
             .iter()
             .find(|l| l.spans.iter().any(|s| s.content.contains("done")))
             .expect("done line");
-        assert!(done_line
-            .spans
-            .iter()
-            .any(|s| s.style.add_modifier.contains(Modifier::CROSSED_OUT)));
+        assert!(
+            done_line
+                .spans
+                .iter()
+                .any(|s| s.style.add_modifier.contains(Modifier::CROSSED_OUT))
+        );
     }
 
     #[test]
@@ -1636,9 +1638,11 @@ mod tests {
         assert_eq!(comment[0].style.fg, Some(palette.syn_comment));
 
         let string = highlight("x = \"hi\"", "python", &palette, Style::default());
-        assert!(string
-            .iter()
-            .any(|s| s.style.fg == Some(palette.syn_string) && s.content.contains("hi")));
+        assert!(
+            string
+                .iter()
+                .any(|s| s.style.fg == Some(palette.syn_string) && s.content.contains("hi"))
+        );
     }
 
     #[test]

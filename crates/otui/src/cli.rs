@@ -118,7 +118,7 @@ fn apply_uri(uri: &str, args: &mut Args) -> Result<(), ParseError> {
             None => {
                 return Err(ParseError(format!(
                     "no vault named `{name}` is registered with Obsidian"
-                )))
+                )));
             }
         }
     }
@@ -131,7 +131,7 @@ fn apply_uri(uri: &str, args: &mut Args) -> Result<(), ParseError> {
         other => {
             return Err(ParseError(format!(
                 "unsupported obsidian:// action `{other}`"
-            )))
+            )));
         }
     }
 

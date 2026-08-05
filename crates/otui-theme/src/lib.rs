@@ -13,6 +13,8 @@
 //! assert_eq!(palette.name, "obsidian-dark");
 //! ```
 
+#![forbid(unsafe_code)]
+
 pub mod color;
 pub mod presets;
 pub mod seed;

@@ -62,10 +62,21 @@ impl State {
     /// start over.
     #[must_use]
     pub fn load() -> Self {
-        let Some(path) = path() else {
-            return Self::default();
-        };
-        fs::read_to_string(&path)
+        path()
+            .map(|path| Self::load_from(&path))
+            .unwrap_or_default()
+    }
+
+    /// Reads a specific state file.
+    ///
+    /// Taking the path rather than reaching for the process environment is what
+    /// lets a test point at a temporary file: tests share one process, several
+    /// modules here read environment variables, and writing one from a test
+    /// thread while another reads it is undefined behaviour — which is exactly
+    /// what Rust 2024 made `set_var` unsafe to point out.
+    #[must_use]
+    pub fn load_from(path: &Path) -> Self {
+        fs::read_to_string(path)
             .ok()
             .and_then(|text| serde_json::from_str(&text).ok())
             .unwrap_or_default()
@@ -87,12 +98,18 @@ impl State {
     /// Writes the state file. Failure is silent — this is a convenience, and
     /// an unwritable config directory is not worth an error on the way out.
     pub fn save(&self) {
-        let Some(path) = path() else { return };
+        if let Some(path) = path() {
+            self.save_to(&path);
+        }
+    }
+
+    /// Writes to a specific state file. See [`State::load_from`].
+    pub fn save_to(&self, path: &Path) {
         if let Some(dir) = path.parent() {
             let _ = fs::create_dir_all(dir);
         }
         if let Ok(text) = serde_json::to_string_pretty(self) {
-            let _ = fs::write(&path, text);
+            let _ = fs::write(path, text);
         }
     }
 }
