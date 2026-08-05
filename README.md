@@ -4,8 +4,8 @@
 
 **The best TUI for Obsidian.** Your vault, the way you already know it: the
 three-pane layout, live-preview Markdown, backlinks, a force-directed graph,
-18 themes. Except it lives in your terminal and never asks you to reach for
-the mouse.
+18 themes. Except it lives in your terminal, and it's built for the keyboard
+you already have your hands on.
 
 Point it at a vault you already have. There's no import step, no database, no
 lock-in: it reads the same plain folder of Markdown files Obsidian does, and
