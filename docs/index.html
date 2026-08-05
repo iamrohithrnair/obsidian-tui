@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>obsidian-tui: your Obsidian vault, at home in the terminal</title>
 
-<meta name="description" content="A terminal UI for the Markdown vault you already have. Live-preview notes, backlinks, a force-directed graph, 18 themes and an optional AI assistant. No import, no database, no telemetry.">
+<meta name="description" content="A terminal UI for the Markdown vault you already have. Live-preview notes, backlinks, global and local graph views, images and Excalidraw drawings, 18 themes and an optional AI assistant. No import, no database, no telemetry.">
 <meta name="theme-color" content="#0b0b0f">
 <meta name="color-scheme" content="dark">
 
@@ -231,6 +231,30 @@
           <code>&gt; [!note]</code> callouts, tables, and fenced code with syntax
           highlighting. Frontmatter is optional: a stray <code>.md</code> file you
           dragged in from somewhere else shows up like everything else.
+          The editor styles that same dialect as you type it, and wraps a long line
+          rather than running it off the edge. Nothing is hidden while you write:
+          every glyph is exactly as wide as the character it stands for, so the cursor
+          is always on the character it looks like it's on.
+        </p>
+      </article>
+
+      <article class="card span2">
+        <div class="card-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="2.5"/><circle cx="8.5" cy="9" r="1.6"/><path d="m4.5 18 4.5-4.5 3.5 3.5 3-3 4 4"/></svg>
+        </div>
+        <h3>Pictures, and drawings, in a terminal</h3>
+        <p>
+          <code>![[chart.png]]</code> and <code>![alt](assets/chart.png)</code> are drawn
+          in the reading pane: real pixels in Kitty, Ghostty, WezTerm, iTerm2 and anything
+          that speaks sixel, half-block mosaics everywhere else. Obsidian's
+          <code>|400</code> width works. Decoding happens off the draw loop, and the space
+          a picture needs is worked out before it is decoded, so nothing jumps as it
+          appears; one that can't be drawn leaves its alt text where it was.
+          An <code>.excalidraw.md</code> note opens as the drawing rather than the wall of
+          compressed base64 it is stored as, with shapes, arrows, freehand strokes and
+          labels drawn as vectors on a braille canvas — so a diagram reads the same in
+          every terminal, whether or not it can show pictures at all.
+          <span class="muted">Pictures can be turned off, or capped to a share of the pane, under <code>[images]</code>.</span>
         </p>
       </article>
 
@@ -255,7 +279,10 @@
           Force-directed with Barnes-Hut repulsion, so it stays smooth on a big vault and
           stops burning CPU the moment it settles. Notes that are only <em>linked to</em>
           show up hollow, usually the most useful thing on screen, because those are the
-          notes you meant to write.
+          notes you meant to write. <code>Ctrl+G</code> draws the whole vault;
+          <code>Ctrl+Shift+G</code> narrows it to the note you're on and its
+          neighbourhood, laid out on its own rather than as the full graph with the rest
+          switched off.
         </p>
       </article>
 
@@ -265,7 +292,7 @@
         </div>
         <h3>Eighteen themes, then yours</h3>
         <p>
-          Obsidian's light and dark, Catppuccin, Tokyo Night, Gruvbox, Nord, Solarized,
+          Obsidian's own light and dark, Catppuccin, Tokyo Night, Gruvbox, Nord, Solarized,
           Dracula, Rosé Pine, Everforest, plus a <code>terminal</code> theme that just
           uses your palette. Your own theme is a TOML file; anything you leave unset is
           inherited from whatever it <code>extends</code>.
@@ -278,7 +305,8 @@
         </div>
         <h3>An assistant that shows its work</h3>
         <p>
-          A chat panel that acts on the vault through the very same commands you use. It
+          Optional, and silent until you give it a key. A chat panel that acts on the
+          vault through the very same commands you use. It
           can search, read, create, edit, rename, link and delete notes, and put one on
           your screen. Every tool call appears in the transcript, so you're reading what
           it actually did rather than trusting a summary of it.
@@ -379,7 +407,24 @@
                  alt="The force-directed graph view filling the centre pane, with labelled note clusters, a lone unconnected note called Orphan off to one side, and a status line reading sixteen nodes and twenty-eight links.">
           </div>
         </a>
-        <figcaption><b>The graph.</b> <code>Ctrl+G</code> for the whole vault, <code>f</code> to fit it. Orphans sit on their own, where you can see them.</figcaption>
+        <figcaption><b>The graph.</b> <code>Ctrl+G</code> for the whole vault, <code>Ctrl+Shift+G</code> for the neighbourhood around one note, <code>f</code> to fit it. Orphans sit on their own, where you can see them.</figcaption>
+      </figure>
+
+      <figure class="shot">
+        <a class="shot-link" href="shot-images.webp" aria-label="Open the full-size screenshot of a picture embedded in a note">
+          <div class="term-shell is-fixed">
+            <div class="term-chrome">
+              <span class="tl red" aria-hidden="true"></span>
+              <span class="tl amber" aria-hidden="true"></span>
+              <span class="tl green" aria-hidden="true"></span>
+              <span class="term-title">Reddit post.md</span>
+            </div>
+            <img class="term-media" src="shot-images.webp" width="1280" height="695"
+                 loading="lazy" decoding="async"
+                 alt="A note called Reddit post open in the obsidian-dark theme, with a screenshot of obsidian-tui itself embedded partway down the note and drawn as actual pixels in the reading pane, and the outline panel open on the right.">
+          </div>
+        </a>
+        <figcaption><b>Pictures in the note.</b> Embeds are drawn where they sit, at the width the pane allows. Excalidraw drawings get a braille canvas instead, so they read the same in a terminal that can't show pixels at all.</figcaption>
       </figure>
 
       <figure class="shot">
