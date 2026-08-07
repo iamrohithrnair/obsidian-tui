@@ -4,6 +4,32 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] — 2026-08-07
+
+Nothing in the app changed. This release exists to carry the packaging work,
+and to prove that the release pipeline itself works end to end.
+
+### Added
+
+- `cargo install emeraldian` now works, without a git URL. All four crates are
+  on crates.io, so the site and the README point at the registry.
+- The crates.io workflow can be run by hand with `verify_only` to check that
+  trusted publishing is still configured correctly, without publishing
+  anything. Worth doing after renaming this repository or the workflow file,
+  since either invalidates the trusted publisher silently.
+
+### Fixed
+
+- **The Homebrew tap is updated by the release, rather than only appearing to
+  be.** The step guarded on `git diff`, which reports tracked files only, so a
+  formula the tap had never held read as no change at all and was never
+  committed. The job reported success on every release from the first one
+  onwards while the tap stayed empty, which is why `brew install` had never
+  worked.
+- Tagging a release no longer fails when every crate is already published. The
+  check that made a re-run a no-op sat after authentication, and authenticating
+  is itself a failure until a trusted publisher exists.
+
 ## [0.4.1] — 2026-08-07
 
 A packaging release. Nothing about using the app has changed.
@@ -431,6 +457,7 @@ First release.
 - Unreadable vaults are reported clearly, including the macOS privacy
   permission that usually causes it.
 
+[0.4.2]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.4.2
 [0.4.1]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.4.1
 [0.4.0]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.4.0
 [0.3.1]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.3.1
