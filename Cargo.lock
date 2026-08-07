@@ -594,6 +594,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e5e8f6c15a24b9a3ee5efec809ccd006d3b30e8b3bb63c39af737c7f87daa1d"
 
 [[package]]
+name = "emeraldian"
+version = "0.3.1"
+dependencies = [
+ "anyhow",
+ "crossterm",
+ "dirs",
+ "image",
+ "lz-str",
+ "otui-agent",
+ "otui-core",
+ "otui-theme",
+ "ratatui",
+ "ratatui-image",
+ "serde",
+ "serde_json",
+ "toml",
+ "unicode-width",
+]
+
+[[package]]
 name = "equator"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1491,26 +1511,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7d950ca161dc355eaf28f82b11345ed76c6e1f6eb1f4f4479e0323b9e2fbd0e"
 dependencies = [
  "num-traits",
-]
-
-[[package]]
-name = "otui"
-version = "0.3.1"
-dependencies = [
- "anyhow",
- "crossterm",
- "dirs",
- "image",
- "lz-str",
- "otui-agent",
- "otui-core",
- "otui-theme",
- "ratatui",
- "ratatui-image",
- "serde",
- "serde_json",
- "toml",
- "unicode-width",
 ]
 
 [[package]]

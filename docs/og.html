@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!--
+  Source for og.png, the social preview card.
+
+  og.png is a raster: the wordmark and the install URL are pixels, so they can't
+  be renamed with a find-and-replace. This file is the thing they're rendered
+  from, so the next rename edits text rather than opening a design tool.
+
+  Rebuild it with a headless browser at exactly the meta tags' dimensions:
+
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless --disable-gpu --hide-scrollbars \
+      --screenshot=docs/og.png --window-size=1200,630 \
+      --default-background-color=00000000 docs/og.html
+
+  Colours and the two faces are copied from styles.css rather than shared with
+  it: this file is rendered once, by hand, so a copy that can't drift mid-render
+  is worth more than one that stays in sync automatically. Keep them matching
+  when styles.css changes.
+
+  The fonts are fetched from Google, same as the site, so the card is set in the
+  faces the page actually uses. That means the render needs network.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    background: #0a0a0e;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #ecedf2;
+    position: relative;
+  }
+  /* Same two-lobe emerald wash the hero uses. */
+  .glow {
+    position: absolute; inset: -200px -100px auto -100px; height: 700px;
+    background:
+      radial-gradient(700px 400px at 32% 30%, rgba(63,191,74,.20), transparent 68%),
+      radial-gradient(460px 280px at 70% 8%, rgba(124,224,79,.11), transparent 70%);
+  }
+  /* Two columns: the pitch on the left, a real screenshot of the app on the
+     right, which is the only part that shows what the thing actually is. */
+  .in {
+    position: relative; height: 100%;
+    padding: 56px 0 56px 60px;
+    display: grid; grid-template-columns: 1fr 470px; gap: 40px; align-items: center;
+  }
+  .left { display: flex; flex-direction: column; }
+
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand img { width: 46px; height: 46px; display: block; }
+  .brand span { font-size: 29px; font-weight: 700; letter-spacing: -.02em; }
+
+  h1 {
+    margin-top: 30px;
+    font-size: 43px; line-height: 1.14; font-weight: 700; letter-spacing: -.028em;
+  }
+  h1 em {
+    font-style: normal; display: block;
+    background: linear-gradient(100deg, #7ce04f 8%, #c8f59a 52%, #3fbf4a 96%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  p.lede { margin-top: 18px; font-size: 17px; line-height: 1.55; color: #a2a3b0; }
+
+  .cmd {
+    margin-top: 28px;
+    display: inline-flex; align-items: center; gap: 11px; align-self: flex-start;
+    background: linear-gradient(180deg, #17171f, #121218);
+    border: 1px solid #30303c; border-radius: 11px;
+    padding: 13px 18px; font-size: 15px; white-space: nowrap;
+    /* The one run of real terminal text on the card. */
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .cmd .sigil { color: #7ce04f; opacity: .85; }
+
+  .tags { margin-top: 22px; display: flex; gap: 9px; }
+  .tag {
+    border: 1px solid #23232d; background: #14141b; color: #a2a3b0;
+    border-radius: 999px; padding: 6px 14px; font-size: 13.5px;
+  }
+
+  /* Bleeds off the right edge, the way the site's hero shot does. */
+  .shot {
+    border: 1px solid #2a2a36; border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px; overflow: hidden;
+    box-shadow: 0 24px 70px rgba(0,0,0,.6);
+    background: #282c34;
+  }
+  .shot .chrome {
+    display: flex; align-items: center; gap: 7px;
+    padding: 9px 12px; background: #1b1d23; border-bottom: 1px solid #2a2a36;
+  }
+  .shot .tl { width: 10px; height: 10px; border-radius: 50%; display: block; }
+  .shot img { width: 100%; display: block; }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="in">
+    <div class="left">
+      <div class="brand">
+        <img src="logo.png" alt="">
+        <span>Emeraldian</span>
+      </div>
+
+      <h1>Your Obsidian vault,<em>at home in the terminal.</em></h1>
+
+      <p class="lede">Live-preview notes, backlinks, a graph and 18 themes,<br>on the folder you already have.</p>
+
+      <div class="cmd">
+        <span class="sigil">$</span>
+        <span>curl -fsSL https://emeraldian-tui.github.io/install.sh | sh</span>
+      </div>
+
+      <div class="tags">
+        <span class="tag">Rust</span>
+        <span class="tag">GPL-3.0</span>
+        <span class="tag">No telemetry</span>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="chrome">
+        <span class="tl" style="background:#ff5f57"></span>
+        <span class="tl" style="background:#febc2e"></span>
+        <span class="tl" style="background:#28c840"></span>
+      </div>
+      <img src="shot-three-pane.webp" alt="">
+    </div>
+  </div>
+</body>
+</html>

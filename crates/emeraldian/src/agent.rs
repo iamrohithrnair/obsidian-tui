@@ -352,7 +352,7 @@ pub fn system_prompt(app: &App) -> String {
         .collect();
 
     format!(
-        "You are the assistant built into obsidian-tui, working inside the user's \
+        "You are the assistant built into emeraldian, working inside the user's \
 Obsidian vault \"{vault}\" ({notes} notes, {tags_count} tags, {links} links between notes, \
 {unresolved} links pointing at notes that don't exist yet).
 

@@ -1,10 +1,10 @@
-# obsidian-tui launch demo, second cut — the 0.3 features included.
+# emeraldian launch demo, second cut — the 0.3 features included.
 #
-# Render:  vhs demo/obsidian-tui-v2.tape        (run from the repo root)
+# Render:  vhs demo/emeraldian-v2.tape        (run from the repo root)
 #
 # Everything the first cut showed, plus the two things this release added: an
 # Excalidraw drawing opened as a drawing, and a picture drawn in the reading
-# pane. Written alongside demo/obsidian-tui.tape rather than over it, so the
+# pane. Written alongside demo/emeraldian.tape rather than over it, so the
 # first recording stays reproducible.
 #
 # Both demo-vault/ and demo/home/ are gitignored, so this tape names what it
@@ -13,7 +13,7 @@
 #   demo-vault/Excalidraw/Drawing 2026-07-17 10.01.54.excalidraw.md
 #   demo-vault/Reddit post.md, embedding
 #   demo-vault/Pasted image 20260729101852.png
-#   demo/home/Library/Application Support/obsidian-tui/config.toml
+#   demo/home/Library/Application Support/emeraldian/config.toml
 #
 # Appearance mirrors Ghostty's stock defaults, read from
 # `ghostty +show-config --default`: JetBrains Mono at 13px on #282c34. VHS
@@ -37,8 +37,8 @@
 # still renders everything except the picture, which comes out blank — set
 # `images.protocol = "halfblocks"` in demo/home to get a coarse one instead.
 
-Output demo/out/obsidian-tui-v2.gif
-Output demo/out/obsidian-tui-v2.mp4
+Output demo/out/emeraldian-v2.gif
+Output demo/out/emeraldian-v2.mp4
 
 Set Shell zsh
 Set FontFamily "JetBrainsMono Nerd Font Mono"
@@ -60,7 +60,7 @@ Set Theme { "name": "Ghostty", "background": "#282c34", "foreground": "#ffffff",
 # `--note` starts with focus in the note pane, where `j` scrolls the note and
 # Enter follows the first wikilink instead of walking the file tree.
 Hide
-Type "clear && env -u NO_COLOR HOME=$PWD/demo/home ./target/release/obsidian-tui ./demo-vault --theme obsidian-dark"
+Type "clear && env -u NO_COLOR HOME=$PWD/demo/home ./target/release/emeraldian ./demo-vault --theme obsidian-dark"
 Enter
 Sleep 4s
 

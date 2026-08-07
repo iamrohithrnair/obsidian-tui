@@ -3,29 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>obsidian-tui: your Obsidian vault, at home in the terminal</title>
+<title>Emeraldian: your Obsidian vault, at home in the terminal</title>
 
 <meta name="description" content="A terminal UI for the Markdown vault you already have. Live-preview notes, backlinks, global and local graph views, images and Excalidraw drawings, 18 themes and an optional AI assistant. No import, no database, no telemetry.">
 <meta name="theme-color" content="#0b0b0f">
 <meta name="color-scheme" content="dark">
 
-<link rel="canonical" href="https://obsidian-tui.github.io/">
+<link rel="canonical" href="https://emeraldian-tui.github.io/">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="obsidian-tui">
-<meta property="og:title" content="obsidian-tui: your Obsidian vault, at home in the terminal">
+<meta property="og:site_name" content="Emeraldian">
+<meta property="og:title" content="Emeraldian: your Obsidian vault, at home in the terminal">
 <meta property="og:description" content="Same folder, same notes, same [[links]]. Read, write and wander through them without leaving the shell. Free and open source.">
-<meta property="og:url" content="https://obsidian-tui.github.io/">
-<meta property="og:image" content="https://obsidian-tui.github.io/og.png">
+<meta property="og:url" content="https://emeraldian-tui.github.io/">
+<meta property="og:image" content="https://emeraldian-tui.github.io/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="obsidian-tui running in a terminal, showing the file explorer, a note in live preview, and the assistant panel.">
+<meta property="og:image:alt" content="Emeraldian running in a terminal, showing the file explorer, a note in live preview, and the assistant panel.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="obsidian-tui: your Obsidian vault, at home in the terminal">
+<meta name="twitter:title" content="Emeraldian: your Obsidian vault, at home in the terminal">
 <meta name="twitter:description" content="Same folder, same notes, same [[links]]. Read, write and wander through them without leaving the shell.">
-<meta name="twitter:image" content="https://obsidian-tui.github.io/og.png">
+<meta name="twitter:image" content="https://emeraldian-tui.github.io/og.png">
 
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="favicon.svg">
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,15 +38,9 @@
 
 <header class="nav" id="nav">
   <div class="wrap nav-in">
-    <a class="brand" href="#top" aria-label="obsidian-tui, back to top">
-      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-        <path d="M16 2.5 27.5 12.4 16 29.6 4.5 12.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-        <path d="M16 2.5V29.6M4.5 12.4h23" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".45"/>
-        <circle cx="16" cy="2.5" r="2.4" fill="currentColor"/>
-        <circle cx="27.5" cy="12.4" r="2" fill="currentColor"/>
-        <circle cx="4.5" cy="12.4" r="2" fill="currentColor"/>
-      </svg>
-      <span>obsidian-tui</span>
+    <a class="brand" href="#top" aria-label="Emeraldian, back to top">
+      <img class="mark" src="mark.png" width="32" height="32" alt="" decoding="async">
+      <span>Emeraldian</span>
     </a>
 
     <nav class="nav-links" aria-label="Sections">
@@ -56,8 +50,8 @@
       <a href="#install">Install</a>
     </nav>
 
-    <a class="btn btn-star nav-cta" href="https://github.com/iamrohithrnair/obsidian-tui"
-       aria-label="Star obsidian-tui on GitHub">
+    <a class="btn btn-star nav-cta" href="https://github.com/iamrohithrnair/emeraldian"
+       aria-label="Star Emeraldian on GitHub">
       <svg class="star-ico" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
         <path d="M8 .8l2.2 4.46 4.92.72-3.56 3.47.84 4.9L8 12.03l-4.4 2.32.84-4.9L.88 5.98l4.92-.72z"
               fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
@@ -73,7 +67,8 @@
 <!-- ─────────────────────────── hero ─────────────────────────── -->
 <section class="hero">
   <div class="glow" aria-hidden="true"></div>
-  <div class="wrap">
+  <div class="wrap hero-grid">
+   <div class="hero-copy">
     <p class="eyebrow">
       <span class="dot" aria-hidden="true"></span>
       Written in Rust · GPL-3.0 · works on the vault you already have
@@ -88,9 +83,9 @@
     </p>
 
     <div class="cta-row">
-      <button class="copy-cmd" data-copy="curl -fsSL https://obsidian-tui.github.io/install.sh | sh" aria-label="Copy the install command to your clipboard">
+      <button class="copy-cmd" data-copy="curl -fsSL https://emeraldian-tui.github.io/install.sh | sh" aria-label="Copy the install command to your clipboard">
         <span class="sigil" aria-hidden="true">$</span>
-        <code>curl -fsSL https://obsidian-tui.github.io/install.sh | sh</code>
+        <code>curl -fsSL https://emeraldian-tui.github.io/install.sh | sh</code>
         <span class="copy-icon" aria-hidden="true">
           <svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
             <rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/>
@@ -103,6 +98,16 @@
     <p class="micro">
       Rather use <code>brew</code>, <code>npm</code> or <code>cargo</code>? All four are two lines down.
     </p>
+   </div>
+
+   <!-- Decorative: the brand is already spelled out in the nav and the h1, so
+        this is aria-hidden rather than given alt text that would repeat it. -->
+   <div class="hero-art" aria-hidden="true">
+     <div class="crystal" id="crystal">
+       <img src="logo.png" width="512" height="512" alt="" decoding="async" fetchpriority="high">
+       <span class="sheen"></span>
+     </div>
+   </div>
   </div>
 </section>
 
@@ -120,16 +125,16 @@
           <span class="tl red" aria-hidden="true"></span>
           <span class="tl amber" aria-hidden="true"></span>
           <span class="tl green" aria-hidden="true"></span>
-          <span class="term-title">obsidian-tui ~/demo-vault</span>
+          <span class="term-title">emeraldian ~/demo-vault</span>
         </div>
         <video class="term-media" id="film-video"
                width="1280" height="720"
                autoplay loop muted playsinline controls
                poster="shot-three-pane.webp"
-               aria-label="A recording of obsidian-tui: walking down the file explorer and unfolding a folder, opening a note, cycling the right pane to backlinks, opening the force-directed graph and fitting it to the pane, opening an Excalidraw drawing as a diagram, opening a note with a screenshot embedded in it, then switching the theme to Tokyo Night and to Catppuccin Latte.">
+               aria-label="A recording of Emeraldian: walking down the file explorer and unfolding a folder, opening a note, cycling the right pane to backlinks, opening the force-directed graph and fitting it to the pane, opening an Excalidraw drawing as a diagram, opening a note with a screenshot embedded in it, then switching the theme to Tokyo Night and to Catppuccin Latte.">
           <source src="demo.mp4" type="video/mp4">
           <img class="term-media" src="demo.gif" width="1280" height="720"
-               alt="A recording of obsidian-tui: walking down the file explorer, opening a note, cycling the right pane to backlinks, opening the force-directed graph, opening an Excalidraw drawing and a note with a picture in it, then switching themes.">
+               alt="A recording of Emeraldian: walking down the file explorer, opening a note, cycling the right pane to backlinks, opening the force-directed graph, opening an Excalidraw drawing and a note with a picture in it, then switching themes.">
         </video>
       </div>
       <figcaption class="demo-foot">
@@ -155,10 +160,10 @@
         <span class="tl red" aria-hidden="true"></span>
         <span class="tl amber" aria-hidden="true"></span>
         <span class="tl green" aria-hidden="true"></span>
-        <span class="term-title" id="term-title">obsidian-tui ~/Notes</span>
+        <span class="term-title" id="term-title">emeraldian ~/Notes</span>
       </div>
 
-      <div class="term" id="term" role="img" aria-label="The obsidian-tui interface: an icon ribbon on the left, a file explorer, a note called Welcome rendered in live preview with tags, tasks, a callout and a table, and an assistant panel on the right.">
+      <div class="term" id="term" role="img" aria-label="The Emeraldian interface: an icon ribbon on the left, a file explorer, a note called Welcome rendered in live preview with tags, tasks, a callout and a table, and an assistant panel on the right.">
 <pre class="scr" aria-hidden="true"><span class="c-mut"> demo-vault </span><span class="c-fnt">│</span><span class="c-txt"> Welcome.md</span><span class="c-txt">                                                               </span><span class="c-acc" id="theme-name">obsidian-dark</span>
 <span class="c-txt">   </span><span class="c-fnt">┌</span><span class="c-mut"> Files </span><span class="c-fnt">───────────────┐</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-h1">Welcome</span><span class="c-txt">                                     </span><span class="c-fnt">┌</span><span class="c-mut"> Assistant </span><span class="c-fnt">─────────────┐</span>
 <span class="c-acc"> ≡ </span><span class="c-fnt">│</span><span class="c-acc">▾ </span><span class="c-txt">Daily</span><span class="c-txt">               </span><span class="c-fnt">│</span><span class="c-txt"> </span><span class="c-txt">  </span><span class="c-mut">tags: </span><span class="c-tag">start</span><span class="c-mut">, </span><span class="c-tag">meta</span><span class="c-txt">                           </span><span class="c-fnt">│</span><span class="c-mut">Ask about your notes.</span><span class="c-txt">   </span><span class="c-fnt">│</span>
@@ -409,7 +414,7 @@
             </div>
             <img class="term-media" src="shot-images.webp" width="1280" height="720"
                  loading="lazy" decoding="async"
-                 alt="A note called Reddit post open in the obsidian-dark theme, with a screenshot of obsidian-tui itself embedded partway down the note and drawn as actual pixels in the reading pane, sharp enough to read the note text inside it.">
+                 alt="A note called Reddit post open in the obsidian-dark theme, with a screenshot of Emeraldian itself embedded partway down the note and drawn as actual pixels in the reading pane, sharp enough to read the note text inside it.">
           </div>
         </a>
         <figcaption><b>Pictures, drawn in place.</b> <code>![[chart.png]]</code> appears where you put it, at the width the pane allows. Real pixels in Kitty, Ghostty, WezTerm, iTerm2 or anything speaking sixel, and a half-block mosaic where none of those exist. The screenshot embedded above is sharp enough to read the note inside it.</figcaption>
@@ -471,7 +476,7 @@
     <h2 id="privacy-h">Your notes are the most personal thing on your machine.<br>We treat them that way.</h2>
 
     <p class="privacy-lede">
-      obsidian-tui makes <strong>no network connections at all</strong> unless you use the
+      Emeraldian makes <strong>no network connections at all</strong> unless you use the
       assistant. Only one crate in the whole workspace has an HTTP dependency: the vault,
       the editor and the graph physically cannot reach the network.
     </p>
@@ -569,32 +574,32 @@
 
     <div class="panels">
       <div role="tabpanel" id="p-curl" aria-labelledby="t-curl" class="panel is-on" tabindex="0">
-        <button class="copy-cmd wide" data-copy="curl -fsSL https://obsidian-tui.github.io/install.sh | sh">
-          <span class="sigil" aria-hidden="true">$</span><code>curl -fsSL https://obsidian-tui.github.io/install.sh | sh</code>
+        <button class="copy-cmd wide" data-copy="curl -fsSL https://emeraldian-tui.github.io/install.sh | sh">
+          <span class="sigil" aria-hidden="true">$</span><code>curl -fsSL https://emeraldian-tui.github.io/install.sh | sh</code>
           <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
         </button>
-        <p class="panel-note">macOS and Linux. Works out which build fits your machine, downloads it and checks it against its published checksum before anything moves. <code>OTUI_BIN_DIR</code> chooses where it lands; <code>OTUI_VERSION</code> pins a release. Piping a script into a shell is worth a read first; <a href="https://github.com/iamrohithrnair/obsidian-tui/blob/main/install.sh">here it is in full</a>.</p>
+        <p class="panel-note">macOS and Linux. Works out which build fits your machine, downloads it and checks it against its published checksum before anything moves. <code>OTUI_BIN_DIR</code> chooses where it lands; <code>OTUI_VERSION</code> pins a release. Piping a script into a shell is worth a read first; <a href="https://github.com/iamrohithrnair/emeraldian/blob/main/install.sh">here it is in full</a>.</p>
       </div>
 
       <div role="tabpanel" id="p-brew" aria-labelledby="t-brew" class="panel" tabindex="0" hidden>
-        <button class="copy-cmd wide" data-copy="brew install iamrohithrnair/tap/obsidian-tui">
-          <span class="sigil" aria-hidden="true">$</span><code>brew install iamrohithrnair/tap/obsidian-tui</code>
+        <button class="copy-cmd wide" data-copy="brew install iamrohithrnair/tap/emeraldian">
+          <span class="sigil" aria-hidden="true">$</span><code>brew install iamrohithrnair/tap/emeraldian</code>
           <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
         </button>
         <p class="panel-note">macOS and Linux, from the project's own tap.</p>
       </div>
 
       <div role="tabpanel" id="p-npm" aria-labelledby="t-npm" class="panel" tabindex="0" hidden>
-        <button class="copy-cmd wide" data-copy="npx obsidian-tui ~/Notes">
-          <span class="sigil" aria-hidden="true">$</span><code>npx obsidian-tui ~/Notes</code>
+        <button class="copy-cmd wide" data-copy="npx emeraldian ~/Notes">
+          <span class="sigil" aria-hidden="true">$</span><code>npx emeraldian ~/Notes</code>
           <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
         </button>
-        <p class="panel-note">Try it without installing anything. <code>npm install -g obsidian-tui</code> when you decide to keep it.</p>
+        <p class="panel-note">Try it without installing anything. <code>npm install -g emeraldian</code> when you decide to keep it.</p>
       </div>
 
       <div role="tabpanel" id="p-cargo" aria-labelledby="t-cargo" class="panel" tabindex="0" hidden>
-        <button class="copy-cmd wide" data-copy="cargo install --git https://github.com/iamrohithrnair/obsidian-tui obsidian-tui">
-          <span class="sigil" aria-hidden="true">$</span><code>cargo install --git https://github.com/iamrohithrnair/obsidian-tui obsidian-tui</code>
+        <button class="copy-cmd wide" data-copy="cargo install --git https://github.com/iamrohithrnair/emeraldian emeraldian">
+          <span class="sigil" aria-hidden="true">$</span><code>cargo install --git https://github.com/iamrohithrnair/emeraldian emeraldian</code>
           <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
         </button>
         <p class="panel-note">Needs Rust 1.88 or newer. This is also the route for Intel Macs, which build from source.</p>
@@ -603,15 +608,15 @@
 
     <div class="run">
       <h3>Then point it at something</h3>
-      <pre class="code"><code><span class="tk-cmd">obsidian-tui</span> ~/Notes           <span class="tk-cm"># a specific vault</span>
-<span class="tk-cmd">obsidian-tui</span>                   <span class="tk-cm"># whatever Obsidian had open last</span>
-<span class="tk-cmd">obsidian-tui</span> --list-vaults     <span class="tk-cm"># everything Obsidian knows about</span></code></pre>
+      <pre class="code"><code><span class="tk-cmd">emeraldian</span> ~/Notes           <span class="tk-cm"># a specific vault</span>
+<span class="tk-cmd">emeraldian</span>                   <span class="tk-cm"># whatever Obsidian had open last</span>
+<span class="tk-cmd">emeraldian</span> --list-vaults     <span class="tk-cm"># everything Obsidian knows about</span></code></pre>
       <p class="panel-note">
         It also answers to the <code>obsidian://</code> URIs the desktop app registers, so a
         link or a script that opens Obsidian opens this too:
-        <code>obsidian-tui 'obsidian://open?vault=Notes&amp;file=Ideas'</code>. And for the days
+        <code>emeraldian 'obsidian://open?vault=Notes&amp;file=Ideas'</code>. And for the days
         you don't want a UI at all:
-        <code>obsidian-tui ~/Notes --prompt "which notes mention the Q3 migration?"</code>
+        <code>emeraldian ~/Notes --prompt "which notes mention the Q3 migration?"</code>
       </p>
       <p class="panel-note">
         Prebuilt for Apple silicon, Linux <code>x86_64</code> and <code>aarch64</code>, and
@@ -651,12 +656,12 @@
         They do different jobs. Obsidian's
         <a href="https://obsidian.md/cli">official CLI</a> is a remote control for the
         desktop app: it gives you commands, not an interface, and every one of them runs
-        against a full Obsidian instance, which it launches if you haven't. obsidian-tui is
+        against a full Obsidian instance, which it launches if you haven't. emeraldian is
         the interface, reading the vault's files directly, so it starts in a second on a
         box with no display at all. They get along: when the <code>obsidian</code> binary is on your
         <code>PATH</code>, <code>/obsidian open</code> (or "Open this note in Obsidian" in
         the command palette) hands the note you're reading to the desktop app for the one
-        thing only it can do. If the CLI isn't enabled, obsidian-tui says so and carries on.
+        thing only it can do. If the CLI isn't enabled, emeraldian says so and carries on.
       </p>
     </details>
 
@@ -706,12 +711,12 @@
     <h2>Your notes are already on your machine.</h2>
     <p>Now you don't have to leave the terminal to think in them.</p>
     <div class="cta-row center">
-      <button class="copy-cmd" data-copy="curl -fsSL https://obsidian-tui.github.io/install.sh | sh">
-        <span class="sigil" aria-hidden="true">$</span><code>curl -fsSL https://obsidian-tui.github.io/install.sh | sh</code>
+      <button class="copy-cmd" data-copy="curl -fsSL https://emeraldian-tui.github.io/install.sh | sh">
+        <span class="sigil" aria-hidden="true">$</span><code>curl -fsSL https://emeraldian-tui.github.io/install.sh | sh</code>
         <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
       </button>
-      <a class="btn btn-star" href="https://github.com/iamrohithrnair/obsidian-tui"
-         aria-label="Star obsidian-tui on GitHub">
+      <a class="btn btn-star" href="https://github.com/iamrohithrnair/emeraldian"
+         aria-label="Star Emeraldian on GitHub">
         <svg class="star-ico" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
           <path d="M8 .8l2.2 4.46 4.92.72-3.56 3.47.84 4.9L8 12.03l-4.4 2.32.84-4.9L.88 5.98l4.92-.72z"
                 fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
@@ -721,7 +726,7 @@
     </div>
     <p class="micro center">
       A star is how a project like this gets found, and it costs you nothing.
-      Or just <a href="https://github.com/iamrohithrnair/obsidian-tui">read the source</a> first.
+      Or just <a href="https://github.com/iamrohithrnair/emeraldian">read the source</a> first.
     </p>
   </div>
 </section>
@@ -730,21 +735,18 @@
 <footer class="foot">
   <div class="wrap foot-in">
     <div class="foot-brand">
-      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-        <path d="M16 2.5 27.5 12.4 16 29.6 4.5 12.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-        <path d="M16 2.5V29.6M4.5 12.4h23" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".45"/>
-      </svg>
+      <img class="mark" src="mark.png" width="32" height="32" alt="" decoding="async">
       <div>
-        <p class="foot-name">obsidian-tui</p>
+        <p class="foot-name">Emeraldian</p>
         <p class="foot-sub">GPL-3.0-or-later. Built in Rust, in the open, and it stays that way.</p>
       </div>
     </div>
 
     <nav class="foot-links" aria-label="Footer">
-      <a href="https://github.com/iamrohithrnair/obsidian-tui">Source</a>
-      <a href="https://github.com/iamrohithrnair/obsidian-tui/releases/latest">Releases</a>
-      <a href="https://github.com/iamrohithrnair/obsidian-tui/blob/main/CHANGELOG.md">Changelog</a>
-      <a href="https://github.com/iamrohithrnair/obsidian-tui/issues">Report a bug</a>
+      <a href="https://github.com/iamrohithrnair/emeraldian">Source</a>
+      <a href="https://github.com/iamrohithrnair/emeraldian/releases/latest">Releases</a>
+      <a href="https://github.com/iamrohithrnair/emeraldian/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/iamrohithrnair/emeraldian/issues">Report a bug</a>
     </nav>
   </div>
 
@@ -756,7 +758,12 @@
       work of <a href="https://github.com/reekta92/clin-rs">clin</a>, the vault
       integration of <a href="https://github.com/erikjuhani/basalt">basalt</a>, and the
       agent architecture of <a href="https://github.com/earendil-works/pi">pi</a>,
-      reimplemented in Rust. Not affiliated with Obsidian.md.
+      reimplemented in Rust.
+    </p>
+    <p>
+      Emeraldian is an independent, community-made tool. It is not affiliated with,
+      endorsed by, or sponsored by Obsidian or Dynalist Inc.
+      Obsidian is a trademark of Dynalist Inc.
     </p>
   </div>
 </footer>

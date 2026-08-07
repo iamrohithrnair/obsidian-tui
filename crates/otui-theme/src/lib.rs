@@ -1,4 +1,4 @@
-//! Color themes for obsidian-tui.
+//! Color themes for emeraldian.
 //!
 //! The flow is: a [`Seed`] (a color scheme's ~20 base colors) expands into a
 //! [`Theme`] (~90 semantic slots, serializable, partially overridable by the

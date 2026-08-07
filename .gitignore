@@ -16,7 +16,7 @@
 /demo/home/
 
 # Binaries and docs the release workflow copies into the npm packages
-/packaging/npm/platforms/*/bin/obsidian-tui
-/packaging/npm/platforms/*/bin/obsidian-tui.exe
-/packaging/npm/obsidian-tui/README.md
-/packaging/npm/obsidian-tui/LICENSE
+/packaging/npm/platforms/*/bin/emeraldian
+/packaging/npm/platforms/*/bin/emeraldian.exe
+/packaging/npm/emeraldian/README.md
+/packaging/npm/emeraldian/LICENSE

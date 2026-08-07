@@ -1,7 +1,7 @@
 #!/bin/sh
-# Install obsidian-tui from a GitHub release.
+# Install emeraldian from a GitHub release.
 #
-#   curl -fsSL https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/iamrohithrnair/emeraldian/main/install.sh | sh
 #
 # Environment:
 #   OTUI_VERSION  version to install, e.g. v0.1.0 (default: latest)
@@ -13,7 +13,7 @@
 
 set -eu
 
-REPO="iamrohithrnair/obsidian-tui"
+REPO="iamrohithrnair/emeraldian"
 VERSION="${OTUI_VERSION:-latest}"
 
 info() { printf '%s\n' "$*" >&2; }
@@ -63,7 +63,7 @@ esac
 # Apple dropped Intel builds; those Macs can still build from source.
 if [ "$os_name" = "apple-darwin" ] && [ "$cpu" = "x86_64" ]; then
 	die "no prebuilt binary for Intel Macs. Install with:
-    cargo install --git https://github.com/$REPO obsidian-tui"
+    cargo install --git https://github.com/$REPO emeraldian"
 fi
 
 target="${cpu}-${os_name}"
@@ -76,7 +76,7 @@ if [ "$VERSION" = "latest" ]; then
 	[ -n "$VERSION" ] || die "could not work out the latest version"
 fi
 
-archive="obsidian-tui-${target}.tar.gz"
+archive="emeraldian-${target}.tar.gz"
 base="https://github.com/$REPO/releases/download/$VERSION"
 
 # ---- download and verify ----------------------------------------------------
@@ -85,7 +85,7 @@ tmp="$(mktemp -d)"
 # shellcheck disable=SC2064  # expand tmp now, not at exit
 trap "rm -rf '$tmp'" EXIT INT TERM
 
-info "Downloading obsidian-tui $VERSION for ${target}..."
+info "Downloading emeraldian $VERSION for ${target}..."
 fetch "$base/$archive" "$tmp/$archive" || die "no build for $target in release $VERSION"
 fetch "$base/$archive.sha256" "$tmp/$archive.sha256" || die "could not fetch the checksum"
 
@@ -127,18 +127,18 @@ else
 	fi
 fi
 
-install -m 755 "$tmp/obsidian-tui-${target}/obsidian-tui" "$bin_dir/obsidian-tui" ||
+install -m 755 "$tmp/emeraldian-${target}/emeraldian" "$bin_dir/emeraldian" ||
 	die "could not write to $bin_dir; set OTUI_BIN_DIR to somewhere writable"
 
 # Gatekeeper quarantines anything downloaded, and the error it produces
 # ("cannot be opened because the developer cannot be verified") gives no hint
 # that this is the fix.
 if [ "$os" = "Darwin" ] && command -v xattr >/dev/null 2>&1; then
-	xattr -d com.apple.quarantine "$bin_dir/obsidian-tui" 2>/dev/null || true
+	xattr -d com.apple.quarantine "$bin_dir/emeraldian" 2>/dev/null || true
 fi
 
 info ""
-info "Installed obsidian-tui $VERSION to $bin_dir/obsidian-tui"
+info "Installed emeraldian $VERSION to $bin_dir/emeraldian"
 
 case ":$PATH:" in
 *":$bin_dir:"*) ;;
@@ -151,5 +151,5 @@ esac
 
 info ""
 info "Get started:"
-info "    obsidian-tui ~/Notes        # open a vault"
-info "    obsidian-tui --list-vaults  # vaults Obsidian knows about"
+info "    emeraldian ~/Notes        # open a vault"
+info "    emeraldian --list-vaults  # vaults Obsidian knows about"

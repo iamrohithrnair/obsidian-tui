@@ -139,7 +139,7 @@ pub const COMMANDS: &[SlashCommand] = &[
     },
     SlashCommand {
         name: "quit",
-        description: "Leave obsidian-tui",
+        description: "Leave emeraldian",
         argument_hint: None,
     },
 ];

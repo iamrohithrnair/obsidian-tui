@@ -1,4 +1,4 @@
-//! obsidian-tui — an Obsidian-like terminal UI for your vault.
+//! emeraldian — a terminal UI for your Obsidian vault.
 
 // Nothing here needs `unsafe`, and the one thing that reached for it —
 // writing to the environment from a test — was undefined behaviour rather
@@ -46,8 +46,8 @@ fn main() -> io::Result<()> {
     let args = match cli::parse(&raw) {
         Ok(args) => args,
         Err(err) => {
-            eprintln!("obsidian-tui: {}", err.0);
-            eprintln!("Try `obsidian-tui --help`.");
+            eprintln!("emeraldian: {}", err.0);
+            eprintln!("Try `emeraldian --help`.");
             std::process::exit(2);
         }
     };
@@ -58,12 +58,21 @@ fn main() -> io::Result<()> {
             return Ok(());
         }
         Command::Version => {
-            println!("obsidian-tui {}", env!("CARGO_PKG_VERSION"));
+            println!("emeraldian {}", env!("CARGO_PKG_VERSION"));
             return Ok(());
         }
         Command::ListVaults => return list_vaults(),
         Command::Run => {}
     }
+
+    // Before anything reads the config directory: a user upgrading from a build
+    // that was still called obsidian-tui keeps their settings, themes, sessions
+    // and stored keys.
+    //
+    // It sits below the commands above because none of them touch that
+    // directory — `--list-vaults` reads Obsidian's own registry, not ours. A new
+    // command that does read it belongs below this line, not above.
+    config::migrate_legacy_dir();
 
     let (mut config, config_error) = Config::load();
     if let Some(theme) = args.theme.clone() {
@@ -72,8 +81,8 @@ fn main() -> io::Result<()> {
 
     let Some(vault_path) = resolve_vault(&args, &config) else {
         eprintln!(
-            "obsidian-tui: no vault found.\n\n\
-             Pass one on the command line:\n    obsidian-tui ~/Notes\n\n\
+            "emeraldian: no vault found.\n\n\
+             Pass one on the command line:\n    emeraldian ~/Notes\n\n\
              Or set it in the config:\n    vault = \"~/Notes\"\n\n\
              Registered Obsidian vaults can be listed with --list-vaults."
         );
@@ -81,7 +90,7 @@ fn main() -> io::Result<()> {
     };
 
     if !vault_path.is_dir() {
-        eprintln!("obsidian-tui: {} is not a directory", vault_path.display());
+        eprintln!("emeraldian: {} is not a directory", vault_path.display());
         std::process::exit(1);
     }
 
@@ -89,7 +98,7 @@ fn main() -> io::Result<()> {
     let mut app = match App::new(vault, config) {
         Ok(app) => app,
         Err(err) => {
-            eprintln!("obsidian-tui: {err}");
+            eprintln!("emeraldian: {err}");
             if err.kind() == io::ErrorKind::PermissionDenied {
                 // macOS gates ~/Documents, ~/Desktop and ~/Downloads behind a
                 // per-application privacy permission. The prompt is attached to
@@ -282,10 +291,10 @@ fn run(app: &mut App) -> io::Result<()> {
         Err(err) => {
             let _ = std::panic::take_hook();
             eprintln!(
-                "obsidian-tui: this needs an interactive terminal ({err}).\n\n\
+                "emeraldian: this needs an interactive terminal ({err}).\n\n\
                  For scripting, use:\n    \
-                 obsidian-tui --list-vaults\n    \
-                 obsidian-tui <vault> --prompt \"your question\""
+                 emeraldian --list-vaults\n    \
+                 emeraldian <vault> --prompt \"your question\""
             );
             std::process::exit(1);
         }

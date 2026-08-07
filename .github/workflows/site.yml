@@ -1,7 +1,7 @@
 name: Site
 
 # The landing page is written in docs/ but served from a separate repository,
-# because https://obsidian-tui.github.io needs an account of that exact name.
+# because https://emeraldian-tui.github.io needs an account of that exact name.
 # This copies one into the other so the two can't drift — which matters most for
 # install.sh, since the site serves the URL people pipe into a shell.
 
@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   publish:
-    name: publish to obsidian-tui.github.io
+    name: publish to emeraldian-tui.github.io
     runs-on: ubuntu-latest
     env:
       SITE_TOKEN: ${{ secrets.SITE_DEPLOY_TOKEN }}
@@ -34,7 +34,7 @@ jobs:
         if: env.SITE_TOKEN != ''
         uses: actions/checkout@v4
         with:
-          repository: obsidian-tui/obsidian-tui.github.io
+          repository: emeraldian-tui/emeraldian-tui.github.io
           token: ${{ secrets.SITE_DEPLOY_TOKEN }}
           path: site
 
@@ -68,6 +68,6 @@ jobs:
         if: env.SITE_TOKEN == ''
         run: |
           echo "::warning::SITE_DEPLOY_TOKEN is not set, so the site was not updated."
-          echo "The page and installer at https://obsidian-tui.github.io may now be stale."
+          echo "The page and installer at https://emeraldian-tui.github.io may now be stale."
           echo "Add a fine-grained PAT with Contents:write on"
-          echo "obsidian-tui/obsidian-tui.github.io as the SITE_DEPLOY_TOKEN secret."
+          echo "emeraldian-tui/emeraldian-tui.github.io as the SITE_DEPLOY_TOKEN secret."

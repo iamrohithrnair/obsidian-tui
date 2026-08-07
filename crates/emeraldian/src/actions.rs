@@ -78,7 +78,7 @@ pub fn commands() -> Vec<Entry> {
 
 /// Hands the open note to the Obsidian desktop app.
 ///
-/// This is the one place obsidian-tui defers to Obsidian itself: everything
+/// This is the one place emeraldian defers to Obsidian itself: everything
 /// else it does by reading and writing Markdown directly, which is why it works
 /// with the app closed. Opening in the GUI is the exception, since only the
 /// running app can do it.
@@ -531,9 +531,9 @@ pub fn dispatch(app: &mut App, action: Action) {
             // — and says what's at stake when there's unsaved work.
             let unsaved = app.tabs.iter().filter(|t| t.is_modified()).count();
             let message = match unsaved {
-                0 => "Quit obsidian-tui?".to_string(),
-                1 => "Quit obsidian-tui? 1 note has unsaved changes.".to_string(),
-                n => format!("Quit obsidian-tui? {n} notes have unsaved changes."),
+                0 => "Quit emeraldian?".to_string(),
+                1 => "Quit emeraldian? 1 note has unsaved changes.".to_string(),
+                n => format!("Quit emeraldian? {n} notes have unsaved changes."),
             };
             app.modal = Some(Modal::Confirm(Confirm {
                 message,

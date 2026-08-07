@@ -1,7 +1,7 @@
 //! The OpenAI-compatible chat-completions API.
 //!
 //! One connector covers Ollama, LM Studio, vLLM, OpenRouter and OpenAI itself,
-//! because they all speak this shape. That's what makes obsidian-tui's agent
+//! because they all speak this shape. That's what makes emeraldian's agent
 //! usable fully offline: point `base_url` at a local Ollama and no data leaves
 //! the machine.
 //!

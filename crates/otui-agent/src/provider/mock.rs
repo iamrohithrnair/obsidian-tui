@@ -69,7 +69,7 @@ impl Mock {
             "    provider = \"openai\"\n",
             "    base_url = \"http://localhost:11434/v1\"\n",
             "    model = \"llama3.1\"\n\n",
-            "Everything else in obsidian-tui works without a model.",
+            "Everything else in emeraldian works without a model.",
         ))
     }
 }
