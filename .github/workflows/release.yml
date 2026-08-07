@@ -240,10 +240,14 @@ jobs:
           cd tap
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet; then
+          # Stage first, then ask the index. `git diff` alone only reports
+          # tracked files, so a formula the tap has never held before reads as
+          # no change at all and is silently never committed. That is how the
+          # tap stayed empty through every release up to and including 0.4.0.
+          git add Formula/emeraldian.rb
+          if git diff --cached --quiet; then
             echo "formula already current"
           else
-            git add Formula/emeraldian.rb
             git commit -m "emeraldian ${RELEASE_TAG}"
             git push
           fi
