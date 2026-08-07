@@ -18,6 +18,12 @@ name: crates.io
 #
 # Then, for each crate, add a trusted publisher on crates.io pointing at this
 # repository and this workflow file, and every release after that is automatic.
+#
+# To check that configuration without waiting for a release, run this by hand
+# with `verify_only` set. It authenticates and stops, so a green run means
+# crates.io accepts this workflow's identity. Worth doing after changing the
+# workflow's filename, or the repository's, since either invalidates the
+# trusted publisher silently.
 
 on:
   push:
@@ -27,6 +33,10 @@ on:
       tag:
         description: "Tag to publish, e.g. v0.4.0"
         required: true
+      verify_only:
+        description: "Only check that trusted publishing works, publish nothing"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -91,12 +101,27 @@ jobs:
       # configured yet, so it has to sit behind the check rather than in front
       # of it. Otherwise a release with nothing left to publish fails on the
       # step that was only ever there to enable the work being skipped.
+      #
+      # That skip has a cost: on a release where everything is already published
+      # the OIDC exchange never runs, so a green job does not prove the trusted
+      # publishing config is right. `verify_only` exists to force it, and is the
+      # one case where authenticating with nothing to publish is the point.
       - uses: rust-lang/crates-io-auth-action@v1
         id: auth
-        if: steps.needed.outputs.any == 'true'
+        if: steps.needed.outputs.any == 'true' || inputs.verify_only
+
+      - name: Report that trusted publishing works
+        if: inputs.verify_only
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Reaching this line means crates.io accepted the workflow's identity
+          # and issued a token. The token itself is never printed.
+          echo "::notice::Trusted publishing is configured correctly for this repository and workflow."
+          echo "Nothing was published: verify_only was set."
 
       - name: Publish, dependencies before dependents
-        if: steps.needed.outputs.any == 'true'
+        if: steps.needed.outputs.any == 'true' && ! inputs.verify_only
         shell: bash
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
