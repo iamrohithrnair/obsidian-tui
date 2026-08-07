@@ -96,7 +96,7 @@
     </div>
 
     <p class="micro">
-      Rather use <code>brew</code>, <code>npm</code> or <code>cargo</code>? All four are two lines down.
+      Rather use <code>brew</code> or <code>cargo</code>? Both are two lines down.
     </p>
    </div>
 
@@ -568,7 +568,7 @@
     <div class="tabs" role="tablist" aria-label="Installation method">
       <button role="tab" id="t-curl"  aria-controls="p-curl"  aria-selected="true"  class="tab is-on">curl</button>
       <button role="tab" id="t-brew"  aria-controls="p-brew"  aria-selected="false" class="tab" tabindex="-1">Homebrew</button>
-      <button role="tab" id="t-npm"   aria-controls="p-npm"   aria-selected="false" class="tab" tabindex="-1">npm</button>
+      <button role="tab" id="t-npm"   aria-controls="p-npm"   aria-selected="false" class="tab" tabindex="-1">npm <span class="soon">soon</span></button>
       <button role="tab" id="t-cargo" aria-controls="p-cargo" aria-selected="false" class="tab" tabindex="-1">cargo</button>
     </div>
 
@@ -590,11 +590,12 @@
       </div>
 
       <div role="tabpanel" id="p-npm" aria-labelledby="t-npm" class="panel" tabindex="0" hidden>
-        <button class="copy-cmd wide" data-copy="npx emeraldian ~/Notes">
-          <span class="sigil" aria-hidden="true">$</span><code>npx emeraldian ~/Notes</code>
-          <span class="copy-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 4.5H5A1.5 1.5 0 0 0 3.5 6v8"/></svg></span>
-        </button>
-        <p class="panel-note">Try it without installing anything. <code>npm install -g emeraldian</code> when you decide to keep it.</p>
+        <div class="not-yet">
+          <p><strong>Coming soon.</strong> <code>npx emeraldian</code> is not published yet.</p>
+          <p>Nothing is copyable here on purpose: a command that looks like it
+            works and then does not is worse than one that is plainly missing.
+            The one-liner, Homebrew and cargo all work today.</p>
+        </div>
       </div>
 
       <div role="tabpanel" id="p-cargo" aria-labelledby="t-cargo" class="panel" tabindex="0" hidden>

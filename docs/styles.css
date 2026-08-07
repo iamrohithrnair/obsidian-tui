@@ -711,6 +711,25 @@ kbd {
 .tab:hover { color: var(--txt); }
 .tab.is-on { background: var(--bg-3); color: var(--txt); box-shadow: 0 1px 0 rgba(255,255,255,.05) inset; }
 
+/* "soon" on a tab whose install route is not published yet. The tab still
+   opens, because the panel behind it explains the situation; hiding it would
+   only prompt the question the panel answers. */
+.soon {
+  margin-left: 7px; padding: 2px 7px;
+  border: 1px solid var(--line-2); border-radius: 999px;
+  font-size: 11px; font-weight: 600; letter-spacing: .02em;
+  color: var(--fnt); vertical-align: 1px;
+}
+.tab.is-on .soon { color: var(--mut); }
+
+.not-yet {
+  border: 1px dashed var(--line-2); border-radius: 12px;
+  padding: 18px 20px; background: var(--bg-1);
+}
+.not-yet p { font-size: 14.5px; line-height: 1.62; color: var(--mut); }
+.not-yet p + p { margin-top: 8px; }
+.not-yet strong { color: var(--txt); font-weight: 600; }
+
 .panels { margin-top: 20px; }
 .panel { max-width: 780px; }
 .panel-note { margin-top: 14px; font-size: 15px; color: var(--fnt); line-height: 1.65; }
