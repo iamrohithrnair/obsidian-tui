@@ -22,8 +22,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::canvas::{Canvas, Context, Line as CanvasLine};
 use ratatui::widgets::{Paragraph, Widget};
 
-use otui_core::excalidraw::{Drawing, Element, Rgb, Shape};
-use otui_theme::Palette;
+use emeraldian_core::excalidraw::{Drawing, Element, Rgb, Shape};
+use emeraldian_theme::Palette;
 
 use crate::ui::scrollbar;
 
@@ -60,7 +60,7 @@ impl Scenes {
         let key = digest(content);
         if self.key != Some(key) {
             self.key = Some(key);
-            self.scene = otui_core::excalidraw::parse(content);
+            self.scene = emeraldian_core::excalidraw::parse(content);
         }
         self.scene.as_ref()
     }
@@ -314,7 +314,7 @@ fn luminance(r: u8, g: u8, b: u8) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use otui_theme::presets;
+    use emeraldian_theme::presets;
 
     fn element(shape: Shape) -> Element {
         Element {

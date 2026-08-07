@@ -233,7 +233,8 @@ mod tests {
         "-----BEGIN PRIVATE KEY-----\nbm90IGEgcmVhbCBrZXk=\n-----END PRIVATE KEY-----\n";
 
     fn dir(tag: &str) -> PathBuf {
-        let path = std::env::temp_dir().join(format!("otui-http-{tag}-{}", std::process::id()));
+        let path =
+            std::env::temp_dir().join(format!("emeraldian-http-{tag}-{}", std::process::id()));
         // A leftover from an earlier run that happened to get the same pid would
         // add certificates the directory test then counts.
         let _ = std::fs::remove_dir_all(&path);

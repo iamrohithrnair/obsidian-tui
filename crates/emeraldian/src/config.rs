@@ -7,8 +7,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use otui_agent::{Effort, ProviderKind};
-use otui_core::sort::SortOrder;
+use emeraldian_agent::{Effort, ProviderKind};
+use emeraldian_core::sort::SortOrder;
 use serde::{Deserialize, Serialize};
 
 /// The whole config file.
@@ -30,7 +30,7 @@ impl Default for Config {
         Self {
             // Named rather than left blank so the generated file documents
             // what the default actually is.
-            theme: otui_theme::presets::DEFAULT_NAME.to_string(),
+            theme: emeraldian_theme::presets::DEFAULT_NAME.to_string(),
             vault: None,
             ui: UiConfig::default(),
             editor: EditorConfig::default(),
@@ -253,10 +253,10 @@ impl AgentConfig {
         if self.model.trim().is_empty() {
             match self.provider_kind() {
                 ProviderKind::Anthropic => {
-                    otui_agent::provider::anthropic::DEFAULT_MODEL.to_string()
+                    emeraldian_agent::provider::anthropic::DEFAULT_MODEL.to_string()
                 }
                 ProviderKind::OpenAiCompatible => {
-                    otui_agent::provider::openai::DEFAULT_MODEL.to_string()
+                    emeraldian_agent::provider::openai::DEFAULT_MODEL.to_string()
                 }
                 ProviderKind::Offline => "offline".to_string(),
             }
@@ -266,8 +266,8 @@ impl AgentConfig {
     }
 
     #[must_use]
-    pub fn to_session_config(&self) -> otui_agent::AgentConfig {
-        otui_agent::AgentConfig {
+    pub fn to_session_config(&self) -> emeraldian_agent::AgentConfig {
+        emeraldian_agent::AgentConfig {
             model: self.model(),
             max_tokens: self.max_tokens,
             effort: self.effort(),
@@ -410,7 +410,7 @@ mod tests {
 
     #[test]
     fn partial_config_keeps_defaults_for_the_rest() {
-        let dir = std::env::temp_dir().join(format!("otui-cfg-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("emeraldian-cfg-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("temp dir");
         let path = dir.join("config.toml");
         fs::write(&path, "theme = \"nord\"\n\n[ui]\nsidebar_width = 20\n").expect("write");
@@ -430,7 +430,7 @@ mod tests {
 
     #[test]
     fn a_broken_config_reports_the_error_and_still_starts() {
-        let dir = std::env::temp_dir().join(format!("otui-cfg-bad-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("emeraldian-cfg-bad-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("temp dir");
         let path = dir.join("config.toml");
         fs::write(&path, "theme = [unclosed").expect("write");
@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn missing_config_is_not_an_error() {
-        let (_, error) = Config::load_from(Path::new("/nonexistent/otui/config.toml"));
+        let (_, error) = Config::load_from(Path::new("/nonexistent/emeraldian/config.toml"));
         assert!(error.is_none());
     }
 
@@ -454,7 +454,10 @@ mod tests {
         assert_eq!(agent.model(), "claude-opus-5");
 
         agent.provider = "ollama".into();
-        assert_eq!(agent.model(), otui_agent::provider::openai::DEFAULT_MODEL);
+        assert_eq!(
+            agent.model(),
+            emeraldian_agent::provider::openai::DEFAULT_MODEL
+        );
 
         agent.model = "llama3.1".into();
         assert_eq!(agent.model(), "llama3.1");
@@ -501,7 +504,8 @@ mod tests {
 
     /// A temp directory holding an `old` and a `new` path, neither created.
     fn migration_paths(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
-        let root = std::env::temp_dir().join(format!("otui-mig-{tag}-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("emeraldian-mig-{tag}-{}", std::process::id()));
         fs::remove_dir_all(&root).ok();
         fs::create_dir_all(&root).expect("temp root");
         (

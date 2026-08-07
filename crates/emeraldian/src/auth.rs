@@ -147,7 +147,7 @@ fn restrict(path: &Path) {
 /// behaviour of everything that worked before a key was ever stored is unchanged.
 #[must_use]
 pub fn key_for(provider: &str, auth: &Auth) -> Option<String> {
-    let from_env = otui_agent::catalog::env_var(provider)
+    let from_env = emeraldian_agent::catalog::env_var(provider)
         .and_then(|name| std::env::var(name).ok())
         .map(|key| key.trim().to_string())
         .filter(|key| !key.is_empty());
@@ -167,7 +167,7 @@ pub enum Source {
 
 #[must_use]
 pub fn source(provider: &str, auth: &Auth) -> Source {
-    let name = otui_agent::catalog::env_var(provider);
+    let name = emeraldian_agent::catalog::env_var(provider);
     match name.filter(|name| std::env::var(name).is_ok_and(|key| !key.trim().is_empty())) {
         Some(name) => Source::Env(name),
         None if auth.get(provider).is_some() => Source::Stored,
@@ -188,7 +188,7 @@ impl std::fmt::Display for Source {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
 
     #[test]
     fn a_key_survives_a_round_trip_to_disk() {

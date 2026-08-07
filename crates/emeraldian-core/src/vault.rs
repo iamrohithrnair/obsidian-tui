@@ -330,7 +330,7 @@ mod tests {
     impl TempDir {
         fn new(tag: &str) -> Self {
             let path = std::env::temp_dir().join(format!(
-                "otui-vault-{tag}-{}-{:?}",
+                "emeraldian-vault-{tag}-{}-{:?}",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(UNIX_EPOCH)

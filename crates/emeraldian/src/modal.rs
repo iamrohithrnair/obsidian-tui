@@ -5,7 +5,7 @@
 //! type to filter, arrows to move, Enter to run. Sharing the type means they
 //! also stay consistent for free.
 
-use otui_core::search::{self, FuzzyMatch};
+use emeraldian_core::search::{self, FuzzyMatch};
 
 use crate::app::Action;
 

@@ -11,9 +11,9 @@ name: crates.io
 # to be published by hand:
 #
 #   cargo login                       # once, interactively
-#   cargo publish -p otui-core
-#   cargo publish -p otui-theme
-#   cargo publish -p otui-agent
+#   cargo publish -p emeraldian-core
+#   cargo publish -p emeraldian-theme
+#   cargo publish -p emeraldian-agent
 #   cargo publish -p emeraldian       # last: it depends on the other three
 #
 # Then, for each crate, add a trusted publisher on crates.io pointing at this
@@ -78,7 +78,7 @@ jobs:
           # difference between "already published" and "always publish".
           ua="emeraldian-release (https://github.com/iamrohithrnair/emeraldian)"
 
-          for crate in otui-core otui-theme otui-agent emeraldian; do
+          for crate in emeraldian-core emeraldian-theme emeraldian-agent emeraldian; do
             if curl -sfo /dev/null -A "$ua" "https://crates.io/api/v1/crates/${crate}/${VERSION}"; then
               # Versions are immutable, so a re-run must skip rather than fail.
               echo "${crate} ${VERSION} is already published"

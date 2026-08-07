@@ -94,7 +94,7 @@ fn main() -> io::Result<()> {
         std::process::exit(1);
     }
 
-    let vault = otui_core::vault::Vault::from_path(&vault_path);
+    let vault = emeraldian_core::vault::Vault::from_path(&vault_path);
     let mut app = match App::new(vault, config) {
         Ok(app) => app,
         Err(err) => {
@@ -134,7 +134,7 @@ fn main() -> io::Result<()> {
 }
 
 fn list_vaults() -> io::Result<()> {
-    let vaults = otui_core::vault::discover();
+    let vaults = emeraldian_core::vault::discover();
     if vaults.is_empty() {
         println!("No vaults are registered with Obsidian on this machine.");
         return Ok(());
@@ -159,7 +159,7 @@ fn resolve_vault(args: &Args, config: &Config) -> Option<PathBuf> {
         return Some(expand_home(path));
     }
     // Prefer the vault Obsidian currently has open, else the most recent.
-    let vaults = otui_core::vault::discover();
+    let vaults = emeraldian_core::vault::discover();
     vaults
         .iter()
         .find(|v| v.open)
@@ -420,10 +420,10 @@ fn graph_point(
     x_bounds: [f64; 2],
     y_bounds: [f64; 2],
     (x, y): (u16, u16),
-) -> otui_core::graph::Vec2 {
+) -> emeraldian_core::graph::Vec2 {
     let fx = f64::from(x.saturating_sub(rect.x)) / f64::from(rect.width.max(1));
     let fy = f64::from(y.saturating_sub(rect.y)) / f64::from(rect.height.max(1));
-    otui_core::graph::Vec2::new(
+    emeraldian_core::graph::Vec2::new(
         (x_bounds[0] + fx * (x_bounds[1] - x_bounds[0])) as f32,
         // Canvas y grows upward, terminal rows grow downward.
         (y_bounds[1] - fy * (y_bounds[1] - y_bounds[0])) as f32,
@@ -662,7 +662,7 @@ mod tests {
     use crossterm::event::{
         KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     };
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
 

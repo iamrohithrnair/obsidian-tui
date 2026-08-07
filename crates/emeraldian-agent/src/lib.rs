@@ -6,8 +6,8 @@
 //! runtime to install alongside it.
 //!
 //! ```no_run
-//! use otui_agent::{provider::mock::Mock, session, AgentConfig, Message};
-//! # use otui_agent::{ToolHost, ToolOutcome, ToolCall, ToolSpec};
+//! use emeraldian_agent::{provider::mock::Mock, session, AgentConfig, Message};
+//! # use emeraldian_agent::{ToolHost, ToolOutcome, ToolCall, ToolSpec};
 //! # struct NoTools;
 //! # impl ToolHost for NoTools {
 //! #     fn specs(&self) -> Vec<ToolSpec> { Vec::new() }

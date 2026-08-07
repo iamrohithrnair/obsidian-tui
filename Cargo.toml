@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/otui-core", "crates/otui-theme", "crates/otui-agent", "crates/emeraldian"]
+members = ["crates/emeraldian-core", "crates/emeraldian-theme", "crates/emeraldian-agent", "crates/emeraldian"]
 
 [workspace.package]
 version = "0.4.0"
@@ -19,9 +19,9 @@ keywords = ["obsidian", "tui", "notes", "markdown", "graph"]
 categories = ["command-line-utilities", "text-editors"]
 
 [workspace.dependencies]
-otui-core = { path = "crates/otui-core", version = "0.4.0" }
-otui-theme = { path = "crates/otui-theme", version = "0.4.0" }
-otui-agent = { path = "crates/otui-agent", version = "0.4.0" }
+emeraldian-core = { path = "crates/emeraldian-core", version = "0.4.0" }
+emeraldian-theme = { path = "crates/emeraldian-theme", version = "0.4.0" }
+emeraldian-agent = { path = "crates/emeraldian-agent", version = "0.4.0" }
 
 ratatui = "0.30"
 crossterm = "0.29"

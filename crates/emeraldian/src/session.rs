@@ -11,7 +11,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use otui_agent::Message;
+use emeraldian_agent::Message;
 use serde::{Deserialize, Serialize};
 
 use crate::agent::Entry;

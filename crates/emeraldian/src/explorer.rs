@@ -8,8 +8,8 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use otui_core::index::{NoteId, VaultIndex};
-use otui_core::sort::SortOrder;
+use emeraldian_core::index::{NoteId, VaultIndex};
+use emeraldian_core::sort::SortOrder;
 
 /// One visible line in the explorer.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -395,7 +395,7 @@ fn count_notes(index: &VaultIndex, folder: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
 
     fn vault() -> TempVault {
         let vault = TempVault::new("explorer");
@@ -684,7 +684,7 @@ mod tests {
 #[cfg(test)]
 mod sort_tests {
     use super::*;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
     use std::time::{Duration, SystemTime};
 
     /// Writes a note and stamps it with an explicit modification time.

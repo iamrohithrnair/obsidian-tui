@@ -9,10 +9,10 @@
 //! models under-reach for tools given a bare capability description, and the
 //! trigger condition is what fixes that.
 
-use otui_agent::{ToolCall, ToolOutcome, ToolSpec};
-use otui_core::graph::NodeKind;
-use otui_core::index::{LinkTarget, NoteId};
-use otui_core::search::{self, SearchLimits};
+use emeraldian_agent::{ToolCall, ToolOutcome, ToolSpec};
+use emeraldian_core::graph::NodeKind;
+use emeraldian_core::index::{LinkTarget, NoteId};
+use emeraldian_core::search::{self, SearchLimits};
 use serde_json::Value;
 
 use crate::app::App;
@@ -486,7 +486,7 @@ fn graph_neighborhood(app: &mut App, args: &Value) -> ToolOutcome {
     let id = note!(app, name);
     let depth = number(args, "depth", 1, 3);
 
-    let graph = otui_core::graph::Graph::build(&app.index, &Default::default());
+    let graph = emeraldian_core::graph::Graph::build(&app.index, &Default::default());
     let Some(origin) = graph.node_of_note(id) else {
         return ToolOutcome::ok(
             "not in the graph",
@@ -738,7 +738,7 @@ fn or_none(items: &[String]) -> String {
 mod tests {
     use super::*;
     use crate::config::Config;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
     use serde_json::json;
 
     fn app() -> (TempVault, App) {

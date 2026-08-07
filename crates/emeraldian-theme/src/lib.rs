@@ -6,7 +6,7 @@
 //! terminal colors) that the renderer reads every frame.
 //!
 //! ```
-//! use otui_theme::{presets, Palette};
+//! use emeraldian_theme::{presets, Palette};
 //!
 //! let theme = presets::builtin_by_name("obsidian-dark").expect("built-in theme");
 //! let palette = Palette::from(&theme);

@@ -12,7 +12,7 @@ pub mod modal;
 pub mod note;
 pub mod panes;
 
-use otui_theme::Palette;
+use emeraldian_theme::Palette;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -675,8 +675,8 @@ mod tests {
     use super::*;
     use crate::app::App;
     use crate::config::Config;
-    use otui_core::graph::Vec2;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::graph::Vec2;
+    use emeraldian_core::test_support::TempVault;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
 

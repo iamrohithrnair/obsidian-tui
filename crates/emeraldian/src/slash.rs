@@ -8,7 +8,7 @@
 //! Commands run locally and never reach the model. That is the point: `/model`
 //! should change the model, not ask the current one to change it.
 
-use otui_core::sort::SortOrder;
+use emeraldian_core::sort::SortOrder;
 
 use crate::agent::Entry;
 use crate::app::{Action, App};
@@ -394,8 +394,8 @@ fn compact(app: &mut App) {
 }
 
 /// Whether a message is a plain user turn, safe to begin a conversation with.
-fn is_plain_user_turn(message: &otui_agent::Message) -> bool {
-    if message.role != otui_agent::Role::User {
+fn is_plain_user_turn(message: &emeraldian_agent::Message) -> bool {
+    if message.role != emeraldian_agent::Role::User {
         return false;
     }
     message.content.as_array().is_none_or(|blocks| {
@@ -467,7 +467,7 @@ fn key(app: &mut App, args: &str) {
 /// Where the current provider's key is coming from.
 fn key_state(app: &App) -> String {
     let provider = &app.config.agent.provider;
-    if !otui_agent::catalog::needs_key(provider) {
+    if !emeraldian_agent::catalog::needs_key(provider) {
         return format!("{provider} needs no key");
     }
     match crate::auth::source(provider, &app.auth) {
@@ -496,7 +496,7 @@ fn base_url(app: &mut App, args: &str) {
 
 fn login_text(app: &App) -> String {
     let provider = &app.config.agent.provider;
-    let Some(preset) = otui_agent::catalog::find(provider) else {
+    let Some(preset) = emeraldian_agent::catalog::find(provider) else {
         return format!("unknown provider '{provider}'; /provider lists them");
     };
 
@@ -506,7 +506,7 @@ fn login_text(app: &App) -> String {
             preset.label,
             key_state(app)
         ),
-        None if preset.kind == otui_agent::ProviderKind::Offline => {
+        None if preset.kind == emeraldian_agent::ProviderKind::Offline => {
             "offline: no model is configured\n/provider picks one".to_string()
         }
         None => format!(
@@ -539,7 +539,7 @@ fn logout(app: &mut App) {
     }
     // Worth pointing out, because the process cannot unset a variable for the
     // shell that started it, so "logged out" would otherwise be a lie.
-    if let Some(env_var) = otui_agent::catalog::env_var(&provider)
+    if let Some(env_var) = emeraldian_agent::catalog::env_var(&provider)
         && std::env::var(env_var).is_ok()
     {
         message.push_str(&format!(
@@ -557,14 +557,14 @@ fn status_text(app: &App) -> String {
         provider,
         app.config.agent.model(),
         app.config.agent.base_url.as_deref().unwrap_or("(default)"),
-        if otui_agent::catalog::needs_key(provider) {
+        if emeraldian_agent::catalog::needs_key(provider) {
             crate::auth::source(provider, &app.auth).to_string()
         } else {
             "not needed".to_string()
         },
         // Which roots and which proxy. On a managed network this is the line that
         // turns "it just fails" into something actionable.
-        otui_agent::http::trust(),
+        emeraldian_agent::http::trust(),
         on_off(app.config.agent.allow_writes),
         on_off(app.config.agent.include_active_note),
         app.chat.conversation.len(),
@@ -723,7 +723,7 @@ fn on_off(value: bool) -> &'static str {
 mod tests {
     use super::*;
     use crate::config::Config;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
 
     fn app() -> (TempVault, App) {
         let vault = TempVault::new("slash");
@@ -835,7 +835,7 @@ mod tests {
         assert_eq!(picker.kind, crate::modal::PickerKind::Providers);
         assert_eq!(
             picker.visible().count(),
-            otui_agent::catalog::PRESETS.len(),
+            emeraldian_agent::catalog::PRESETS.len(),
             "every backend it knows how to reach"
         );
     }
@@ -939,7 +939,9 @@ mod tests {
     fn new_clears_both_halves_of_the_chat() {
         let (_v, mut app) = app();
         app.chat.transcript.push(Entry::User("hi".into()));
-        app.chat.conversation.push(otui_agent::Message::user("hi"));
+        app.chat
+            .conversation
+            .push(emeraldian_agent::Message::user("hi"));
 
         run(&mut app, "/new");
 
@@ -954,7 +956,7 @@ mod tests {
         for i in 0..12 {
             app.chat
                 .conversation
-                .push(otui_agent::Message::user(format!("turn {i}")));
+                .push(emeraldian_agent::Message::user(format!("turn {i}")));
         }
         run(&mut app, "/compact");
         assert_eq!(app.chat.conversation.len(), 6);
@@ -972,11 +974,11 @@ mod tests {
         for i in 0..10 {
             app.chat
                 .conversation
-                .push(otui_agent::Message::user(format!("turn {i}")));
+                .push(emeraldian_agent::Message::user(format!("turn {i}")));
         }
         app.chat.conversation.insert(
             4,
-            otui_agent::Message::tool_results(&[otui_agent::ToolResult {
+            emeraldian_agent::Message::tool_results(&[emeraldian_agent::ToolResult {
                 id: "1".into(),
                 content: "done".into(),
                 is_error: false,
@@ -995,7 +997,9 @@ mod tests {
     #[test]
     fn compact_on_a_short_conversation_does_nothing() {
         let (_v, mut app) = app();
-        app.chat.conversation.push(otui_agent::Message::user("hi"));
+        app.chat
+            .conversation
+            .push(emeraldian_agent::Message::user("hi"));
         run(&mut app, "/compact");
         assert_eq!(app.chat.conversation.len(), 1);
         assert!(last(&app).contains("nothing to compact"));

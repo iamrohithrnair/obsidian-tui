@@ -23,8 +23,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::canvas::{Canvas, Context, Line as CanvasLine};
 use ratatui::widgets::{Paragraph, Widget};
 
-use otui_core::graph::{Edge, Node, NodeKind, Vec2};
-use otui_theme::Palette;
+use emeraldian_core::graph::{Edge, Node, NodeKind, Vec2};
+use emeraldian_theme::Palette;
 
 use crate::app::{App, Focus, GraphView, Regions};
 use crate::ui::truncate;

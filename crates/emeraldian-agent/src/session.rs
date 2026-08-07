@@ -255,7 +255,9 @@ pub fn spawn(
     let worker_history = Arc::clone(&history);
 
     let handle = std::thread::Builder::new()
-        .name("otui-agent".into())
+        // Linux caps a thread name at 15 bytes and refuses anything longer,
+        // so this is deliberately shorter than the crate name.
+        .name("emerald-agent".into())
         .spawn(move || {
             let mut conversation = worker_history.lock().map(|h| h.clone()).unwrap_or_default();
 

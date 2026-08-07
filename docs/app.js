@@ -10,7 +10,7 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* ── theme seeds, copied verbatim from crates/otui-theme/src/seed.rs ───── */
+  /* ── theme seeds, copied verbatim from crates/emeraldian-theme/src/seed.rs ───── */
 
   const THEMES = [
     { name: 'obsidian-dark',  bg: '#1e1e1e', alt: '#161616', border: '#2f2f2f', active: '#34304a',

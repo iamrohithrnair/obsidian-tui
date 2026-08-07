@@ -294,7 +294,7 @@ vault stays a plain folder of Markdown.
 ## Privacy
 
 **emeraldian makes no network connections unless you use the assistant.**
-There is no telemetry, no analytics and no update check. Only the `otui-agent`
+There is no telemetry, no analytics and no update check. Only the `emeraldian-agent`
 crate has an HTTP dependency at all; the vault, editor and graph cannot reach
 the network.
 
@@ -391,18 +391,23 @@ ordinary text cells, so it survives anything that can show text at all.
 
 ```
 crates/
-  otui-core    vault discovery, indexing, markdown, search, graph engine
-  otui-theme   the theme model and presets
-  otui-agent   provider connectors, streaming, and the tool-calling loop
-  emeraldian   the terminal application
+  emeraldian-core    vault discovery, indexing, markdown, search, graph engine
+  emeraldian-theme   the theme model and presets
+  emeraldian-agent   provider connectors, streaming, and the tool-calling loop
+  emeraldian         the terminal application
 ```
 
-The three library crates kept the `otui-` prefix they were born with. It is a
-contraction of the old name and nothing depends on it being meaningful; renaming
-them would touch every import in the tree to no one's benefit.
+Thread names are the one place that does not follow: they read `emerald-agent`
+rather than `emeraldian-agent`, because Linux caps a thread name at 15 bytes and
+refuses anything longer, which would leave the thread nameless in a debugger.
 
-`otui-core` and `otui-agent` have no dependency on the terminal, and
-`otui-agent` has no dependency on the vault: the tools are supplied by the
+The `OTUI_` environment variables keep their old prefix on purpose. `OTUI_BIN_DIR`,
+`OTUI_VERSION`, `OTUI_STATE_FILE` and `OTUI_CA_BUNDLE` may already be set in
+someone's shell profile, and renaming them would not fail loudly, it would
+silently start ignoring what they had configured.
+
+`emeraldian-core` and `emeraldian-agent` have no dependency on the terminal, and
+`emeraldian-agent` has no dependency on the vault: the tools are supplied by the
 application, which is what lets the assistant and the user act on exactly the
 same state.
 
@@ -449,9 +454,9 @@ be set up, which means the first version of each one is published by hand:
 
 ```sh
 cargo login                  # once, interactively
-cargo publish -p otui-core
-cargo publish -p otui-theme
-cargo publish -p otui-agent
+cargo publish -p emeraldian-core
+cargo publish -p emeraldian-theme
+cargo publish -p emeraldian-agent
 cargo publish -p emeraldian  # last: it depends on the other three
 ```
 

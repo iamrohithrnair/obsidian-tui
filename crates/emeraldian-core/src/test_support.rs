@@ -23,7 +23,7 @@ impl TempVault {
     #[must_use]
     pub fn new(tag: &str) -> Self {
         let unique = format!(
-            "otui-{tag}-{}-{}-{}",
+            "emeraldian-{tag}-{}-{}-{}",
             std::process::id(),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
