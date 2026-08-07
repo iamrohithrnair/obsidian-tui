@@ -1,6 +1,6 @@
 //! Configuration file handling.
 //!
-//! obsidian-tui runs with no config at all; the file only exists to override
+//! emeraldian runs with no config at all; the file only exists to override
 //! defaults. It lives outside the vault so a vault stays a plain folder of
 //! Markdown that Obsidian and git are both happy with.
 
@@ -277,11 +277,59 @@ impl AgentConfig {
     }
 }
 
+/// The directory holding the config file, themes, saved sessions, UI state and
+/// stored API keys. Honors `$XDG_CONFIG_HOME`.
+#[must_use]
+pub fn dir() -> Option<PathBuf> {
+    dirs::config_dir().map(|dir| dir.join("emeraldian"))
+}
+
+/// Where that directory lived before the project was renamed.
+#[must_use]
+fn legacy_dir() -> Option<PathBuf> {
+    dirs::config_dir().map(|dir| dir.join("obsidian-tui"))
+}
+
+/// Moves a pre-rename config directory into place, once.
+///
+/// The project was called obsidian-tui until the rename, and everything it keeps
+/// — config, themes, saved sessions, UI state and API keys — lived in a directory
+/// of that name. Changing the binary's name must not quietly cost the user any of
+/// it, least of all the stored keys, so the whole directory is moved across the
+/// first time the new one is missing.
+///
+/// Call this before reading anything out of the config directory.
+pub fn migrate_legacy_dir() {
+    if let (Some(old), Some(new)) = (legacy_dir(), dir()) {
+        migrate_dir(&old, &new);
+    }
+}
+
+/// The move itself, taking both paths so it can be tested without touching the
+/// real config directory or the environment.
+///
+/// Every failure is deliberately silent. The worst case is that the user starts
+/// from defaults, which is also what a first-ever run does; losing the old
+/// directory would be far worse, so nothing here deletes or overwrites. An
+/// existing `new` always wins — it means the user has already run a renamed
+/// build, and their current settings are not to be clobbered by older ones.
+fn migrate_dir(old: &Path, new: &Path) {
+    if new.exists() || !old.is_dir() {
+        return;
+    }
+    if let Some(parent) = new.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    // Both sit under the same config directory, so this is a rename within one
+    // filesystem: atomic, and cheap regardless of how many sessions are stored.
+    let _ = fs::rename(old, new);
+}
+
 impl Config {
     /// Where the config file lives, honoring `$XDG_CONFIG_HOME`.
     #[must_use]
     pub fn path() -> Option<PathBuf> {
-        dirs::config_dir().map(|dir| dir.join("obsidian-tui").join("config.toml"))
+        dir().map(|dir| dir.join("config.toml"))
     }
 
     /// Directory scanned for user theme files.
@@ -449,6 +497,77 @@ mod tests {
     #[test]
     fn the_default_sort_order_is_most_recently_modified_first() {
         assert_eq!(Config::default().ui.sort_order(), SortOrder::ModifiedDesc);
+    }
+
+    /// A temp directory holding an `old` and a `new` path, neither created.
+    fn migration_paths(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
+        let root = std::env::temp_dir().join(format!("otui-mig-{tag}-{}", std::process::id()));
+        fs::remove_dir_all(&root).ok();
+        fs::create_dir_all(&root).expect("temp root");
+        (
+            root.clone(),
+            root.join("obsidian-tui"),
+            root.join("emeraldian"),
+        )
+    }
+
+    #[test]
+    fn a_pre_rename_config_directory_is_carried_across_whole() {
+        let (root, old, new) = migration_paths("move");
+        fs::create_dir_all(old.join("themes")).expect("legacy dir");
+        fs::write(old.join("config.toml"), "theme = \"nord\"\n").expect("write config");
+        // The keys matter most: re-typing an API key is the one loss a user
+        // would actually notice.
+        fs::write(
+            old.join("auth.json"),
+            "{\"keys\":{\"anthropic\":\"sk-test\"}}",
+        )
+        .expect("write auth");
+        fs::write(old.join("themes/mine.toml"), "name = \"mine\"\n").expect("write theme");
+
+        migrate_dir(&old, &new);
+
+        assert!(!old.exists(), "the old directory is moved, not copied");
+        assert_eq!(
+            fs::read_to_string(new.join("config.toml")).expect("config moved"),
+            "theme = \"nord\"\n"
+        );
+        assert!(
+            fs::read_to_string(new.join("auth.json"))
+                .expect("keys moved")
+                .contains("sk-test")
+        );
+        assert!(new.join("themes/mine.toml").exists(), "themes come too");
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn an_existing_directory_is_never_clobbered_by_an_older_one() {
+        let (root, old, new) = migration_paths("keep");
+        fs::create_dir_all(&old).expect("legacy dir");
+        fs::write(old.join("config.toml"), "theme = \"stale\"\n").expect("write old");
+        fs::create_dir_all(&new).expect("current dir");
+        fs::write(new.join("config.toml"), "theme = \"current\"\n").expect("write new");
+
+        migrate_dir(&old, &new);
+
+        assert_eq!(
+            fs::read_to_string(new.join("config.toml")).expect("read"),
+            "theme = \"current\"\n",
+            "having already run a renamed build, the current settings win"
+        );
+        assert!(old.exists(), "and nothing is deleted either");
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_first_ever_run_has_nothing_to_migrate() {
+        let (root, old, new) = migration_paths("fresh");
+
+        migrate_dir(&old, &new);
+
+        assert!(!new.exists(), "no directory is conjured out of nothing");
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]

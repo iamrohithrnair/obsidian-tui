@@ -10,7 +10,7 @@
 //!    message explaining how to enable it rather than an error.
 //! 2. It is a remote control for the app, not a backend: every command runs
 //!    against an Obsidian instance, launching one if none is running.
-//!    Everything obsidian-tui does to a vault it does by reading and writing
+//!    Everything emeraldian does to a vault it does by reading and writing
 //!    Markdown directly; the CLI is only used for the things that need the app
 //!    itself — listing the vaults it knows about, and opening a note in the GUI.
 
@@ -146,7 +146,7 @@ pub fn vaults() -> Result<Vec<String>, Error> {
 
 /// Opens a vault-relative note in the Obsidian desktop app.
 ///
-/// `path=` rather than `file=` because obsidian-tui always knows the exact
+/// `path=` rather than `file=` because emeraldian always knows the exact
 /// relative path, and `file=` would resolve by name and could land elsewhere.
 pub fn open_note(vault: Option<&str>, rel: &str) -> Result<String, Error> {
     run(&open_args(vault, rel))?;

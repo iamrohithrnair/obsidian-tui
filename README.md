@@ -1,6 +1,6 @@
-<img src="https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/docs/logo.svg" width="84" alt="">
+<img src="https://raw.githubusercontent.com/iamrohithrnair/emeraldian/main/docs/logo.png" width="84" alt="">
 
-# obsidian-tui
+# emeraldian
 
 **The best TUI for Obsidian.** Your vault, the way you already know it: the
 three-pane layout, live-preview Markdown, backlinks, a force-directed graph,
@@ -16,7 +16,7 @@ It also comes with an AI assistant that works on your notes through the very
 same commands you do, so you can watch what it did instead of taking its word
 for it.
 
-![obsidian-tui: walking the file tree, backlinks, the graph, an Excalidraw drawing, a picture in the reading pane, and a theme switch](https://raw.githubusercontent.com/iamrohithrnair/obsidian-tui/main/docs/demo.gif)
+![emeraldian: walking the file tree, backlinks, the graph, an Excalidraw drawing, a picture in the reading pane, and a theme switch](https://raw.githubusercontent.com/iamrohithrnair/emeraldian/main/docs/demo.gif)
 
 ## Install
 
@@ -24,12 +24,12 @@ The one-liner is the easiest way in. It works out which build fits your machine,
 downloads it, and checks it against its published checksum before anything moves:
 
 ```sh
-curl -fsSL https://obsidian-tui.github.io/install.sh | sh
+curl -fsSL https://emeraldian-tui.github.io/install.sh | sh
 ```
 
 macOS and Linux. Set `OTUI_BIN_DIR` to choose where it lands, or `OTUI_VERSION`
 to pin a release. Piping a script into a shell is always worth a look first;
-[here it is in full](https://github.com/iamrohithrnair/obsidian-tui/blob/main/install.sh),
+[here it is in full](https://github.com/iamrohithrnair/emeraldian/blob/main/install.sh),
 and it's a readable 150-odd lines.
 
 Or use whichever package manager you already trust.
@@ -37,30 +37,30 @@ Or use whichever package manager you already trust.
 **Homebrew** (macOS and Linux):
 
 ```sh
-brew install iamrohithrnair/tap/obsidian-tui
+brew install iamrohithrnair/tap/emeraldian
 ```
 
 **npm**, if you want to try it before you commit to it:
 
 ```sh
-npx obsidian-tui ~/Notes     # run it once, install nothing
-npm install -g obsidian-tui  # keep it
+npx emeraldian ~/Notes     # run it once, install nothing
+npm install -g emeraldian  # keep it
 ```
 
 **Cargo** (needs Rust 1.90 or newer):
 
 ```sh
-cargo install --git https://github.com/iamrohithrnair/obsidian-tui obsidian-tui
+cargo install --git https://github.com/iamrohithrnair/emeraldian emeraldian
 ```
 
 **Manual download.** Grab an archive from the
-[latest release](https://github.com/iamrohithrnair/obsidian-tui/releases/latest):
+[latest release](https://github.com/iamrohithrnair/emeraldian/releases/latest):
 
 ```sh
-tar -xzf obsidian-tui-<target>.tar.gz
-shasum -a 256 -c obsidian-tui-<target>.tar.gz.sha256   # optional but cheap
-sudo mv obsidian-tui-<target>/obsidian-tui /usr/local/bin/
-xattr -d com.apple.quarantine /usr/local/bin/obsidian-tui   # macOS only
+tar -xzf emeraldian-<target>.tar.gz
+shasum -a 256 -c emeraldian-<target>.tar.gz.sha256   # optional but cheap
+sudo mv emeraldian-<target>/emeraldian /usr/local/bin/
+xattr -d com.apple.quarantine /usr/local/bin/emeraldian   # macOS only
 ```
 
 Prebuilt for `aarch64-apple-darwin` (Apple silicon),
@@ -70,29 +70,29 @@ Prebuilt for `aarch64-apple-darwin` (Apple silicon),
 **From a clone:**
 
 ```sh
-git clone https://github.com/iamrohithrnair/obsidian-tui
-cd obsidian-tui
-cargo install --path crates/otui --locked   # installs to ~/.cargo/bin
-cargo build --release                       # or just build it
+git clone https://github.com/iamrohithrnair/emeraldian
+cd emeraldian
+cargo install --path crates/emeraldian --locked   # installs to ~/.cargo/bin
+cargo build --release                             # or just build it
 ```
 
 ## Run
 
 ```sh
-obsidian-tui ~/Notes           # a specific vault
-obsidian-tui                   # the vault Obsidian last had open
-obsidian-tui --list-vaults     # what Obsidian knows about
+emeraldian ~/Notes           # a specific vault
+emeraldian                   # the vault Obsidian last had open
+emeraldian --list-vaults     # what Obsidian knows about
 ```
 
-obsidian-tui accepts ordinary flags and the `obsidian://` URIs the desktop app
+emeraldian accepts ordinary flags and the `obsidian://` URIs the desktop app
 registers, so a link or script that opens Obsidian also opens this:
 
 ```sh
-obsidian-tui ~/Notes --note "Project Ideas"
-obsidian-tui ~/Notes --search "quarterly"
-obsidian-tui ~/Notes --daily
-obsidian-tui ~/Notes --graph
-obsidian-tui 'obsidian://open?vault=Notes&file=Ideas'
+emeraldian ~/Notes --note "Project Ideas"
+emeraldian ~/Notes --search "quarterly"
+emeraldian ~/Notes --daily
+emeraldian ~/Notes --graph
+emeraldian 'obsidian://open?vault=Notes&file=Ideas'
 ```
 
 ### Alongside Obsidian's own CLI
@@ -100,7 +100,7 @@ obsidian-tui 'obsidian://open?vault=Notes&file=Ideas'
 Obsidian ships an [official CLI](https://obsidian.md/cli), enabled under
 Settings → General → "Command line interface". The two do different jobs:
 
-|  | `obsidian` | `obsidian-tui` |
+|  | `obsidian` | `emeraldian` |
 |---|---|---|
 | Is | a remote control for the app | the interface itself |
 | Talks to | the running desktop app | the vault's files |
@@ -108,7 +108,7 @@ Settings → General → "Command line interface". The two do different jobs:
 | On a machine with no display | needs `--ozone-platform=headless` or Xvfb | runs as it is |
 
 So they complement each other rather than compete. When the `obsidian` binary is
-on your `PATH`, obsidian-tui uses it for the one thing only the app can do,
+on your `PATH`, emeraldian uses it for the one thing only the app can do,
 which is handing a note to the GUI:
 
 - `/obsidian` in the assistant panel reports the CLI's status and the vaults the
@@ -116,7 +116,7 @@ which is handing a note to the GUI:
 - `/obsidian open`, or "Open this note in Obsidian" in the command palette,
   opens the current note in the desktop app.
 
-If the CLI isn't enabled, or Obsidian isn't running, obsidian-tui says so and
+If the CLI isn't enabled, or Obsidian isn't running, emeraldian says so and
 carries on; nothing else depends on it.
 
 ## Keys
@@ -265,7 +265,7 @@ nothing else in the app depends on it.
 Scripted use, without the TUI:
 
 ```sh
-obsidian-tui ~/Notes --prompt "which notes mention the Q3 migration?"
+emeraldian ~/Notes --prompt "which notes mention the Q3 migration?"
 ```
 
 Set `allow_writes = false` under `[agent]` to give it search and read only.
@@ -296,7 +296,7 @@ vault stays a plain folder of Markdown.
 
 ## Privacy
 
-**obsidian-tui makes no network connections unless you use the assistant.**
+**emeraldian makes no network connections unless you use the assistant.**
 There is no telemetry, no analytics and no update check. Only the `otui-agent`
 crate has an HTTP dependency at all; the vault, editor and graph cannot reach
 the network.
@@ -364,9 +364,9 @@ network   roots 146 from $SSL_CERT_FILE (/etc/ssl/corp.pem), via proxy.corp:8080
 
 Written on first run, with every default spelled out:
 
-- macOS: `~/Library/Application Support/obsidian-tui/config.toml`
-- Linux: `~/.config/obsidian-tui/config.toml`
-- Windows: `%APPDATA%\obsidian-tui\config.toml`
+- macOS: `~/Library/Application Support/emeraldian/config.toml`
+- Linux: `~/.config/emeraldian/config.toml`
+- Windows: `%APPDATA%\emeraldian\config.toml`
 
 Custom themes go in a `themes/` directory beside it.
 
@@ -397,8 +397,12 @@ crates/
   otui-core    vault discovery, indexing, markdown, search, graph engine
   otui-theme   the theme model and presets
   otui-agent   provider connectors, streaming, and the tool-calling loop
-  otui         the terminal application
+  emeraldian   the terminal application
 ```
+
+The three library crates kept the `otui-` prefix they were born with. It is a
+contraction of the old name and nothing depends on it being meaningful; renaming
+them would touch every import in the tree to no one's benefit.
 
 `otui-core` and `otui-agent` have no dependency on the terminal, and
 `otui-agent` has no dependency on the vault: the tools are supplied by the
@@ -444,7 +448,7 @@ git push origin v0.3.0
 ## Credits
 
 This project exists because four other people published their work first. None
-of their code is in here (obsidian-tui is written from scratch), but every one
+of their code is in here (emeraldian is written from scratch), but every one
 of them showed me something I'd otherwise have had to guess at, and the good
 ideas are theirs.
 
@@ -479,13 +483,17 @@ Licensing note, since two of these are copyleft: nothing was copied, so the
 choice of licence here was a free one rather than an obligation. It went to the
 GPL anyway. The debt is one of ideas, and it's a real one.
 
-Not affiliated with Obsidian.md.
+## Trademark
+
+emeraldian is an independent, community-made tool. It is not affiliated with,
+endorsed by, or sponsored by Obsidian or Dynalist Inc. Obsidian is a trademark
+of Dynalist Inc., used here only to describe what this tool works with.
 
 ## License
 
 Copyright (C) 2026 Rohith Nair.
 
-obsidian-tui is free software: you can redistribute it and/or modify it under
+emeraldian is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
 Foundation, either version 3 of the License, or (at your option) any later
 version. See [LICENSE](LICENSE).

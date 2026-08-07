@@ -1,14 +1,10 @@
 [package]
-name = "otui"
+name = "emeraldian"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "obsidian-tui"
-
-[[bin]]
-name = "obsidian-tui"
-path = "src/main.rs"
+description = "emeraldian"
 
 [dependencies]
 otui-core.workspace = true

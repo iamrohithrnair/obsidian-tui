@@ -10,7 +10,7 @@ set -euo pipefail
 
 version="${1:?usage: update-formula.sh <version> <checksum-dir> [formula]}"
 sums_dir="${2:?usage: update-formula.sh <version> <checksum-dir> [formula]}"
-formula="${3:-$(dirname "$0")/obsidian-tui.rb}"
+formula="${3:-$(dirname "$0")/emeraldian.rb}"
 
 version="${version#v}"
 
@@ -18,7 +18,7 @@ version="${version#v}"
 # binary-mode marker that sha256sum writes.
 digest_for() {
 	local target="$1"
-	local file="$sums_dir/obsidian-tui-${target}.tar.gz.sha256"
+	local file="$sums_dir/emeraldian-${target}.tar.gz.sha256"
 	[ -f "$file" ] || {
 		echo "missing checksum file: $file" >&2
 		exit 1
@@ -59,7 +59,7 @@ digests = {
 def replace(match):
     url, gap = match.group(1), match.group(2)
     for target, digest in digests.items():
-        if f"obsidian-tui-{target}.tar.gz" in url:
+        if f"emeraldian-{target}.tar.gz" in url:
             return f'{url}{gap}sha256 "{digest}"'
     raise SystemExit(f"no checksum known for url: {url}")
 

@@ -240,7 +240,7 @@ fn draw_empty_state(frame: &mut Frame, palette: &Palette, area: Rect) {
     let mut lines = vec![
         Line::from(""),
         Line::from(Span::styled(
-            "obsidian-tui",
+            "emeraldian",
             Style::default()
                 .fg(palette.text_accent)
                 .add_modifier(Modifier::BOLD),

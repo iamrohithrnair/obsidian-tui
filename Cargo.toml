@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/otui-core", "crates/otui-theme", "crates/otui-agent", "crates/otui"]
+members = ["crates/otui-core", "crates/otui-theme", "crates/otui-agent", "crates/emeraldian"]
 
 [workspace.package]
 version = "0.3.1"
@@ -9,8 +9,8 @@ edition = "2024"
 # icy_sixel, which pins quantette 0.5.1, which requires 1.90.
 rust-version = "1.90"
 license = "GPL-3.0-or-later"
-repository = "https://github.com/iamrohithrnair/obsidian-tui"
-description = "obsidian-tui — an Obsidian-like terminal UI for your vault: notes, live-preview markdown, backlinks and a force-directed graph"
+repository = "https://github.com/iamrohithrnair/emeraldian"
+description = "emeraldian — a terminal UI for your Obsidian vault: notes, live-preview markdown, backlinks and a force-directed graph"
 keywords = ["obsidian", "tui", "notes", "markdown", "graph"]
 categories = ["command-line-utilities", "text-editors"]
 

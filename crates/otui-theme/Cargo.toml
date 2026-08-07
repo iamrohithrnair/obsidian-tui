@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Color themes for obsidian-tui"
+description = "Color themes for emeraldian"
 
 [dependencies]
 ratatui.workspace = true

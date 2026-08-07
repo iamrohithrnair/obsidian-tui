@@ -4,6 +4,35 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The project is now called emeraldian.** It was `obsidian-tui`, and that name
+  had to go: Obsidian is a trademark of Dynalist Inc., registered for exactly this
+  class of software, and Obsidian now ships a terminal interface of its own — so
+  the old name pointed at the wrong project twice over. One of Obsidian's
+  maintainers asked, reasonably, and this is that change. Nothing about what the
+  tool does has changed, and it still works on the same plain folder of Markdown
+  files it always did.
+- **The binary is `emeraldian`.** `emeraldian ~/Notes`, `emeraldian
+  --list-vaults`, and so on. The `obsidian://` URIs the desktop app registers are
+  still answered, and the `obsidian-dark` and `obsidian-light` themes still have
+  the names they had — they describe Obsidian's own colour schemes, and they are
+  written into config files that already exist.
+- **Your settings move themselves.** Everything kept in
+  `~/.config/obsidian-tui` — config, custom themes, saved agent sessions, UI
+  state and stored API keys — is moved to `~/.config/emeraldian` the first time
+  the renamed build starts. Nothing is copied or deleted, an existing
+  `emeraldian` directory always wins, and a failure leaves the old directory
+  exactly where it was.
+- The Homebrew formula is `emeraldian`, and the npm package is `emeraldian`.
+  A Homebrew install has to be replaced rather than upgraded, because the formula
+  is a different one:
+  `brew uninstall obsidian-tui && brew install iamrohithrnair/tap/emeraldian`.
+- The site moved to <https://emeraldian-tui.github.io>, and the repository to
+  `iamrohithrnair/emeraldian`. GitHub redirects the old links.
+
 ## [0.3.1] — 2026-08-06
 
 ### Added
@@ -373,9 +402,9 @@ First release.
 - Unreadable vaults are reported clearly, including the macOS privacy
   permission that usually causes it.
 
-[0.3.1]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.3.1
-[0.3.0]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.3.0
-[0.2.0]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.2.0
-[0.1.2]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.2
-[0.1.1]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.1
-[0.1.0]: https://github.com/iamrohithrnair/obsidian-tui/releases/tag/v0.1.0
+[0.3.1]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.3.1
+[0.3.0]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.3.0
+[0.2.0]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.2.0
+[0.1.2]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.1.2
+[0.1.1]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.1.1
+[0.1.0]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.1.0

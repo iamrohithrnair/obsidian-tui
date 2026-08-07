@@ -1,7 +1,12 @@
 /* ==========================================================================
-   obsidian-tui landing page
-   Palette is lifted from the app's own obsidian-dark seed so the site and the
-   binary look like the same piece of software.
+   emeraldian landing page
+
+   Two palettes live here, and they are deliberately different.
+
+   The page chrome is emerald, after the logo. The terminal demo below it (every
+   --t-* variable) is still the app's own obsidian-dark seed, because that pane
+   is a picture of the app and has to show the colours the app actually starts
+   with. The theme switcher overwrites those; it must never touch the chrome.
    ========================================================================== */
 
 :root {
@@ -16,9 +21,11 @@
   --mut:       #a2a3b0;
   --fnt:       #71727f;
 
-  --acc:       #8b6cef;   /* obsidian-dark accent */
-  --acc-2:     #a882ff;
-  --acc-dim:   rgba(139, 108, 239, .14);
+  --acc:       #3fbf4a;   /* the logo's mid green */
+  --acc-2:     #7ce04f;   /* its lit facets, for text and small marks */
+  --acc-dim:   rgba(63, 191, 74, .14);
+  /* Kept clearly bluer than the accent: this one still has to read as
+     "succeeded" next to it, on the copy button and the status dot. */
   --grn:       #44cf6e;
 
   /* terminal demo, overwritten by the theme switcher */
@@ -99,7 +106,8 @@ code {
 
 /* Grid items default to min-width:auto, so one wide <pre> inside a card can
    push the whole page sideways on a phone. Let them shrink and scroll. */
-.bento > *, .privacy-grid > *, .graph-grid > *, .promise-grid > * { min-width: 0; }
+.bento > *, .privacy-grid > *, .graph-grid > *, .promise-grid > *,
+.hero-grid > * { min-width: 0; }
 
 .vh {
   position: absolute; width: 1px; height: 1px;
@@ -109,7 +117,9 @@ code {
 
 .skip {
   position: absolute; top: -60px; left: 16px; z-index: 100;
-  background: var(--acc); color: #fff; padding: 10px 16px;
+  /* Dark text, not white: the accent is bright enough that white on it fails
+     contrast, and this is the one place text sits on the accent itself. */
+  background: var(--acc); color: #04220a; padding: 10px 16px;
   border-radius: var(--r-sm); font-weight: 500;
   transition: top .16s ease;
 }
@@ -131,12 +141,27 @@ code {
 .nav-in { display: flex; align-items: center; gap: 28px; height: var(--nav-h); }
 
 .brand {
-  display: inline-flex; align-items: center; gap: 10px;
-  color: var(--txt); font-weight: 600; font-size: 15.5px;
-  letter-spacing: -.01em; margin-right: auto;
+  display: inline-flex; align-items: center; gap: 11px;
+  color: #fff; font-weight: 700; font-size: 18.5px;
+  letter-spacing: -.015em; margin-right: auto;
+  /* Two shadows, not one: the tight inner one does the legibility work against
+     the dark bar, the wide outer one is the glow. A single large blur reads as
+     a smudge at this size. */
+  text-shadow: 0 0 5px rgba(124, 224, 79, .45), 0 0 22px rgba(63, 191, 74, .55);
+  transition: text-shadow .22s ease;
 }
-.brand:hover { text-decoration: none; color: #fff; }
-.mark { width: 26px; height: 26px; color: var(--acc-2); flex: none; }
+.brand:hover {
+  text-decoration: none;
+  text-shadow: 0 0 5px rgba(124, 224, 79, .6), 0 0 30px rgba(63, 191, 74, .8);
+}
+
+.mark {
+  width: 31px; height: 31px; flex: none;
+  /* Matches the wordmark's glow so the two read as one lit object. */
+  filter: drop-shadow(0 0 9px rgba(63, 191, 74, .55));
+  transition: filter .22s ease;
+}
+.brand:hover .mark { filter: drop-shadow(0 0 13px rgba(63, 191, 74, .8)); }
 
 .nav-links { display: flex; gap: 26px; }
 .nav-links a {
@@ -202,7 +227,7 @@ code {
 }
 .copy-cmd:hover {
   border-color: var(--acc);
-  box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 10px 32px rgba(139,108,239,.22);
+  box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 10px 32px rgba(63,191,74,.22);
 }
 .copy-cmd:active { transform: translateY(1px); }
 .copy-cmd .sigil { color: var(--acc-2); font-family: var(--mono); font-size: 14px; flex: none; opacity: .8; }
@@ -235,8 +260,8 @@ code {
   position: absolute; inset: -280px 0 auto 0; height: 720px; z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(760px 420px at 50% 34%, rgba(139,108,239,.20), transparent 68%),
-    radial-gradient(520px 300px at 78% 12%, rgba(168,130,255,.11), transparent 70%);
+    radial-gradient(760px 420px at 50% 34%, rgba(63,191,74,.20), transparent 68%),
+    radial-gradient(520px 300px at 78% 12%, rgba(124,224,79,.11), transparent 70%);
   mask-image: linear-gradient(to bottom, #000 55%, transparent);
   -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
 }
@@ -254,6 +279,25 @@ code {
   background: var(--grn); box-shadow: 0 0 0 3px rgba(68,207,110,.16);
 }
 
+/* Copy left, crystal right. The art column is sized in vw so it shrinks with
+   the headline rather than fighting it for the same row. */
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(200px, 26vw, 380px);
+  gap: clamp(24px, 4vw, 64px);
+  align-items: center;
+}
+
+/* Below this the two columns stop fitting side by side, and a crystal squeezed
+   next to a wrapped headline reads as clutter. Drop it rather than shrink it. */
+@media (max-width: 900px) {
+  /* minmax(0, …) rather than a bare 1fr for the same reason as the rule above:
+     the install command is wider than a phone, and an auto-minimum column lets
+     it drag the whole page sideways. */
+  .hero-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero-art { display: none; }
+}
+
 .hero h1 {
   /* the floor is set by "Your Obsidian vault," the longest unbreakable run,
      which has to fit a 390px screen without pushing the page sideways */
@@ -265,9 +309,85 @@ code {
   font-style: normal;
   /* its own line where there's room; wraps naturally on a phone */
   display: block;
-  background: linear-gradient(100deg, var(--acc-2) 8%, #d0b6ff 52%, var(--acc) 96%);
+  background: linear-gradient(100deg, var(--acc-2) 8%, #c8f59a 52%, var(--acc) 96%);
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent; color: transparent;
+}
+
+/* ------------------------------------------------------- the hero crystal -- */
+
+/* Three layers, each doing one job, so they can't fight:
+     .hero-art  owns the perspective and the idle drift (CSS)
+     .crystal   owns the mouse tilt          (transform, set by app.js)
+     .sheen     owns the moving highlight    (background-position, set by app.js)
+   Splitting the two transforms across two elements is what lets the drift keep
+   running while the tilt is applied, without either overwriting the other. */
+
+.hero-art {
+  perspective: 900px;
+  justify-self: center;
+  animation: drift 7s ease-in-out infinite;
+
+  /* The column centres on the whole of the copy — eyebrow down to the "rather
+     use brew" line — which leaves the crystal sitting well below the headline
+     it belongs next to. Lift it back onto the h1.
+
+     A flat value, not a scaled one: the lift needed is half the difference
+     between what sits above the headline and what sits below it, and both of
+     those are near enough constant from the 900px breakpoint upwards. Measured
+     across 920–1700px the required offset never left 108–114px.
+
+     `top` rather than a margin, which would stretch the row and leave a gap
+     under the hero, and rather than a transform, which the drift already owns. */
+  position: relative;
+  top: -112px;
+}
+
+.crystal {
+  position: relative;
+  transform-style: preserve-3d;
+  will-change: transform;
+  /* Only the settle back to rest is eased. While the pointer is moving app.js
+     clears this, so the crystal tracks it exactly instead of lagging behind. */
+  transition: transform .6s cubic-bezier(.22, 1, .36, 1);
+}
+
+.crystal img {
+  width: 100%; height: auto;
+  /* The glow is the crystal's own light, so it stays green rather than black. */
+  filter: drop-shadow(0 18px 44px rgba(63, 191, 74, .34));
+  transition: filter .6s ease;
+}
+
+/* A specular sweep across the facets. `screen` adds light without washing out
+   the dark facets the way `overlay` would, and the whole layer is clipped to
+   the image's alpha so it never paints the square around the crystal. */
+.sheen {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  transition: opacity .45s ease;
+  background: radial-gradient(
+    circle at var(--sx, 50%) var(--sy, 50%),
+    rgba(214, 255, 190, .55), rgba(124, 224, 79, .16) 34%, transparent 62%);
+  -webkit-mask-image: url("logo.png");
+  mask-image: url("logo.png");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+@keyframes drift {
+  0%, 100% { transform: translateY(-9px); }
+  50%      { transform: translateY(9px); }
+}
+
+/* Motion is the whole point of this element, so when it's unwelcome the
+   crystal simply sits still. It still renders — it's the logo either way. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-art { animation: none; }
+  .crystal { transition: none; }
+  .sheen { display: none; }
 }
 
 .lede {
@@ -468,7 +588,7 @@ section h2 { font-size: clamp(1.85rem, 3.6vw, 2.7rem); max-width: 22ch; letter-s
   width: 38px; height: 38px; border-radius: 10px;
   display: grid; place-items: center; margin-bottom: 18px;
   color: var(--acc-2); background: var(--acc-dim);
-  border: 1px solid rgba(139,108,239,.24);
+  border: 1px solid rgba(63,191,74,.24);
 }
 .card-ico svg { width: 20px; height: 20px; }
 .card h3 { font-size: 1.22rem; margin-bottom: 11px; }

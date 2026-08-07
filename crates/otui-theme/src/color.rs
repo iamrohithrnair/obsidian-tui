@@ -1,7 +1,7 @@
 //! Color string parsing.
 //!
 //! Theme slots are stored as strings so a user can drop a TOML theme into their
-//! config without obsidian-tui needing to know about it at compile time. A slot
+//! config without emeraldian needing to know about it at compile time. A slot
 //! is one of:
 //!
 //! - a hex color, `#rrggbb` or the short `#rgb` form
@@ -10,7 +10,7 @@
 //!
 //! `reset` is what makes the `terminal` theme work: rather than imposing a
 //! palette, it defers to the colors the user already configured in their
-//! terminal emulator, so obsidian-tui never clashes with the rest of their setup.
+//! terminal emulator, so emeraldian never clashes with the rest of their setup.
 
 use ratatui::style::Color;
 

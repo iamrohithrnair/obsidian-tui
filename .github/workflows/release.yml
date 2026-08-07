@@ -44,15 +44,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Build
-        run: cargo build --release --locked --target ${{ matrix.target }} --bin obsidian-tui
+        run: cargo build --release --locked --target ${{ matrix.target }} --bin emeraldian
 
       - name: Package (unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          name="obsidian-tui-${{ matrix.target }}"
+          name="emeraldian-${{ matrix.target }}"
           mkdir -p "dist/$name"
-          cp "target/${{ matrix.target }}/release/obsidian-tui" "dist/$name/"
+          cp "target/${{ matrix.target }}/release/emeraldian" "dist/$name/"
           cp README.md LICENSE "dist/$name/"
           tar -czf "dist/$name.tar.gz" -C dist "$name"
           # Hash from inside dist/ so the file records a bare filename —
@@ -64,9 +64,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          name="obsidian-tui-${{ matrix.target }}"
+          name="emeraldian-${{ matrix.target }}"
           mkdir -p "dist/$name"
-          cp "target/${{ matrix.target }}/release/obsidian-tui.exe" "dist/$name/"
+          cp "target/${{ matrix.target }}/release/emeraldian.exe" "dist/$name/"
           cp README.md LICENSE "dist/$name/"
           # Archive the directory, not its contents: `7z a dir/*` drops the
           # enclosing folder, and the zip must extract to the same layout the
@@ -141,18 +141,18 @@ jobs:
           cd ..
 
           root=packaging/npm
-          cp dist/obsidian-tui-aarch64-apple-darwin/obsidian-tui \
-             "$root/platforms/darwin-arm64/bin/obsidian-tui"
-          cp dist/obsidian-tui-x86_64-unknown-linux-gnu/obsidian-tui \
-             "$root/platforms/linux-x64/bin/obsidian-tui"
-          cp dist/obsidian-tui-aarch64-unknown-linux-gnu/obsidian-tui \
-             "$root/platforms/linux-arm64/bin/obsidian-tui"
-          cp dist/obsidian-tui-x86_64-pc-windows-msvc/obsidian-tui.exe \
-             "$root/platforms/win32-x64/bin/obsidian-tui.exe"
+          cp dist/emeraldian-aarch64-apple-darwin/emeraldian \
+             "$root/platforms/darwin-arm64/bin/emeraldian"
+          cp dist/emeraldian-x86_64-unknown-linux-gnu/emeraldian \
+             "$root/platforms/linux-x64/bin/emeraldian"
+          cp dist/emeraldian-aarch64-unknown-linux-gnu/emeraldian \
+             "$root/platforms/linux-arm64/bin/emeraldian"
+          cp dist/emeraldian-x86_64-pc-windows-msvc/emeraldian.exe \
+             "$root/platforms/win32-x64/bin/emeraldian.exe"
 
-          chmod +x "$root"/platforms/*/bin/obsidian-tui || true
+          chmod +x "$root"/platforms/*/bin/emeraldian || true
           rm -f "$root"/platforms/*/bin/.gitkeep
-          cp README.md LICENSE "$root/obsidian-tui/"
+          cp README.md LICENSE "$root/emeraldian/"
 
       - name: Set the version everywhere
         shell: bash
@@ -164,7 +164,7 @@ jobs:
         run: |
           set -euo pipefail
           version="${RELEASE_TAG#v}"
-          for manifest in packaging/npm/obsidian-tui/package.json \
+          for manifest in packaging/npm/emeraldian/package.json \
                           packaging/npm/platforms/*/package.json; do
             node -e '
               const fs = require("fs");
@@ -192,7 +192,7 @@ jobs:
           for pkg in packaging/npm/platforms/*/; do
             (cd "$pkg" && npm publish --provenance --access public)
           done
-          (cd packaging/npm/obsidian-tui && npm publish --provenance --access public)
+          (cd packaging/npm/emeraldian && npm publish --provenance --access public)
 
       - name: Explain a skipped publish
         if: env.NPM_TOKEN == ''
@@ -236,15 +236,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p tap/Formula
-          cp packaging/homebrew/obsidian-tui.rb tap/Formula/obsidian-tui.rb
+          cp packaging/homebrew/emeraldian.rb tap/Formula/emeraldian.rb
           cd tap
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git diff --quiet; then
             echo "formula already current"
           else
-            git add Formula/obsidian-tui.rb
-            git commit -m "obsidian-tui ${RELEASE_TAG}"
+            git add Formula/emeraldian.rb
+            git commit -m "emeraldian ${RELEASE_TAG}"
             git push
           fi
 
@@ -257,4 +257,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: homebrew-formula
-          path: packaging/homebrew/obsidian-tui.rb
+          path: packaging/homebrew/emeraldian.rb

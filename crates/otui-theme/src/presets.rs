@@ -10,7 +10,7 @@ use crate::theme::Theme;
 ///
 /// Obsidian's own two themes come first because they're the point of the app;
 /// `terminal` comes last because it's the escape hatch for users who'd rather
-/// obsidian-tui didn't pick colors at all.
+/// emeraldian didn't pick colors at all.
 pub const ALL: &[Seed] = &[
     seed::OBSIDIAN_DARK,
     seed::OBSIDIAN_LIGHT,

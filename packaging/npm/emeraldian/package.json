@@ -1,0 +1,27 @@
+{
+  "name": "emeraldian",
+  "version": "0.1.0",
+  "description": "A terminal UI for your Obsidian vault: live-preview notes, backlinks, a force-directed graph, and a built-in assistant",
+  "keywords": ["obsidian", "tui", "notes", "markdown", "terminal", "graph", "cli"],
+  "homepage": "https://github.com/iamrohithrnair/emeraldian#readme",
+  "bugs": "https://github.com/iamrohithrnair/emeraldian/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamrohithrnair/emeraldian.git"
+  },
+  "license": "GPL-3.0-or-later",
+  "author": "Rohith Nair",
+  "bin": {
+    "emeraldian": "bin/emeraldian.js"
+  },
+  "files": ["bin", "README.md"],
+  "engines": {
+    "node": ">=16"
+  },
+  "optionalDependencies": {
+    "emeraldian-darwin-arm64": "0.1.0",
+    "emeraldian-linux-x64": "0.1.0",
+    "emeraldian-linux-arm64": "0.1.0",
+    "emeraldian-win32-x64": "0.1.0"
+  }
+}

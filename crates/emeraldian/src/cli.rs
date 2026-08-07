@@ -2,7 +2,7 @@
 //!
 //! Obsidian does have an official CLI (<https://obsidian.md/cli>), but it is a
 //! remote control for the desktop app: every command it runs goes through a
-//! full Electron instance. obsidian-tui is the other way round: it is the
+//! full Electron instance. emeraldian is the other way round: it is the
 //! interface itself, and reads and writes the vault's Markdown directly. It
 //! accepts ordinary flags plus the same `obsidian://` URIs the desktop app
 //! registers, so a link or script that opens Obsidian also opens this.
@@ -176,11 +176,11 @@ fn percent_decode(text: &str) -> String {
 }
 
 pub const HELP: &str = "\
-obsidian-tui — an Obsidian-like terminal UI for your vault
+emeraldian — a terminal UI for your Obsidian vault
 
 USAGE:
-    obsidian-tui [VAULT] [OPTIONS]
-    obsidian-tui 'obsidian://open?vault=Notes&file=Ideas'
+    emeraldian [VAULT] [OPTIONS]
+    emeraldian 'obsidian://open?vault=Notes&file=Ideas'
 
 ARGS:
     VAULT                  Vault folder. Defaults to the config `vault`, then to

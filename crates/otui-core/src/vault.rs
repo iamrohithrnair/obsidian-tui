@@ -2,7 +2,7 @@
 //!
 //! A vault is just a directory of Markdown files, which is what makes it
 //! possible to open one from a terminal at all. Obsidian additionally keeps a
-//! registry of the vaults it knows about in `obsidian.json`, so obsidian-tui
+//! registry of the vaults it knows about in `obsidian.json`, so emeraldian
 //! can offer the same vault list the desktop app shows rather than asking the
 //! user to type a path.
 
@@ -37,7 +37,7 @@ pub struct Vault {
 impl Vault {
     /// Builds a vault from a directory path, without consulting Obsidian.
     ///
-    /// This is what makes obsidian-tui usable on a plain folder of Markdown
+    /// This is what makes emeraldian usable on a plain folder of Markdown
     /// files — no Obsidian install required.
     #[must_use]
     pub fn from_path(path: impl Into<PathBuf>) -> Self {

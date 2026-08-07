@@ -1,14 +1,14 @@
-# obsidian-tui launch demo — follows the ~30s script in LAUNCH-reddit.md
+# emeraldian launch demo — follows the ~30s script in LAUNCH-reddit.md
 #
-# Render:  vhs demo/obsidian-tui.tape        (run from the repo root)
+# Render:  vhs demo/emeraldian.tape        (run from the repo root)
 #
 # Appearance mirrors Ghostty's stock defaults, read from
 # `ghostty +show-config --default`: JetBrains Mono at 13px on #282c34. VHS
 # renders through xterm.js rather than Ghostty itself, so this matches the look
 # without being literal Ghostty pixels.
 
-Output demo/out/obsidian-tui.gif
-Output demo/out/obsidian-tui.mp4
+Output demo/out/emeraldian.gif
+Output demo/out/emeraldian.mp4
 
 Set Shell zsh
 Set FontFamily "JetBrainsMono Nerd Font Mono"
@@ -30,7 +30,7 @@ Set Theme { "name": "Ghostty", "background": "#282c34", "foreground": "#ffffff",
 # `--note` starts with focus in the note pane, where `j` scrolls the note and
 # Enter follows the first wikilink instead of walking the file tree.
 Hide
-Type "clear && env -u NO_COLOR HOME=$PWD/demo/home ./target/release/obsidian-tui ./demo-vault --theme obsidian-dark"
+Type "clear && env -u NO_COLOR HOME=$PWD/demo/home ./target/release/emeraldian ./demo-vault --theme obsidian-dark"
 Enter
 Sleep 4s
 

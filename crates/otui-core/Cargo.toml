@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Vault, index, markdown and graph engine for obsidian-tui"
+description = "Vault, index, markdown and graph engine for emeraldian"
 
 [dependencies]
 serde.workspace = true

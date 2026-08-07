@@ -1,10 +1,10 @@
 {
-  "name": "obsidian-tui-win32-x64",
+  "name": "emeraldian-win32-x64",
   "version": "0.1.0",
-  "description": "obsidian-tui binary for win32 x64",
+  "description": "emeraldian binary for win32 x64",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iamrohithrnair/obsidian-tui.git"
+    "url": "git+https://github.com/iamrohithrnair/emeraldian.git"
   },
   "license": "GPL-3.0-or-later",
   "author": "Rohith Nair",

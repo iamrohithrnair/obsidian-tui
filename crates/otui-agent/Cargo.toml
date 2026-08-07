@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Streaming LLM agent runtime with tool calling, for obsidian-tui"
+description = "Streaming LLM agent runtime with tool calling, for emeraldian"
 
 [dependencies]
 serde.workspace = true

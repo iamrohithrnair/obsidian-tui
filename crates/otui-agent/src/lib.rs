@@ -2,7 +2,7 @@
 //!
 //! The design follows the shape every tool-using agent harness converges on —
 //! stream a reply, run the tools it asks for, feed the results back, repeat —
-//! implemented directly in Rust so obsidian-tui stays a single binary with no
+//! implemented directly in Rust so emeraldian stays a single binary with no
 //! runtime to install alongside it.
 //!
 //! ```no_run

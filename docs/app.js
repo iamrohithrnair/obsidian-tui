@@ -1,4 +1,4 @@
-/* obsidian-tui landing page behaviour.
+/* emeraldian landing page behaviour.
    Three small things: recolour the demo terminal with the app's real theme
    seeds, copy install commands, and draw a graph that behaves like the app's
    (it settles, then stops burning cycles). */
@@ -137,6 +137,104 @@
       next.focus();
     });
   });
+
+  /* ── the hero crystal ──────────────────────────────────────────────────── */
+
+  /* Tilts towards the pointer, with a highlight that tracks it across the
+     facets. The angle is taken from the pointer's position in the window
+     rather than over the crystal itself, so it reacts to the whole hero
+     instead of only to a direct hover — the effect is meant to be noticed
+     before you go looking for it.
+   */
+  const crystal = $('#crystal');
+
+  // A coarse pointer has no hover to follow, and reading `pointermove` from a
+  // touch drag would just fight the scroll.
+  const finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  if (crystal && finePointer && !reduced) {
+    const sheen = $('.sheen', crystal);
+    const img = $('img', crystal);
+
+    /* The illusion is carried by the moving highlight, not by the rotation.
+       This is a flat picture, so the more it actually turns the more the eye
+       catches that the facets never change shape — past about 8° it stops
+       reading as a solid object and starts reading as a tilting image. Keep
+       the angle small and let the sheen and the leaning shadow do the work. */
+    const MAX_TILT = 6.5;  // degrees at the far edge
+    const EASE = 0.12;     // how fast the rendered angle chases the target
+
+    let tx = 0, ty = 0;    // where the pointer wants it
+    let cx = 0, cy = 0;    // where it currently is
+    let frame = 0, settled = true;
+
+    const render = () => {
+      cx += (tx - cx) * EASE;
+      cy += (ty - cy) * EASE;
+
+      crystal.style.transform =
+        `rotateY(${cx * MAX_TILT}deg) rotateX(${-cy * MAX_TILT}deg) ` +
+        `translateZ(${Math.abs(cx) + Math.abs(cy) > 0.5 ? 8 : 4}px)`;
+
+      // The highlight keeps its full travel while the rotation is held back:
+      // it's the cue that actually reads as a face turning towards the light,
+      // and unlike the rotation it costs nothing in believability.
+      sheen.style.setProperty('--sx', `${50 + cx * 46}%`);
+      sheen.style.setProperty('--sy', `${50 + cy * 46}%`);
+
+      // Green shadow leans with the crystal; the lift brightens it slightly.
+      img.style.filter =
+        `drop-shadow(${-cx * 18}px ${18 - cy * 12}px 46px rgba(63, 191, 74, ${0.3 + Math.abs(cx) * 0.2}))`;
+
+      // Stop the loop once it has effectively arrived, rather than burning a
+      // frame forever on a hundredth of a degree.
+      if (Math.abs(tx - cx) > 0.001 || Math.abs(ty - cy) > 0.001) {
+        frame = requestAnimationFrame(render);
+      } else {
+        frame = 0;
+        settled = true;
+      }
+    };
+
+    const start = () => {
+      settled = false;
+      if (!frame) frame = requestAnimationFrame(render);
+    };
+
+    addEventListener('pointermove', (e) => {
+      // -1..1 across the viewport, clamped so a wide window doesn't overshoot.
+      tx = Math.max(-1, Math.min(1, (e.clientX / innerWidth) * 2 - 1));
+      ty = Math.max(-1, Math.min(1, (e.clientY / innerHeight) * 2 - 1));
+      // Tracking beats easing while the pointer is actually moving.
+      crystal.style.transition = 'none';
+      sheen.style.opacity = '1';
+      start();
+    }, { passive: true });
+
+    // Leaving the window hands it back to the CSS easing, which settles it.
+    const rest = () => {
+      tx = ty = 0;
+      crystal.style.transition = '';
+      sheen.style.opacity = '0';
+      start();
+    };
+    // On the root element, not on window: `pointerleave` is dispatched at the
+    // element the pointer left, and window isn't one, so it never fires there.
+    document.documentElement.addEventListener('pointerleave', rest);
+    addEventListener('blur', rest);
+
+    // Nothing to animate while it's scrolled away.
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(([entry]) => {
+        if (!entry.isIntersecting && frame) {
+          cancelAnimationFrame(frame);
+          frame = 0;
+        } else if (entry.isIntersecting && !settled) {
+          start();
+        }
+      }, { threshold: 0 }).observe(crystal);
+    }
+  }
 
   /* ── nav border on scroll ──────────────────────────────────────────────── */
 
