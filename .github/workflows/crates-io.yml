@@ -62,28 +62,51 @@ jobs:
           fi
           echo "VERSION=$manifest" >> "$GITHUB_ENV"
 
-      - uses: rust-lang/crates-io-auth-action@v1
-        id: auth
-
-      - name: Publish, dependencies before dependents
+      - name: Work out whether anything needs publishing
+        id: needed
         shell: bash
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         run: |
           set -euo pipefail
-          # emeraldian depends on the other three, so it goes last. crates.io
-          # rejects a crate whose dependencies it has never seen.
           # crates.io rejects requests without a User-Agent with a 403, which
           # `curl -f` reports the same way as a 404. Sending one is the
           # difference between "already published" and "always publish".
           ua="emeraldian-release (https://github.com/iamrohithrnair/emeraldian)"
-
+          todo=""
           for crate in emeraldian-core emeraldian-theme emeraldian-agent emeraldian; do
             if curl -sfo /dev/null -A "$ua" "https://crates.io/api/v1/crates/${crate}/${VERSION}"; then
-              # Versions are immutable, so a re-run must skip rather than fail.
               echo "${crate} ${VERSION} is already published"
-              continue
+            else
+              todo="${todo} ${crate}"
             fi
+          done
+          echo "crates=${todo# }" >> "$GITHUB_OUTPUT"
+          if [ -z "$todo" ]; then
+            echo "nothing to publish"
+            echo "any=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Authenticating is itself a failure when no trusted publisher is
+      # configured yet, so it has to sit behind the check rather than in front
+      # of it. Otherwise a release with nothing left to publish fails on the
+      # step that was only ever there to enable the work being skipped.
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+        if: steps.needed.outputs.any == 'true'
+
+      - name: Publish, dependencies before dependents
+        if: steps.needed.outputs.any == 'true'
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CRATES: ${{ steps.needed.outputs.crates }}
+        run: |
+          set -euo pipefail
+          # The list is already in dependency order: emeraldian depends on the
+          # other three, and crates.io rejects a crate whose dependencies it has
+          # never seen.
+          for crate in $CRATES; do
             echo "publishing ${crate} ${VERSION}"
             cargo publish -p "${crate}"
           done

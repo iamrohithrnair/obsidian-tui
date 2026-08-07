@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/iamrohithrnair/emeraldian/main/docs/logo.png" width="84" alt="">
 
-# emeraldian
+# Emeraldian
 
 **The best TUI for Obsidian.** Your vault, the way you already know it: the
 three-pane layout, live-preview Markdown, backlinks, a force-directed graph,
@@ -47,7 +47,7 @@ worse than one that is plainly missing.
 **Cargo** (needs Rust 1.90 or newer):
 
 ```sh
-cargo install --git https://github.com/iamrohithrnair/emeraldian emeraldian
+cargo install emeraldian
 ```
 
 **Manual download.** Grab an archive from the
@@ -81,7 +81,7 @@ emeraldian                   # the vault Obsidian last had open
 emeraldian --list-vaults     # what Obsidian knows about
 ```
 
-emeraldian accepts ordinary flags and the `obsidian://` URIs the desktop app
+Emeraldian accepts ordinary flags and the `obsidian://` URIs the desktop app
 registers, so a link or script that opens Obsidian also opens this:
 
 ```sh
@@ -105,7 +105,7 @@ Settings → General → "Command line interface". The two do different jobs:
 | On a machine with no display | needs `--ozone-platform=headless` or Xvfb | runs as it is |
 
 So they complement each other rather than compete. When the `obsidian` binary is
-on your `PATH`, emeraldian uses it for the one thing only the app can do,
+on your `PATH`, Emeraldian uses it for the one thing only the app can do,
 which is handing a note to the GUI:
 
 - `/obsidian` in the assistant panel reports the CLI's status and the vaults the
@@ -113,7 +113,7 @@ which is handing a note to the GUI:
 - `/obsidian open`, or "Open this note in Obsidian" in the command palette,
   opens the current note in the desktop app.
 
-If the CLI isn't enabled, or Obsidian isn't running, emeraldian says so and
+If the CLI isn't enabled, or Obsidian isn't running, Emeraldian says so and
 carries on; nothing else depends on it.
 
 ## Keys
@@ -293,7 +293,7 @@ vault stays a plain folder of Markdown.
 
 ## Privacy
 
-**emeraldian makes no network connections unless you use the assistant.**
+**Emeraldian makes no network connections unless you use the assistant.**
 There is no telemetry, no analytics and no update check. Only the `emeraldian-agent`
 crate has an HTTP dependency at all; the vault, editor and graph cannot reach
 the network.
@@ -478,7 +478,7 @@ git push origin v0.3.0
 ## Credits
 
 This project exists because four other people published their work first. None
-of their code is in here (emeraldian is written from scratch), but every one
+of their code is in here (Emeraldian is written from scratch), but every one
 of them showed me something I'd otherwise have had to guess at, and the good
 ideas are theirs.
 
@@ -515,7 +515,7 @@ GPL anyway. The debt is one of ideas, and it's a real one.
 
 ## Trademark
 
-emeraldian is an independent, community-made tool. It is not affiliated with,
+Emeraldian is an independent, community-made tool. It is not affiliated with,
 endorsed by, or sponsored by Obsidian or Dynalist Inc. Obsidian is a trademark
 of Dynalist Inc., used here only to describe what this tool works with.
 
@@ -523,7 +523,7 @@ of Dynalist Inc., used here only to describe what this tool works with.
 
 Copyright (C) 2026 Rohith Nair.
 
-emeraldian is free software: you can redistribute it and/or modify it under
+Emeraldian is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
 Foundation, either version 3 of the License, or (at your option) any later
 version. See [LICENSE](LICENSE).
