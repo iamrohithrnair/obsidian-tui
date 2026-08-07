@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/emeraldian-core", "crates/emeraldian-theme", "crates/emeraldian-agent", "crates/emeraldian"]
 
 [workspace.package]
-version = "0.4.0"
+version = "0.4.1"
 edition = "2024"
 # Set by the dependency chain, not by this code: ratatui-image pulls
 # icy_sixel, which pins quantette 0.5.1, which requires 1.90.
@@ -19,9 +19,9 @@ keywords = ["obsidian", "tui", "notes", "markdown", "graph"]
 categories = ["command-line-utilities", "text-editors"]
 
 [workspace.dependencies]
-emeraldian-core = { path = "crates/emeraldian-core", version = "0.4.0" }
-emeraldian-theme = { path = "crates/emeraldian-theme", version = "0.4.0" }
-emeraldian-agent = { path = "crates/emeraldian-agent", version = "0.4.0" }
+emeraldian-core = { path = "crates/emeraldian-core", version = "0.4.1" }
+emeraldian-theme = { path = "crates/emeraldian-theme", version = "0.4.1" }
+emeraldian-agent = { path = "crates/emeraldian-agent", version = "0.4.1" }
 
 ratatui = "0.30"
 crossterm = "0.29"
