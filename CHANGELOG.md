@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] — 2026-08-07
+
+A packaging release. Nothing about using the app has changed.
+
+### Changed
+
+- **The library crates are named after the project**: `emeraldian-core`,
+  `emeraldian-theme` and `emeraldian-agent`, where they were `otui-*`. They are
+  about to go on crates.io, and a crate name cannot be changed or reclaimed once
+  it is taken, so this was cheap now and impossible later.
+- Two things deliberately kept their old names. Thread names read
+  `emerald-agent` rather than `emeraldian-agent`, because Linux caps a thread
+  name at 15 bytes and refuses anything longer, which would have left those
+  threads nameless in a debugger. And `OTUI_BIN_DIR`, `OTUI_VERSION`,
+  `OTUI_STATE_FILE` and `OTUI_CA_BUNDLE` keep their prefix, because they may
+  already be exported in someone's shell profile and renaming them would not
+  fail loudly, it would quietly ignore what they had set.
+
+### Added
+
+- The crates carry the metadata crates.io displays: repository, homepage,
+  keywords and categories. They had none, and a published version is immutable.
+- `.github/workflows/crates-io.yml`, publishing on a release tag through OIDC
+  trusted publishing rather than a stored token.
+
 ## [0.4.0] — 2026-08-07
 
 The release that renames the project. A minor bump rather than a patch: the
@@ -406,6 +431,7 @@ First release.
 - Unreadable vaults are reported clearly, including the macOS privacy
   permission that usually causes it.
 
+[0.4.1]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.4.1
 [0.4.0]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.4.0
 [0.3.1]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.3.1
 [0.3.0]: https://github.com/iamrohithrnair/emeraldian/releases/tag/v0.3.0
