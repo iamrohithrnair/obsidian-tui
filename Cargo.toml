@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/otui-core", "crates/otui-theme", "crates/otui-agent", "crates/emeraldian"]
+members = ["crates/emeraldian-core", "crates/emeraldian-theme", "crates/emeraldian-agent", "crates/emeraldian"]
 
 [workspace.package]
 version = "0.4.0"
@@ -10,14 +10,18 @@ edition = "2024"
 rust-version = "1.90"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/iamrohithrnair/emeraldian"
-description = "emeraldian — a terminal UI for your Obsidian vault: notes, live-preview markdown, backlinks and a force-directed graph"
+homepage = "https://emeraldian-tui.github.io"
+# Not prefixed with the crate's own name: crates.io prints the name directly
+# above this, and repeating it wastes the line people actually read.
+description = "A terminal UI for your Obsidian vault: notes, live-preview markdown, backlinks and a force-directed graph"
+# Five is the maximum crates.io accepts.
 keywords = ["obsidian", "tui", "notes", "markdown", "graph"]
 categories = ["command-line-utilities", "text-editors"]
 
 [workspace.dependencies]
-otui-core = { path = "crates/otui-core", version = "0.4.0" }
-otui-theme = { path = "crates/otui-theme", version = "0.4.0" }
-otui-agent = { path = "crates/otui-agent", version = "0.4.0" }
+emeraldian-core = { path = "crates/emeraldian-core", version = "0.4.0" }
+emeraldian-theme = { path = "crates/emeraldian-theme", version = "0.4.0" }
+emeraldian-agent = { path = "crates/emeraldian-agent", version = "0.4.0" }
 
 ratatui = "0.30"
 crossterm = "0.29"

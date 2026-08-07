@@ -6,7 +6,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph, Widget};
 
-use otui_theme::Palette;
+use emeraldian_theme::Palette;
 
 use crate::app::App;
 use crate::modal::{Confirm, Modal, Picker, Prompt};
@@ -394,7 +394,7 @@ mod tests {
     fn a_long_shortcut_is_not_clipped_by_the_scrollbar() {
         use crate::app::App;
         use crate::config::Config;
-        use otui_core::test_support::TempVault;
+        use emeraldian_core::test_support::TempVault;
         use ratatui::Terminal;
         use ratatui::backend::TestBackend;
 

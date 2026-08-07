@@ -336,10 +336,10 @@ fn follow_first_link(app: &mut App) {
     let Some(id) = app.active_note() else { return };
     let target = app.index.note(id).and_then(|note| {
         note.links.iter().find_map(|link| match &link.target {
-            otui_core::index::LinkTarget::Note(target) => {
+            emeraldian_core::index::LinkTarget::Note(target) => {
                 app.index.note(*target).map(|n| n.meta.rel.clone())
             }
-            otui_core::index::LinkTarget::Unresolved(name) => Some(name.clone()),
+            emeraldian_core::index::LinkTarget::Unresolved(name) => Some(name.clone()),
             _ => None,
         })
     });
@@ -660,12 +660,12 @@ fn handle_graph(app: &mut App, key: KeyEvent) {
                     .map(|node| (node.kind.clone(), node.label.clone()))
             });
             match target {
-                Some((otui_core::graph::NodeKind::Note(id), _)) => {
+                Some((emeraldian_core::graph::NodeKind::Note(id), _)) => {
                     dispatch(app, Action::OpenNote(id));
                 }
                 // Opening an unresolved node creates the note it stands for,
                 // which is the whole point of showing them.
-                Some((otui_core::graph::NodeKind::Unresolved, label)) => {
+                Some((emeraldian_core::graph::NodeKind::Unresolved, label)) => {
                     dispatch(app, Action::FollowLink(label));
                 }
                 _ => app.info("select a node first; Tab cycles through them"),
@@ -690,7 +690,7 @@ fn handle_graph(app: &mut App, key: KeyEvent) {
 mod tests {
     use super::*;
     use crate::config::Config;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
 
     fn key(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::empty())
@@ -1067,7 +1067,7 @@ mod chat_command_tests {
     use super::*;
     use crate::agent::Entry;
     use crate::config::Config;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
 
     fn app() -> (TempVault, App) {
         let vault = TempVault::new("chat-keys");
@@ -1245,7 +1245,7 @@ mod chat_command_tests {
 mod binding_tests {
     use super::*;
     use crate::config::Config;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
 
     fn graph_app() -> (TempVault, App) {
         let vault = TempVault::new("bindings");
@@ -1266,7 +1266,7 @@ mod binding_tests {
         let (_v, mut app) = graph_app();
         {
             let graph = app.graph.as_mut().expect("graph");
-            graph.center = otui_core::graph::Vec2::new(9_999.0, 9_999.0);
+            graph.center = emeraldian_core::graph::Vec2::new(9_999.0, 9_999.0);
             graph.zoom = 8.0;
         }
 
@@ -1336,7 +1336,7 @@ mod binding_tests {
             let graph = app.graph.as_ref().unwrap();
             graph.simulation.graph.nodes[graph.selected.unwrap()].pos
         };
-        app.graph.as_mut().unwrap().center = otui_core::graph::Vec2::new(500.0, 500.0);
+        app.graph.as_mut().unwrap().center = emeraldian_core::graph::Vec2::new(500.0, 500.0);
 
         press(&mut app, 'c');
 
@@ -1373,10 +1373,10 @@ mod binding_tests {
             let graph = app.graph.as_mut().unwrap();
             graph
                 .simulation
-                .drag(0, otui_core::graph::Vec2::new(0.0, 0.0));
+                .drag(0, emeraldian_core::graph::Vec2::new(0.0, 0.0));
             graph
                 .simulation
-                .drag(1, otui_core::graph::Vec2::new(30.0, 0.0));
+                .drag(1, emeraldian_core::graph::Vec2::new(30.0, 0.0));
             graph.selected = Some(0);
         }
         let center = app.graph.as_ref().unwrap().center;
@@ -1486,7 +1486,7 @@ mod binding_tests {
         app.focus = Focus::Explorer;
 
         let start = app.explorer.sort();
-        for _ in 0..otui_core::sort::SortOrder::ALL.len() {
+        for _ in 0..emeraldian_core::sort::SortOrder::ALL.len() {
             press(&mut app, 's');
         }
         assert_eq!(app.explorer.sort(), start, "a full cycle should come home");

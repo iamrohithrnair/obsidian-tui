@@ -6,7 +6,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 
-use otui_theme::Palette;
+use emeraldian_theme::Palette;
 
 use crate::app::{App, Focus, Regions, SidePanel};
 use crate::explorer::Row;
@@ -354,7 +354,7 @@ pub fn sidebar_targets(app: &App) -> Vec<SidebarTarget> {
 pub enum SidebarTarget {
     /// Scroll the note to a file line.
     Heading(usize),
-    Note(otui_core::index::NoteId),
+    Note(emeraldian_core::index::NoteId),
     Tag(String),
 }
 
@@ -362,8 +362,8 @@ pub enum SidebarTarget {
 mod tests {
     use super::*;
     use crate::config::Config;
-    use otui_core::test_support::TempVault;
-    use otui_theme::presets;
+    use emeraldian_core::test_support::TempVault;
+    use emeraldian_theme::presets;
 
     fn app_with(content: &str) -> (TempVault, App) {
         let vault = TempVault::new("panes");

@@ -10,10 +10,10 @@ use std::path::PathBuf;
 
 use ratatui::layout::Rect;
 
-use otui_core::graph::{Graph, GraphOptions, Simulation, Vec2};
-use otui_core::index::{NoteId, VaultIndex};
-use otui_core::vault::{ScanOptions, Vault};
-use otui_theme::{ActiveTheme, presets};
+use emeraldian_core::graph::{Graph, GraphOptions, Simulation, Vec2};
+use emeraldian_core::index::{NoteId, VaultIndex};
+use emeraldian_core::vault::{ScanOptions, Vault};
+use emeraldian_theme::{ActiveTheme, presets};
 
 use crate::agent::Chat;
 use crate::config::Config;
@@ -339,7 +339,7 @@ pub struct App {
     pub config: Config,
     pub theme: ActiveTheme,
     /// Every theme available in the picker, built-ins plus user files.
-    pub themes: Vec<otui_theme::Theme>,
+    pub themes: Vec<emeraldian_theme::Theme>,
 
     pub explorer: Explorer,
     pub tabs: Vec<Tab>,
@@ -854,7 +854,7 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
 
     fn app(vault: &TempVault) -> App {
         App::new(vault.vault(), Config::default()).expect("build app")

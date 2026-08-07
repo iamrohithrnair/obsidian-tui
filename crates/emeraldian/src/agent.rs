@@ -8,7 +8,7 @@
 
 use std::sync::mpsc::TryRecvError;
 
-use otui_agent::{AgentEvent, Message, Runner, ToolRequests, Usage};
+use emeraldian_agent::{AgentEvent, Message, Runner, ToolRequests, Usage};
 use serde::{Deserialize, Serialize};
 
 use crate::app::App;
@@ -255,16 +255,16 @@ pub fn send(app: &mut App) {
 
     let (tool_tx, tool_rx) = std::sync::mpsc::channel();
     let specs = crate::tools::specs(app.config.agent.allow_writes);
-    let host = otui_agent::ChannelToolHost::new(specs, tool_tx);
+    let host = emeraldian_agent::ChannelToolHost::new(specs, tool_tx);
 
-    let provider = otui_agent::build_provider_with_key(
+    let provider = emeraldian_agent::build_provider_with_key(
         &app.config.agent.provider_kind(),
         app.config.agent.base_url.as_deref(),
         Some(&app.config.agent.model()),
         crate::auth::key_for(&app.config.agent.provider, &app.auth),
     );
 
-    let runner = otui_agent::spawn(
+    let runner = emeraldian_agent::spawn(
         provider,
         app.config.agent.to_session_config(),
         system_prompt(app),
@@ -398,7 +398,7 @@ Existing tags: {tag_list}",
 pub fn ready(app: &App) -> bool {
     let provider = &app.config.agent.provider;
     let key = crate::auth::key_for(provider, &app.auth);
-    otui_agent::has_credentials(
+    emeraldian_agent::has_credentials(
         &app.config.agent.provider_kind(),
         app.config.agent.base_url.as_deref(),
         key.as_deref(),
@@ -430,7 +430,7 @@ impl Lookup {
     /// Replaces any request already in flight; the old one's answer is dropped
     /// when its channel closes.
     pub fn start(&mut self, provider: &str, api_key: Option<String>, base_url: Option<String>) {
-        let Some(preset) = otui_agent::catalog::find(provider) else {
+        let Some(preset) = emeraldian_agent::catalog::find(provider) else {
             return;
         };
         let (tx, rx) = std::sync::mpsc::channel();
@@ -438,11 +438,16 @@ impl Lookup {
         self.provider = provider.to_string();
 
         std::thread::Builder::new()
-            .name("otui-models".into())
+            // Linux caps a thread name at 15 bytes and refuses anything longer,
+            // so this is deliberately shorter than the crate name.
+            .name("emerald-models".into())
             .spawn(move || {
-                let result =
-                    otui_agent::catalog::models(preset, api_key.as_deref(), base_url.as_deref())
-                        .map_err(|err| err.to_string());
+                let result = emeraldian_agent::catalog::models(
+                    preset,
+                    api_key.as_deref(),
+                    base_url.as_deref(),
+                )
+                .map_err(|err| err.to_string());
                 // Nobody left to tell means the app moved on, which is fine.
                 let _ = tx.send(result);
             })
@@ -472,7 +477,7 @@ impl Lookup {
 mod tests {
     use super::*;
     use crate::config::Config;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
 
     fn app() -> (TempVault, App) {
         let vault = TempVault::new("chat");

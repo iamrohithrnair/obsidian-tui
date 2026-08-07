@@ -1,9 +1,13 @@
 [package]
-name = "otui-agent"
+name = "emeraldian-agent"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Streaming LLM agent runtime with tool calling, for emeraldian"
 
 [dependencies]

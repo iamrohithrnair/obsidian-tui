@@ -4,7 +4,7 @@
 //! sidebar clicks and the agent all go through it, so there is a single
 //! definition of what each command means.
 
-use otui_core::search;
+use emeraldian_core::search;
 
 use crate::app::{Action, App, Focus, Mode, View};
 use crate::modal::{Confirm, Entry, Modal, Picker, PickerKind, Prompt, PromptIntent};
@@ -110,7 +110,7 @@ fn cycle_sort_order(app: &mut App) {
 /// palette belongs in the status bar while one made with `/provider` belongs in
 /// the transcript beside the command that caused it.
 pub(crate) fn set_provider(app: &mut App, name: &str) -> Result<String, String> {
-    let Some(preset) = otui_agent::catalog::find(name) else {
+    let Some(preset) = emeraldian_agent::catalog::find(name) else {
         return Err(format!(
             "unknown provider '{name}'; /provider with no name lists them"
         ));
@@ -122,7 +122,7 @@ pub(crate) fn set_provider(app: &mut App, name: &str) -> Result<String, String> 
 
     let key = crate::auth::key_for(preset.id, &app.auth);
     Ok(
-        if otui_agent::has_credentials(&preset.kind, preset.base_url, key.as_deref()) {
+        if emeraldian_agent::has_credentials(&preset.kind, preset.base_url, key.as_deref()) {
             format!("{} · /model to choose one", preset.label)
         } else if let Some(env_var) = preset.env_var {
             format!(
@@ -138,11 +138,11 @@ pub(crate) fn set_provider(app: &mut App, name: &str) -> Result<String, String> 
 /// Asks the current provider for its models, to fill a picker with.
 fn ask_for_models(app: &mut App) {
     let provider = app.config.agent.provider.clone();
-    let Some(preset) = otui_agent::catalog::find(&provider) else {
+    let Some(preset) = emeraldian_agent::catalog::find(&provider) else {
         app.error(format!("unknown provider '{provider}'"));
         return;
     };
-    if preset.kind == otui_agent::ProviderKind::Offline {
+    if preset.kind == emeraldian_agent::ProviderKind::Offline {
         app.info("no provider is set; /provider picks one");
         return;
     }
@@ -422,7 +422,7 @@ pub fn dispatch(app: &mut App, action: Action) {
             app.modal = Some(Modal::Picker(Picker::new(PickerKind::Themes, entries)));
         }
         Action::OpenVaultPicker => {
-            let mut entries: Vec<Entry> = otui_core::vault::discover()
+            let mut entries: Vec<Entry> = emeraldian_core::vault::discover()
                 .into_iter()
                 .map(|vault| {
                     Entry::new(
@@ -444,7 +444,7 @@ pub fn dispatch(app: &mut App, action: Action) {
         Action::OpenHelp => app.modal = Some(Modal::Help(0)),
         Action::OpenProviderPicker => {
             let current = app.config.agent.provider.clone();
-            let entries = otui_agent::catalog::PRESETS
+            let entries = emeraldian_agent::catalog::PRESETS
                 .iter()
                 .map(|preset| {
                     // The key's whereabouts is the thing people are actually
@@ -466,7 +466,7 @@ pub fn dispatch(app: &mut App, action: Action) {
         Action::OpenModelPicker => ask_for_models(app),
         Action::PromptApiKey => {
             let provider = app.config.agent.provider.clone();
-            match otui_agent::catalog::find(&provider) {
+            match emeraldian_agent::catalog::find(&provider) {
                 Some(preset) if preset.env_var.is_none() => app.info(format!(
                     "{} needs no API key; /base-url points at it instead",
                     preset.label
@@ -634,7 +634,7 @@ pub fn submit_prompt(app: &mut App, prompt: Prompt) {
 
 /// Keeps a typed-in API key, or forgets it when the prompt was left empty.
 fn store_key(app: &mut App, provider: &str, key: &str) {
-    let label = otui_agent::catalog::find(provider).map_or(provider, |preset| preset.label);
+    let label = emeraldian_agent::catalog::find(provider).map_or(provider, |preset| preset.label);
     app.auth.set(provider, key);
 
     if let Err(err) = app.auth.save() {
@@ -698,7 +698,7 @@ pub fn update_search(app: &mut App) {
 mod tests {
     use super::*;
     use crate::config::Config;
-    use otui_core::test_support::TempVault;
+    use emeraldian_core::test_support::TempVault;
 
     fn app() -> (TempVault, App) {
         let vault = TempVault::new("actions");

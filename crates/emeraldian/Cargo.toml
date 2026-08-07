@@ -4,12 +4,16 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "emeraldian"
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description.workspace = true
 
 [dependencies]
-otui-core.workspace = true
-otui-theme.workspace = true
-otui-agent.workspace = true
+emeraldian-core.workspace = true
+emeraldian-theme.workspace = true
+emeraldian-agent.workspace = true
 ratatui.workspace = true
 ratatui-image.workspace = true
 image.workspace = true
@@ -23,4 +27,4 @@ serde_json.workspace = true
 
 [dev-dependencies]
 lz-str.workspace = true
-otui-core = { workspace = true, features = ["test-support"] }
+emeraldian-core = { workspace = true, features = ["test-support"] }

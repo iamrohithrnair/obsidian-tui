@@ -14,10 +14,10 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 use ratatui_image::sliced::{SignedPosition, SlicedImage};
 
-use otui_core::excalidraw;
-use otui_core::index::VaultIndex;
-use otui_core::markdown::{self, Align, Block, BlockKind, Marker, SpanKind, Table};
-use otui_theme::Palette;
+use emeraldian_core::excalidraw;
+use emeraldian_core::index::VaultIndex;
+use emeraldian_core::markdown::{self, Align, Block, BlockKind, Marker, SpanKind, Table};
+use emeraldian_theme::Palette;
 
 use crate::app::{App, Mode, Regions};
 use crate::editor::{Cursor, Row};
@@ -755,7 +755,7 @@ fn shift(pictures: &mut [Picture], lines: usize, indent: u16) {
 fn style_spans(
     spans: &[markdown::Span],
     palette: &Palette,
-    index: &otui_core::index::VaultIndex,
+    index: &emeraldian_core::index::VaultIndex,
 ) -> Vec<(String, Style)> {
     spans
         .iter()
@@ -1532,8 +1532,8 @@ fn task(rest: &str) -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use otui_core::test_support::TempVault;
-    use otui_theme::{Palette, presets};
+    use emeraldian_core::test_support::TempVault;
+    use emeraldian_theme::{Palette, presets};
 
     fn palette() -> Palette {
         Palette::from(&presets::default_theme())

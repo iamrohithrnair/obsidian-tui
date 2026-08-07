@@ -110,7 +110,7 @@ fn apply_uri(uri: &str, args: &mut Args) -> Result<(), ParseError> {
     if let Some(path) = get("path") {
         args.vault = Some(PathBuf::from(path));
     } else if let Some(name) = get("vault") {
-        let found = otui_core::vault::discover()
+        let found = emeraldian_core::vault::discover()
             .into_iter()
             .find(|v| v.name == name || v.path.to_string_lossy() == name);
         match found {

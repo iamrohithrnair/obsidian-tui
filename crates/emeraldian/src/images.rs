@@ -414,7 +414,9 @@ fn spawn_worker() -> Worker {
     let (tx, done) = mpsc::channel();
 
     std::thread::Builder::new()
-        .name("otui-images".into())
+        // Linux caps a thread name at 15 bytes and refuses anything longer,
+        // so this is deliberately shorter than the crate name.
+        .name("emerald-images".into())
         .spawn(move || {
             for job in rx {
                 let (path, width, height) = &job.key;

@@ -168,7 +168,8 @@ mod tests {
 
     #[test]
     fn custom_theme_inherits_unset_slots() {
-        let dir = std::env::temp_dir().join(format!("otui-theme-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("emeraldian-theme-test-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("create temp dir");
         fs::write(
             dir.join("mine.toml"),
@@ -188,7 +189,7 @@ mod tests {
 
     #[test]
     fn missing_custom_dir_is_not_an_error() {
-        let (themes, errors) = load_custom(Path::new("/nonexistent/otui/themes"));
+        let (themes, errors) = load_custom(Path::new("/nonexistent/emeraldian/themes"));
         assert!(themes.is_empty());
         assert!(errors.is_empty());
     }

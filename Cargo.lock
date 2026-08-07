@@ -600,17 +600,47 @@ dependencies = [
  "anyhow",
  "crossterm",
  "dirs",
+ "emeraldian-agent",
+ "emeraldian-core",
+ "emeraldian-theme",
  "image",
  "lz-str",
- "otui-agent",
- "otui-core",
- "otui-theme",
  "ratatui",
  "ratatui-image",
  "serde",
  "serde_json",
  "toml",
  "unicode-width",
+]
+
+[[package]]
+name = "emeraldian-agent"
+version = "0.4.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "ureq",
+]
+
+[[package]]
+name = "emeraldian-core"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "lz-str",
+ "serde",
+ "serde_json",
+ "unicode-width",
+]
+
+[[package]]
+name = "emeraldian-theme"
+version = "0.4.0"
+dependencies = [
+ "ratatui",
+ "serde",
+ "toml",
 ]
 
 [[package]]
@@ -1511,36 +1541,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7d950ca161dc355eaf28f82b11345ed76c6e1f6eb1f4f4479e0323b9e2fbd0e"
 dependencies = [
  "num-traits",
-]
-
-[[package]]
-name = "otui-agent"
-version = "0.4.0"
-dependencies = [
- "serde",
- "serde_json",
- "ureq",
-]
-
-[[package]]
-name = "otui-core"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "dirs",
- "lz-str",
- "serde",
- "serde_json",
- "unicode-width",
-]
-
-[[package]]
-name = "otui-theme"
-version = "0.4.0"
-dependencies = [
- "ratatui",
- "serde",
- "toml",
 ]
 
 [[package]]

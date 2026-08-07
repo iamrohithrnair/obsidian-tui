@@ -6,7 +6,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph, Widget};
 
-use otui_theme::Palette;
+use emeraldian_theme::Palette;
 
 use crate::agent::{Entry, ToolStatus};
 use crate::app::{App, Focus};
@@ -48,10 +48,10 @@ fn title(app: &App) -> String {
         return "Assistant  ·  working…".to_string();
     }
     let provider = &app.config.agent.provider;
-    let Some(preset) = otui_agent::catalog::find(provider) else {
+    let Some(preset) = emeraldian_agent::catalog::find(provider) else {
         return format!("Assistant  ·  {provider}?");
     };
-    if preset.kind == otui_agent::ProviderKind::Offline {
+    if preset.kind == emeraldian_agent::ProviderKind::Offline {
         return "Assistant  ·  no model — /provider".to_string();
     }
     if !crate::agent::ready(app) {
@@ -334,8 +334,8 @@ fn draw_input(frame: &mut Frame, app: &App, palette: &Palette, area: Rect, focus
 mod tests {
     use super::*;
     use crate::config::Config;
-    use otui_core::test_support::TempVault;
-    use otui_theme::presets;
+    use emeraldian_core::test_support::TempVault;
+    use emeraldian_theme::presets;
 
     fn app() -> (TempVault, App) {
         let vault = TempVault::new("ui-chat");
